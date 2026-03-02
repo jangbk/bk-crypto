@@ -129,13 +129,20 @@ export async function GET() {
   }
 
   try {
-    // Fetch BTC price and all ETF prices in parallel
-    const [btcData, ...etfResults] = await Promise.all([
-      fetchBtcPrice(),
-      ...ETF_TICKERS.map((etf) => fetchYahooChart(etf.ticker)),
-    ]);
-
+    // Fetch BTC price first
+    const btcData = await fetchBtcPrice();
     if (!btcData || btcData.current <= 0) throw new Error("No BTC price");
+
+    // Fetch ETF prices in batches of 4 to avoid Yahoo rate limits
+    const etfResults: (ChartResult | null)[] = [];
+    for (let i = 0; i < ETF_TICKERS.length; i += 4) {
+      const batch = ETF_TICKERS.slice(i, i + 4);
+      if (i > 0) await new Promise((r) => setTimeout(r, 300));
+      const results = await Promise.all(
+        batch.map((etf) => fetchYahooChart(etf.ticker)),
+      );
+      etfResults.push(...results);
+    }
 
     const successCount = etfResults.filter((r) => r !== null).length;
     if (successCount === 0) throw new Error("No ETF data from Yahoo");
