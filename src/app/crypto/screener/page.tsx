@@ -33,6 +33,7 @@ type SortKey =
   | "total_volume";
 
 function formatCurrency(value: number): string {
+  if (value == null || Number.isNaN(value)) return "$0";
   if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
   if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
   if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
@@ -41,6 +42,7 @@ function formatCurrency(value: number): string {
 }
 
 function formatPrice(price: number): string {
+  if (price == null || Number.isNaN(price)) return "$0";
   if (price >= 1000) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   if (price >= 1) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   if (price >= 0.001) return `$${price.toFixed(4)}`;

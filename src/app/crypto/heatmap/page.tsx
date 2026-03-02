@@ -58,6 +58,7 @@ function getHeatColor(change: number): string {
 }
 
 function formatPrice(price: number): string {
+  if (price == null || Number.isNaN(price)) return "$0";
   if (price >= 1000) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   if (price >= 1) return `$${price.toFixed(2)}`;
   if (price >= 0.001) return `$${price.toFixed(4)}`;
@@ -65,6 +66,7 @@ function formatPrice(price: number): string {
 }
 
 function formatMarketCap(value: number): string {
+  if (value == null || Number.isNaN(value)) return "$0";
   if (value >= 1e12) return `$${(value / 1e12).toFixed(1)}T`;
   if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
   if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;

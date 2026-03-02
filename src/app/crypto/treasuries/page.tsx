@@ -154,6 +154,7 @@ const SUPPLIES: Record<Tab, number> = { bitcoin: BTC_MINED, ethereum: 120_200_00
 const SYMBOLS: Record<Tab, string> = { bitcoin: "BTC", ethereum: "ETH", solana: "SOL", xrp: "XRP" };
 
 function formatCurrency(value: number): string {
+  if (value == null || Number.isNaN(value)) return "$0";
   if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
   if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
   if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
@@ -161,6 +162,7 @@ function formatCurrency(value: number): string {
 }
 
 function formatAmount(value: number): string {
+  if (value == null || Number.isNaN(value)) return "0";
   if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
   if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
   return value.toLocaleString();

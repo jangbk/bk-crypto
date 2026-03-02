@@ -42,11 +42,11 @@ export default function IndexesPage() {
           const mapped: IndexData[] = json.data.map((d: { symbol: string; name: string; price: number; change: number; changeAbs: number; high52w: number; low52w: number; pe: number }) => ({
             symbol: d.symbol,
             name: d.name,
-            price: d.price,
-            change: d.change,
-            changeAbs: d.changeAbs,
-            high52w: d.high52w,
-            low52w: d.low52w,
+            price: d.price || 0,
+            change: d.change || 0,
+            changeAbs: d.changeAbs || 0,
+            high52w: d.high52w || 0,
+            low52w: d.low52w || 0,
             pe: d.pe || 0,
           }));
           setIndexes(mapped);
