@@ -1,4 +1,5 @@
 export function formatCurrency(value: number, decimals?: number): string {
+  if (value == null || Number.isNaN(value)) return "$0.00";
   if (Math.abs(value) >= 1e12) {
     return `$${(value / 1e12).toFixed(2)}T`;
   }
@@ -20,6 +21,7 @@ export function formatCurrency(value: number, decimals?: number): string {
 }
 
 export function formatPercent(value: number, decimals = 2): string {
+  if (value == null || Number.isNaN(value)) return "+0.00%";
   const sign = value >= 0 ? "+" : "";
   return `${sign}${value.toFixed(decimals)}%`;
 }

@@ -408,12 +408,12 @@ export default function DashboardPage() {
                         </td>
                         <td
                           className={`py-3 pr-4 text-right font-mono ${
-                            asset.price_change_percentage_24h >= 0
+                            (asset.price_change_percentage_24h ?? 0) >= 0
                               ? "text-positive"
                               : "text-negative"
                           }`}
                         >
-                          {formatPercent(asset.price_change_percentage_24h)}
+                          {formatPercent(asset.price_change_percentage_24h ?? 0)}
                         </td>
                         <td
                           className={`py-3 pr-4 text-right font-mono ${
