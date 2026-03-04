@@ -286,6 +286,76 @@ async function fetchTop200NaverData(): Promise<NaverStock[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Naver Finance 상한가/하한가 — scrape sise_upper / sise_lower (전 종목)
+// ---------------------------------------------------------------------------
+interface NaverLimitStock {
+  code: string;
+  name: string;
+  market: "KOSPI" | "KOSDAQ";
+  close: number;
+  changeRate: number;
+  volume: number;
+  date: string;
+}
+
+async function fetchNaverLimitStocks(
+  type: "upper" | "lower",
+): Promise<NaverLimitStock[]> {
+  try {
+    const url = `https://finance.naver.com/sise/sise_${type}.naver`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) throw new Error(`Naver sise_${type} ${res.status}`);
+
+    // Page is EUC-KR encoded
+    const buf = await res.arrayBuffer();
+    const html = new TextDecoder("euc-kr").decode(buf);
+    const clean = html.replace(/\s+/g, " ");
+
+    // Find KOSPI / KOSDAQ section boundaries
+    const kospiPos = clean.indexOf('<h4 class="top_tlt">코스피</h4>');
+    const kosdaqPos = clean.indexOf('<h4 class="top_tlt">코스닥</h4>');
+
+    // Pattern: code, name, price, change, rate%, volume
+    const pattern =
+      /code=(\d{6})">([^<]+)<\/a><\/td> <td class="number"[^>]*>([\d,]+)<\/td> <td[^>]*>.*?<span[^>]*> ([+-]?[\d,.]+) <\/span> <\/td> <td[^>]*> <span[^>]*> ([+-]?[\d.]+%) <\/span> <\/td>.*?<td class="number"[^>]*>([\d,]+)<\/td>/g;
+
+    const today = new Date().toISOString().split("T")[0];
+    const stocks: NaverLimitStock[] = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = pattern.exec(clean)) !== null) {
+      const [, code, name, priceStr, , rateStr, volStr] = match;
+      const market: "KOSPI" | "KOSDAQ" =
+        kosdaqPos > 0 && match.index >= kosdaqPos ? "KOSDAQ" : "KOSPI";
+
+      stocks.push({
+        code,
+        name: name.trim(),
+        market,
+        close: parseNaverNumber(priceStr),
+        changeRate: parseFloat(rateStr),
+        volume: parseNaverNumber(volStr),
+        date: today,
+      });
+    }
+
+    console.log(`[stock-daily] Naver sise_${type}: ${stocks.length} stocks`);
+    return stocks;
+  } catch (err) {
+    console.log(
+      `[stock-daily] Naver sise_${type} failed: ${err instanceof Error ? err.message : err}`,
+    );
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Yahoo Finance v8/chart — single ticker fetch (for US + KR cross detection)
 // ---------------------------------------------------------------------------
 async function fetchYahooChart(
@@ -836,67 +906,76 @@ async function fetchLiveData(): Promise<{
   );
 
   // Fetch all sources in parallel:
-  // - Naver Finance for ALL KR stocks (상한가/하한가/급등락)
+  // - Naver sise_upper / sise_lower for 상한가/하한가 (전 종목 스캔)
+  // - Naver Finance Top200 for 급등락 (시총 상위)
   // - Yahoo for US stocks + KR cross detection (MA requires 1mo history)
   // - ForexFactory for economic calendar
   // - Google Sheets as backup
-  const [naverData, usResults, krCrossResults, calendarData, sheetsData] =
-    await Promise.all([
-      fetchTop200NaverData(),
-      fetchBatch(ALL_US_TICKERS),
-      fetchBatch(KR_CROSS_STOCKS.map((s) => s.ticker)),
-      fetchForexFactory(),
-      fetchGoogleSheets(),
-    ]);
+  const [
+    upperStocks,
+    lowerStocks,
+    naverData,
+    usResults,
+    krCrossResults,
+    calendarData,
+    sheetsData,
+  ] = await Promise.all([
+    fetchNaverLimitStocks("upper"),
+    fetchNaverLimitStocks("lower"),
+    fetchTop200NaverData(),
+    fetchBatch(ALL_US_TICKERS),
+    fetchBatch(KR_CROSS_STOCKS.map((s) => s.ticker)),
+    fetchForexFactory(),
+    fetchGoogleSheets(),
+  ]);
 
   const hasNaver = naverData.length > 0;
   console.log(
     `[stock-daily] Naver: ${naverData.length} stocks, Yahoo US: ${usResults.size}, Yahoo KR cross: ${krCrossResults.size}`,
   );
 
-  // --- KR 상한가/하한가/급등락: from Naver (ALL stocks) or Yahoo fallback ---
-  let sanghan: SheetRow[] = [];
-  let hahan: SheetRow[] = [];
+  // --- KR 상한가/하한가: from Naver sise_upper/sise_lower (전 종목 스캔) ---
+  const isRealStock = (name: string) =>
+    !/(ETN|ETF|레버리지|인버스|KODEX|TIGER|KOSEF|KBSTAR|ARIRANG|SOL\s|PLUS\s|ACE\s|HANARO|iSelect|월간\s)/.test(name);
+
+  let sanghan: SheetRow[] = upperStocks
+    .filter((s) => isRealStock(s.name))
+    .map((s) => ({
+      날짜: s.date,
+      종목코드: s.code,
+      종목명: s.name,
+      시장: s.market,
+      종가: Math.round(s.close).toLocaleString(),
+      "등락률(%)": s.changeRate.toFixed(2),
+      거래량: formatVolumeKR(s.volume),
+      사유: "상한가 도달",
+    }));
+
+  let hahan: SheetRow[] = lowerStocks
+    .filter((s) => isRealStock(s.name))
+    .map((s) => ({
+      날짜: s.date,
+      종목코드: s.code,
+      종목명: s.name,
+      시장: s.market,
+      종가: Math.round(s.close).toLocaleString(),
+      "등락률(%)": s.changeRate.toFixed(2),
+      거래량: formatVolumeKR(s.volume),
+      사유: "하한가 도달",
+    }));
+
+  console.log(
+    `[stock-daily] Limit stocks: 상한가=${sanghan.length} (from sise_upper), 하한가=${hahan.length} (from sise_lower)`,
+  );
+
+  // --- KR 급등락: from Naver Top200 or Yahoo fallback ---
   let krMovers: SheetRow[] = [];
 
   if (hasNaver) {
-    // Filter ETN/ETF/레버리지 for cleaner results
-    const isRealStock = (name: string) =>
-      !/(ETN|ETF|레버리지|인버스|KODEX|TIGER|KOSEF|KBSTAR|ARIRANG|SOL\s|PLUS\s|ACE\s|HANARO|iSelect|월간\s)/.test(name);
-
-    // Naver: ALL KOSPI + KOSDAQ stocks
-    sanghan = naverData
-      .filter((s) => s.changeRate >= 29.5 && isRealStock(s.name))
-      .sort((a, b) => b.changeRate - a.changeRate)
-      .map((s) => ({
-        날짜: s.date,
-        종목코드: s.code,
-        종목명: s.name,
-        시장: s.market,
-        종가: Math.round(s.close).toLocaleString(),
-        "등락률(%)": s.changeRate.toFixed(2),
-        거래량: formatVolumeKR(s.volume),
-        사유: "상한가 도달",
-      }));
-
-    hahan = naverData
-      .filter((s) => s.changeRate <= -29.5 && isRealStock(s.name))
-      .sort((a, b) => a.changeRate - b.changeRate)
-      .map((s) => ({
-        날짜: s.date,
-        종목코드: s.code,
-        종목명: s.name,
-        시장: s.market,
-        종가: Math.round(s.close).toLocaleString(),
-        "등락률(%)": s.changeRate.toFixed(2),
-        거래량: formatVolumeKR(s.volume),
-        사유: "하한가 도달",
-      }));
-
     krMovers = naverData
       .filter((s) => Math.abs(s.changeRate) >= 5 && isRealStock(s.name))
       .sort((a, b) => Math.abs(b.changeRate) - Math.abs(a.changeRate))
-      .slice(0, 200) // Top 200 movers
+      .slice(0, 200)
       .map((s) => ({
         날짜: s.date,
         종목코드: s.code,
@@ -909,9 +988,7 @@ async function fetchLiveData(): Promise<{
         사유: generateNaverReason(s),
       }));
 
-    console.log(
-      `[stock-daily] Naver results: 상한가=${sanghan.length}, 하한가=${hahan.length}, 급등락=${krMovers.length}`,
-    );
+    console.log(`[stock-daily] Naver 급등락: ${krMovers.length}`);
   } else {
     // Fallback: Yahoo Finance for limited KR stocks
     console.log("[stock-daily] Naver unavailable, falling back to Yahoo for KR");
@@ -926,30 +1003,6 @@ async function fetchLiveData(): Promise<{
           종가: Math.round(data.price).toString(),
           "등락률(%)": data.change.toFixed(2),
           방향: data.change > 0 ? "급등" : "급락",
-          거래량: data.volume > 0 ? formatVolumeKR(data.volume) : "-",
-          사유: generateReason(data),
-        });
-      }
-      if (data.change >= 29.5) {
-        sanghan.push({
-          날짜: today,
-          종목코드: ticker.replace(/\.(KS|KQ)$/, ""),
-          종목명: info?.name || data.name,
-          시장: info?.market || "KOSPI",
-          종가: Math.round(data.price).toString(),
-          "등락률(%)": data.change.toFixed(2),
-          거래량: data.volume > 0 ? formatVolumeKR(data.volume) : "-",
-          사유: generateReason(data),
-        });
-      }
-      if (data.change <= -29.5) {
-        hahan.push({
-          날짜: today,
-          종목코드: ticker.replace(/\.(KS|KQ)$/, ""),
-          종목명: info?.name || data.name,
-          시장: info?.market || "KOSPI",
-          종가: Math.round(data.price).toString(),
-          "등락률(%)": data.change.toFixed(2),
           거래량: data.volume > 0 ? formatVolumeKR(data.volume) : "-",
           사유: generateReason(data),
         });
@@ -1051,17 +1104,15 @@ async function fetchLiveData(): Promise<{
     }
   }
 
-  const source = hasNaver
-    ? sheetsData
-      ? "naver+yahoo+sheets"
-      : "naver+yahoo"
-    : usResults.size > 0 || krCrossResults.size > 0
-      ? sheetsData
-        ? "yahoo+sheets"
-        : "yahoo"
-      : sheetsData
-        ? "google-sheets"
-        : "sample";
+  const hasLimitData = upperStocks.length > 0 || lowerStocks.length > 0;
+  const source = [
+    hasLimitData ? "naver-sise" : "",
+    hasNaver ? "naver-top200" : "",
+    usResults.size > 0 || krCrossResults.size > 0 ? "yahoo" : "",
+    sheetsData ? "sheets" : "",
+  ]
+    .filter(Boolean)
+    .join("+") || "sample";
 
   return { data: result, source };
 }
