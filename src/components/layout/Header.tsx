@@ -76,9 +76,9 @@ function NavDropdown({
         aria-expanded={open}
         aria-haspopup="true"
         className={cn(
-          "flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors rounded-md",
+          "flex items-center gap-1 px-3 py-2 text-sm font-bold transition-colors rounded-md",
           isActive
-            ? "text-primary"
+            ? "text-primary bg-accent"
             : "text-foreground hover:text-primary"
         )}
       >
@@ -131,7 +131,7 @@ function DesktopNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "px-3 py-2 text-sm font-medium transition-colors rounded-md",
+              "px-3 py-2 text-sm font-bold transition-colors rounded-md",
               isActive
                 ? "text-primary bg-accent"
                 : "text-foreground hover:text-primary"

@@ -116,9 +116,9 @@ function getMarketBadge(market: string): string {
       return "bg-blue-500/10 text-blue-600 dark:text-blue-400";
     case "KOSDAQ":
       return "bg-purple-500/10 text-purple-600 dark:text-purple-400";
-    case "NYSE":
+    case "다우존스":
       return "bg-green-500/10 text-green-600 dark:text-green-400";
-    case "NASDAQ":
+    case "나스닥":
       return "bg-orange-500/10 text-orange-600 dark:text-orange-400";
     default:
       return "bg-muted text-muted-foreground";
@@ -227,7 +227,7 @@ function GenericStockTable({
                   <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${row["방향"] === "급등" ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"}`}>{row["방향"]}</span>
                 </td>
               )}
-              <td className="px-3 py-3 text-right font-mono text-muted-foreground">{formatNumber(row["거래량"])}</td>
+              <td className="px-3 py-3 text-right font-mono text-muted-foreground">{row["거래량"] || "-"}</td>
               <td className="px-3 py-3 text-muted-foreground max-w-[300px] truncate">{row["사유"]}</td>
             </tr>
           ))}
@@ -502,7 +502,7 @@ export default function StockDailyPage() {
   // Market filter options based on region
   const marketOptions = region === "KR"
     ? ["전체", "KOSPI", "KOSDAQ"]
-    : ["전체", "NYSE", "NASDAQ"];
+    : ["전체", "다우존스", "나스닥"];
 
   // Is current tab an economic calendar?
   const isCalendar = activeTab === "경제일정" || activeTab === "US_경제일정";
@@ -518,8 +518,8 @@ export default function StockDailyPage() {
           </div>
           <p className="text-muted-foreground">
             {region === "KR"
-              ? "KOSPI/KOSDAQ 상한가·하한가·급등락·MA크로스 자동 분석"
-              : "NYSE/NASDAQ 급등락·MA크로스·경제일정 자동 분석"}
+              ? "KOSPI/KOSDAQ 시총 Top 200 상한가·하한가·급등락 + 주요 종목 MA크로스 분석"
+              : "다우존스 30 + 나스닥 100 급등락·MA크로스·경제일정 분석"}
           </p>
         </div>
         <div className="flex items-center gap-3">

@@ -77,7 +77,10 @@ type PriceRow = { date: string; price: number };
  */
 async function fetchCoinGecko(coinId: string, days: number): Promise<PriceRow[]> {
   const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=daily`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
   if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
   const json = await res.json();
   if (!json.prices || json.prices.length === 0) return [];
@@ -103,7 +106,10 @@ async function fetchCryptoCompare(
 
   for (let i = 0; i < maxIterations; i++) {
     const url = `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${symbol}&tsym=USD&limit=2000&toTs=${cursor}`;
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10000),
+    });
     if (!res.ok) throw new Error(`CryptoCompare ${res.status}`);
     const json = await res.json();
 
@@ -144,6 +150,7 @@ async function fetchWithKey(
   const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart/range?vs_currency=usd&from=${fromSec}&to=${toSec}`;
   const res = await fetch(url, {
     headers: { Accept: "application/json", "x-cg-demo-api-key": apiKey },
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`CoinGecko key API ${res.status}`);
   const json = await res.json();
@@ -202,41 +209,53 @@ export async function GET(req: NextRequest) {
   let prices: PriceRow[] = [];
   const hasKey = !!process.env.COINGECKO_API_KEY;
   let source = "";
+  const fromSec = Math.floor(fromMs / 1000);
+  const toSec = Math.floor(toMs / 1000);
 
+  // Strategy: CryptoCompare first (reliable, no rate limit issues),
+  // CoinGecko as fallback for better data granularity
   try {
-    if (days <= 365) {
-      source = "coingecko";
-      prices = dedup(await fetchCoinGecko(coinId, days));
-    } else if (hasKey) {
-      source = "coingecko-key";
-      const fromSec = Math.floor(fromMs / 1000);
-      const toSec = Math.floor(toMs / 1000);
-      prices = dedup(await fetchWithKey(coinId, fromSec, toSec));
-    } else {
-      source = "cryptocompare";
-      const fromSec = Math.floor(fromMs / 1000);
-      const toSec = Math.floor(toMs / 1000);
-      prices = dedup(await fetchCryptoCompare(asset, fromSec, toSec));
+    source = "cryptocompare";
+    prices = dedup(await fetchCryptoCompare(asset, fromSec, toSec));
+  } catch (primaryErr) {
+    console.log(`[dca] CryptoCompare failed for ${asset}: ${primaryErr instanceof Error ? primaryErr.message : primaryErr}`);
+
+    // Fallback: CoinGecko
+    try {
+      if (days <= 365) {
+        source = "coingecko";
+        prices = dedup(await fetchCoinGecko(coinId, days));
+      } else if (hasKey) {
+        source = "coingecko-key";
+        prices = dedup(await fetchWithKey(coinId, fromSec, toSec));
+      }
+      if (prices.length > 0) {
+        console.log(`[dca] CoinGecko fallback succeeded for ${asset}: ${prices.length} rows`);
+      }
+    } catch (fallbackErr) {
+      console.log(`[dca] CoinGecko fallback also failed: ${fallbackErr instanceof Error ? fallbackErr.message : fallbackErr}`);
     }
-  } catch (err) {
-    // Fallback: try stale cache
-    const stale = readStaleCache(path);
-    if (stale) {
-      return NextResponse.json({
-        prices: stale,
-        cached: true,
-        stale: true,
-        source: "stale-cache",
-      });
+
+    // If still no data, try stale cache
+    if (prices.length === 0) {
+      const stale = readStaleCache(path);
+      if (stale) {
+        return NextResponse.json({
+          prices: stale,
+          cached: true,
+          stale: true,
+          source: "stale-cache",
+        });
+      }
+      return NextResponse.json(
+        {
+          error: "가격 데이터 API 요청에 실패했습니다. 잠시 후 다시 시도해주세요.",
+          detail: primaryErr instanceof Error ? primaryErr.message : String(primaryErr),
+          source,
+        },
+        { status: 502 }
+      );
     }
-    return NextResponse.json(
-      {
-        error: "가격 데이터 API 요청에 실패했습니다. 잠시 후 다시 시도해주세요.",
-        detail: err instanceof Error ? err.message : String(err),
-        source,
-      },
-      { status: 502 }
-    );
   }
 
   console.log(`[dca] ${asset} raw prices: ${prices.length}, source=${source}`);
