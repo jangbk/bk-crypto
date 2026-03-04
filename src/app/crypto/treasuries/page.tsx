@@ -22,6 +22,7 @@ interface ETFHolding {
   ticker: string;
   held: number;
   aum: number;
+  flows7d: number;
   flows30d: number;
 }
 
@@ -89,13 +90,13 @@ const BTC_COMPANIES: CompanyHolding[] = [
 ];
 
 const BTC_ETFS_DEFAULT: ETFHolding[] = [
-  { name: "iShares Bitcoin Trust", ticker: "IBIT", held: 575_000, aum: 56.6e9, flows30d: 2.4e9 },
-  { name: "Grayscale Bitcoin Trust", ticker: "GBTC", held: 204_000, aum: 20.1e9, flows30d: -320e6 },
-  { name: "Fidelity Wise Origin", ticker: "FBTC", held: 200_000, aum: 19.7e9, flows30d: 840e6 },
-  { name: "ARK 21Shares", ticker: "ARKB", held: 48_000, aum: 4.73e9, flows30d: 210e6 },
-  { name: "Bitwise Bitcoin ETF", ticker: "BITB", held: 42_000, aum: 4.14e9, flows30d: 180e6 },
-  { name: "Grayscale BTC Mini", ticker: "BTC", held: 30_000, aum: 2.95e9, flows30d: 95e6 },
-  { name: "VanEck Bitcoin ETF", ticker: "HODL", held: 14_000, aum: 1.38e9, flows30d: 45e6 },
+  { name: "iShares Bitcoin Trust", ticker: "IBIT", held: 575_000, aum: 56.6e9, flows7d: 580e6, flows30d: 2.4e9 },
+  { name: "Grayscale Bitcoin Trust", ticker: "GBTC", held: 204_000, aum: 20.1e9, flows7d: -80e6, flows30d: -320e6 },
+  { name: "Fidelity Wise Origin", ticker: "FBTC", held: 200_000, aum: 19.7e9, flows7d: 200e6, flows30d: 840e6 },
+  { name: "ARK 21Shares", ticker: "ARKB", held: 48_000, aum: 4.73e9, flows7d: 50e6, flows30d: 210e6 },
+  { name: "Bitwise Bitcoin ETF", ticker: "BITB", held: 42_000, aum: 4.14e9, flows7d: 42e6, flows30d: 180e6 },
+  { name: "Grayscale BTC Mini", ticker: "BTC", held: 30_000, aum: 2.95e9, flows7d: 22e6, flows30d: 95e6 },
+  { name: "VanEck Bitcoin ETF", ticker: "HODL", held: 14_000, aum: 1.38e9, flows7d: 10e6, flows30d: 45e6 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -109,10 +110,10 @@ const ETH_COMPANIES: CompanyHolding[] = [
 ];
 
 const ETH_ETFS: ETFHolding[] = [
-  { name: "iShares Ethereum Trust", ticker: "ETHA", held: 842_000, aum: 2.77e9, flows30d: 180e6 },
-  { name: "Grayscale Ethereum Trust", ticker: "ETHE", held: 1_520_000, aum: 4.99e9, flows30d: -85e6 },
-  { name: "Fidelity Ethereum Fund", ticker: "FETH", held: 285_000, aum: 936e6, flows30d: 62e6 },
-  { name: "Bitwise Ethereum ETF", ticker: "ETHW", held: 95_000, aum: 312e6, flows30d: 28e6 },
+  { name: "iShares Ethereum Trust", ticker: "ETHA", held: 842_000, aum: 2.77e9, flows7d: 45e6, flows30d: 180e6 },
+  { name: "Grayscale Ethereum Trust", ticker: "ETHE", held: 1_520_000, aum: 4.99e9, flows7d: -20e6, flows30d: -85e6 },
+  { name: "Fidelity Ethereum Fund", ticker: "FETH", held: 285_000, aum: 936e6, flows7d: 15e6, flows30d: 62e6 },
+  { name: "Bitwise Ethereum ETF", ticker: "ETHW", held: 95_000, aum: 312e6, flows7d: 8e6, flows30d: 28e6 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -653,7 +654,8 @@ export default function CryptoTreasuriesPage() {
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">티커</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">{sym} 보유</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">AUM</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">30일 순유입</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">7일 순유출입</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">30일 순유출입</th>
                 </tr>
               </thead>
               <tbody>
@@ -663,6 +665,9 @@ export default function CryptoTreasuriesPage() {
                     <td className="px-4 py-3 text-primary">{row.ticker}</td>
                     <td className="px-4 py-3 text-right font-mono">{row.held.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right font-mono">{formatCurrency(row.aum)}</td>
+                    <td className={`px-4 py-3 text-right font-mono ${row.flows7d >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      {row.flows7d >= 0 ? "+" : ""}{formatCurrency(Math.abs(row.flows7d))}
+                    </td>
                     <td className={`px-4 py-3 text-right font-mono ${row.flows30d >= 0 ? "text-green-500" : "text-red-500"}`}>
                       {row.flows30d >= 0 ? "+" : ""}{formatCurrency(Math.abs(row.flows30d))}
                     </td>
@@ -673,6 +678,10 @@ export default function CryptoTreasuriesPage() {
                   <td className="px-4 py-3" />
                   <td className="px-4 py-3 text-right font-mono">{totalETF.toLocaleString()}</td>
                   <td className="px-4 py-3 text-right font-mono">{formatCurrency(etfs.reduce((s, e) => s + e.aum, 0))}</td>
+                  <td className={`px-4 py-3 text-right font-mono ${etfs.reduce((s, e) => s + e.flows7d, 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    {etfs.reduce((s, e) => s + e.flows7d, 0) >= 0 ? "+" : ""}
+                    {formatCurrency(Math.abs(etfs.reduce((s, e) => s + e.flows7d, 0)))}
+                  </td>
                   <td className={`px-4 py-3 text-right font-mono ${etfs.reduce((s, e) => s + e.flows30d, 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
                     {etfs.reduce((s, e) => s + e.flows30d, 0) >= 0 ? "+" : ""}
                     {formatCurrency(Math.abs(etfs.reduce((s, e) => s + e.flows30d, 0)))}
