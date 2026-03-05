@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, RefreshCw, Play, ChevronRight, Lightbulb } from "lucide-react";
+import { ExternalLink, RefreshCw, Play, ChevronRight, Lightbulb, Pencil, X, Plus, Check } from "lucide-react";
 import GaugeChart from "@/components/ui/GaugeChart";
 import SparklineChart from "@/components/ui/SparklineChart";
 import {
@@ -221,6 +221,11 @@ export default function DashboardPage() {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [latestVideo, setLatestVideo] = useState<LatestVideoData | null>(null);
 
+  // ─── Favorite Assets ────────────────────────────────────────────
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [editMode, setEditMode] = useState(false);
+  const [addCoinId, setAddCoinId] = useState("");
+
   // ─── Fetch all independent data on mount ──────────────────────
   useEffect(() => {
     async function fetchAll() {
@@ -242,6 +247,44 @@ export default function DashboardPage() {
     }
     fetchAll();
   }, []);
+
+  // ─── Initialize favoriteIds from localStorage or default top 10 ─
+  useEffect(() => {
+    if (assets.length === 0) return;
+    const stored = localStorage.getItem("favoriteAssetIds");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as string[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setFavoriteIds(parsed);
+          return;
+        }
+      } catch { /* ignore */ }
+    }
+    // Default: top 10 by market cap
+    const defaultIds = assets.slice(0, 10).map((a) => a.id);
+    setFavoriteIds(defaultIds);
+    localStorage.setItem("favoriteAssetIds", JSON.stringify(defaultIds));
+  }, [assets]);
+
+  // ─── Save favoriteIds to localStorage on change ────────────────
+  const saveFavorites = useCallback((ids: string[]) => {
+    setFavoriteIds(ids);
+    localStorage.setItem("favoriteAssetIds", JSON.stringify(ids));
+  }, []);
+
+  // ─── Filtered assets based on favoriteIds ──────────────────────
+  const filteredAssets = useMemo(() => {
+    if (favoriteIds.length === 0) return assets.slice(0, 10);
+    return favoriteIds
+      .map((id) => assets.find((a) => a.id === id))
+      .filter((a): a is CryptoAsset => a !== undefined);
+  }, [favoriteIds, assets]);
+
+  // ─── Available coins for adding (not already in favorites) ─────
+  const availableCoins = useMemo(() => {
+    return assets.filter((a) => !favoriteIds.includes(a.id));
+  }, [assets, favoriteIds]);
 
   // ─── Fetch market cap (tab-dependent) ─────────────────────────
   useEffect(() => {
@@ -340,111 +383,165 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
         {/* ──── Main Content ──────────────────────────────────── */}
         <div className="space-y-6">
-          {/* Favorite Assets Table */}
-          <section className="rounded-lg border border-border bg-card p-3 sm:p-4" aria-label="주요 자산">
+          {/* Favorite Digital Assets Table */}
+          <section className="rounded-lg border border-border bg-card p-3 sm:p-4" aria-label="즐겨찾기 디지털 자산">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Favorite Assets</h2>
-              <button
-                onClick={() => {
-                  setAssetsLoading(true);
-                  fetch("/api/crypto/prices")
-                    .then((r) => r.json())
-                    .then((j) => setAssets(j.data || []))
-                    .finally(() => setAssetsLoading(false));
-                }}
-                className="text-muted-foreground hover:text-foreground"
-                aria-label="새로고침"
-              >
-                <RefreshCw className={`h-4 w-4 ${assetsLoading ? "animate-spin" : ""}`} aria-hidden="true" />
-              </button>
+              <h2 className="text-lg font-semibold">Favorite Digital Assets</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditMode((v) => !v)}
+                  className={`p-1 rounded transition-colors ${editMode ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"}`}
+                  aria-label={editMode ? "편집 완료" : "즐겨찾기 편집"}
+                  title={editMode ? "편집 완료" : "즐겨찾기 편집"}
+                >
+                  {editMode ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                </button>
+                <button
+                  onClick={() => {
+                    setAssetsLoading(true);
+                    fetch("/api/crypto/prices")
+                      .then((r) => r.json())
+                      .then((j) => setAssets(j.data || []))
+                      .finally(() => setAssetsLoading(false));
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="새로고침"
+                >
+                  <RefreshCw className={`h-4 w-4 ${assetsLoading ? "animate-spin" : ""}`} aria-hidden="true" />
+                </button>
+              </div>
             </div>
             {assetsLoading ? (
               <TableSkeleton />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-muted-foreground">
-                      <th className="pb-3 pr-4">#</th>
-                      <th className="pb-3 pr-4">Name</th>
-                      <th className="pb-3 pr-4 text-right">Price</th>
-                      <th className="pb-3 pr-4 text-right">24h %</th>
-                      <th className="pb-3 pr-4 text-right">7d %</th>
-                      <th className="pb-3 pr-4 text-right">Market Cap</th>
-                      <th className="pb-3 text-right">Last 7 Days</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assets.slice(0, 20).map((asset, i) => (
-                      <tr
-                        key={asset.id}
-                        className="border-b border-border/50 hover:bg-muted/50 transition-colors"
-                      >
-                        <td className="py-3 pr-4 text-muted-foreground">
-                          {i + 1}
-                        </td>
-                        <td className="py-3 pr-4">
-                          <div className="flex items-center gap-2">
-                            {asset.image ? (
-                              <Image
-                                src={asset.image}
-                                alt={asset.symbol}
-                                width={24}
-                                height={24}
-                                className="h-6 w-6 rounded-full"
-                                unoptimized
+              <>
+                <div className="overflow-x-auto max-h-[520px] overflow-y-auto relative">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-card z-10">
+                      <tr className="border-b border-border text-left text-muted-foreground">
+                        <th className="pb-3 pr-4">#</th>
+                        <th className="pb-3 pr-4">Name</th>
+                        <th className="pb-3 pr-4 text-right">Price</th>
+                        <th className="pb-3 pr-4 text-right">24h %</th>
+                        <th className="pb-3 pr-4 text-right">7d %</th>
+                        <th className="pb-3 pr-4 text-right">Market Cap</th>
+                        <th className="pb-3 text-right">Last 7 Days</th>
+                        {editMode && <th className="pb-3 pl-2 w-8"></th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAssets.map((asset, i) => (
+                        <tr
+                          key={asset.id}
+                          className="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                        >
+                          <td className="py-3 pr-4 text-muted-foreground">
+                            {i + 1}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div className="flex items-center gap-2">
+                              {asset.image ? (
+                                <Image
+                                  src={asset.image}
+                                  alt={asset.symbol}
+                                  width={24}
+                                  height={24}
+                                  className="h-6 w-6 rounded-full"
+                                  unoptimized
+                                />
+                              ) : (
+                                <div className="h-6 w-6 rounded-full bg-primary/20" />
+                              )}
+                              <span className="font-medium">{asset.name}</span>
+                              <span className="text-xs text-muted-foreground uppercase">
+                                {asset.symbol}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4 text-right font-mono">
+                            {formatCurrency(asset.current_price)}
+                          </td>
+                          <td
+                            className={`py-3 pr-4 text-right font-mono ${
+                              (asset.price_change_percentage_24h ?? 0) >= 0
+                                ? "text-positive"
+                                : "text-negative"
+                            }`}
+                          >
+                            {formatPercent(asset.price_change_percentage_24h ?? 0)}
+                          </td>
+                          <td
+                            className={`py-3 pr-4 text-right font-mono ${
+                              (asset.price_change_percentage_7d_in_currency ?? 0) >= 0
+                                ? "text-positive"
+                                : "text-negative"
+                            }`}
+                          >
+                            {formatPercent(
+                              asset.price_change_percentage_7d_in_currency ?? 0
+                            )}
+                          </td>
+                          <td className="py-3 pr-4 text-right font-mono">
+                            {formatCurrency(asset.market_cap, 0)}
+                          </td>
+                          <td className="py-3 text-right">
+                            {asset.sparkline_in_7d?.price ? (
+                              <SparklineChart
+                                data={asset.sparkline_in_7d.price}
+                                width={80}
+                                height={32}
                               />
                             ) : (
-                              <div className="h-6 w-6 rounded-full bg-primary/20" />
+                              <div className="inline-block h-8 w-20 rounded bg-muted" />
                             )}
-                            <span className="font-medium">{asset.name}</span>
-                            <span className="text-xs text-muted-foreground uppercase">
-                              {asset.symbol}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 pr-4 text-right font-mono">
-                          {formatCurrency(asset.current_price)}
-                        </td>
-                        <td
-                          className={`py-3 pr-4 text-right font-mono ${
-                            (asset.price_change_percentage_24h ?? 0) >= 0
-                              ? "text-positive"
-                              : "text-negative"
-                          }`}
-                        >
-                          {formatPercent(asset.price_change_percentage_24h ?? 0)}
-                        </td>
-                        <td
-                          className={`py-3 pr-4 text-right font-mono ${
-                            (asset.price_change_percentage_7d_in_currency ?? 0) >= 0
-                              ? "text-positive"
-                              : "text-negative"
-                          }`}
-                        >
-                          {formatPercent(
-                            asset.price_change_percentage_7d_in_currency ?? 0
+                          </td>
+                          {editMode && (
+                            <td className="py-3 pl-2">
+                              <button
+                                onClick={() => saveFavorites(favoriteIds.filter((id) => id !== asset.id))}
+                                className="text-muted-foreground hover:text-negative transition-colors"
+                                aria-label={`${asset.name} 삭제`}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </td>
                           )}
-                        </td>
-                        <td className="py-3 pr-4 text-right font-mono">
-                          {formatCurrency(asset.market_cap, 0)}
-                        </td>
-                        <td className="py-3 text-right">
-                          {asset.sparkline_in_7d?.price ? (
-                            <SparklineChart
-                              data={asset.sparkline_in_7d.price}
-                              width={80}
-                              height={32}
-                            />
-                          ) : (
-                            <div className="inline-block h-8 w-20 rounded bg-muted" />
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Add coin controls (edit mode only) */}
+                {editMode && (
+                  <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+                    <select
+                      value={addCoinId}
+                      onChange={(e) => setAddCoinId(e.target.value)}
+                      className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="">코인 추가...</option>
+                      {availableCoins.map((coin) => (
+                        <option key={coin.id} value={coin.id}>
+                          {coin.name} ({coin.symbol.toUpperCase()})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        if (addCoinId) {
+                          saveFavorites([...favoriteIds, addCoinId]);
+                          setAddCoinId("");
+                        }
+                      }}
+                      disabled={!addCoinId}
+                      className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      추가
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </section>
 
