@@ -44,6 +44,7 @@ export interface OverlaySeries {
   data: Array<{ time: string; value: number }>;
   color: string;
   lineWidth?: number;
+  lineStyle?: number; // 0=Solid, 1=Dotted, 2=Dashed, 3=LargeDashed
 }
 
 interface LightweightChartWrapperProps {
@@ -243,6 +244,7 @@ export default function LightweightChartWrapper({
         const s = chart.addSeries(LineSeries, {
           color: overlay.color,
           lineWidth: (overlay.lineWidth ?? 1) as 1 | 2 | 3 | 4,
+          lineStyle: overlay.lineStyle ?? 0,
           lastValueVisible: false,
           priceLineVisible: false,
         });

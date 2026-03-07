@@ -83,6 +83,83 @@ function computeTrendline(
 }
 
 // ---------------------------------------------------------------------------
+// Logarithmic Regression Trendline (Into The Cryptoverse style)
+// ln(price) = a * ln(days_since_genesis) + b
+// Returns: fairValue, upperBand (+2σ), lowerBand (-2σ) as [ts, value][]
+// ---------------------------------------------------------------------------
+function computeLogRegression(
+  series: Array<[number, number]>,
+  extensionYears: number = 3,
+): {
+  fairValue: Array<[number, number]>;
+  upperBand: Array<[number, number]>;
+  lowerBand: Array<[number, number]>;
+  r2: number;
+} | null {
+  if (series.length < 10) return null;
+
+  // Use the first data point as genesis reference
+  const genesisTs = series[0][0];
+  const DAY_MS = 86_400_000;
+
+  // Build regression: ln(value) = a * ln(daysSinceGenesis) + b
+  const points: Array<{ lnX: number; lnY: number }> = [];
+  for (const [ts, val] of series) {
+    const days = (ts - genesisTs) / DAY_MS + 1; // +1 to avoid ln(0)
+    if (val > 0 && days > 0) {
+      points.push({ lnX: Math.log(days), lnY: Math.log(val) });
+    }
+  }
+
+  const n = points.length;
+  if (n < 10) return null;
+
+  // Linear regression on log-log space
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  for (const p of points) {
+    sumX += p.lnX;
+    sumY += p.lnY;
+    sumXY += p.lnX * p.lnY;
+    sumX2 += p.lnX * p.lnX;
+  }
+  const a = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const b = (sumY - a * sumX) / n;
+
+  // Compute R² and residual std deviation (for bands)
+  const yMean = sumY / n;
+  let ssRes = 0, ssTot = 0;
+  for (const p of points) {
+    const predicted = a * p.lnX + b;
+    ssRes += (p.lnY - predicted) ** 2;
+    ssTot += (p.lnY - yMean) ** 2;
+  }
+  const r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
+  const sigma = Math.sqrt(ssRes / (n - 2));
+
+  // Generate trendline points (data range + extension)
+  const lastTs = series[series.length - 1][0];
+  const extensionEnd = lastTs + extensionYears * 365 * DAY_MS;
+
+  // Sample one point per week for smooth line
+  const WEEK_MS = 7 * DAY_MS;
+  const fairValue: Array<[number, number]> = [];
+  const upperBand: Array<[number, number]> = [];
+  const lowerBand: Array<[number, number]> = [];
+
+  for (let ts = series[0][0]; ts <= extensionEnd; ts += WEEK_MS) {
+    const days = (ts - genesisTs) / DAY_MS + 1;
+    const lnX = Math.log(days);
+    const lnFair = a * lnX + b;
+
+    fairValue.push([ts, Math.round(Math.exp(lnFair))]);
+    upperBand.push([ts, Math.round(Math.exp(lnFair + 2 * sigma))]);
+    lowerBand.push([ts, Math.round(Math.exp(lnFair - 2 * sigma))]);
+  }
+
+  return { fairValue, upperBand, lowerBand, r2: parseFloat(r2.toFixed(4)) };
+}
+
+// ---------------------------------------------------------------------------
 // Sample data fallback
 // ---------------------------------------------------------------------------
 function generateSample(
@@ -182,6 +259,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (liveData && liveData.length > 0) {
+    const logReg = computeLogRegression(liveData);
     return NextResponse.json(
       {
         source: "coingecko",
@@ -189,6 +267,12 @@ export async function GET(request: NextRequest) {
         label,
         data: liveData,
         trendline: computeTrendline(liveData),
+        ...(logReg && {
+          regressionMiddle: logReg.fairValue,
+          regressionUpper: logReg.upperBand,
+          regressionLower: logReg.lowerBand,
+          regressionR2: logReg.r2,
+        }),
       },
       {
         headers: {
@@ -201,8 +285,17 @@ export async function GET(request: NextRequest) {
   // Fallback: sample data
   const cfg = SAMPLE_CONFIG[type] || SAMPLE_CONFIG.total;
   const series = generateSample(cfg.base, cfg.amp, cfg.seed);
+  const logReg = computeLogRegression(series);
   return NextResponse.json(
-    { source: "sample", type, label, data: series, trendline: computeTrendline(series) },
+    {
+      source: "sample", type, label, data: series, trendline: computeTrendline(series),
+      ...(logReg && {
+        regressionMiddle: logReg.fairValue,
+        regressionUpper: logReg.upperBand,
+        regressionLower: logReg.lowerBand,
+        regressionR2: logReg.r2,
+      }),
+    },
     { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200" } },
   );
 }

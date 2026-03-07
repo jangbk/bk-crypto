@@ -1004,8 +1004,8 @@ export default function ChartDetailPage() {
   const chartId = typeof params.chartId === "string" ? params.chartId : "";
   const chart = getChartById(chartId);
 
-  const [period, setPeriod] = useState<string>("1Y");
-  const [scaleType, setScaleType] = useState<"linear" | "log">("linear");
+  const [period, setPeriod] = useState<string>(chartId.endsWith("-market-cap") ? "All" : "1Y");
+  const [scaleType, setScaleType] = useState<"linear" | "log">(chartId.endsWith("-market-cap") ? "log" : "linear");
   const [isFavorited, setIsFavorited] = useState(false);
   const [rawData, setRawData] = useState<
     Array<{ time: string; value: number }>
@@ -1133,11 +1133,11 @@ export default function ChartDetailPage() {
             newOverlays.push({ data: toChart(json.lower), color: "#10B981", lineWidth: 1 });
           }
 
-          // Log regression bands
+          // Log regression bands (fair value + upper/lower ±2σ)
           if (json.regressionMiddle) {
-            newOverlays.push({ data: toChart(json.regressionMiddle), color: "#60A5FA", lineWidth: 2 });
-            newOverlays.push({ data: toChart(json.regressionUpper), color: "#F87171", lineWidth: 1 });
-            newOverlays.push({ data: toChart(json.regressionLower), color: "#34D399", lineWidth: 1 });
+            newOverlays.push({ data: toChart(json.regressionMiddle), color: "#F87171", lineWidth: 2 });
+            newOverlays.push({ data: toChart(json.regressionUpper), color: "#34D399", lineWidth: 1, lineStyle: 2 });
+            newOverlays.push({ data: toChart(json.regressionLower), color: "#34D399", lineWidth: 1, lineStyle: 2 });
           }
 
           // Rainbow bands (9 colored lines)
@@ -1466,11 +1466,11 @@ export default function ChartDetailPage() {
               ))}
             </div>
           )}
-          {chartId === "btc-log-regression" && (
+          {(chartId === "btc-log-regression" || chartId.endsWith("-market-cap")) && overlayData.length > 0 && (
             <div className="mt-2 flex items-center gap-4 px-1 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm bg-red-400" />상한 (+2σ)</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm bg-blue-400" />중앙 (회귀선)</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm bg-emerald-400" />하한 (-2σ)</span>
+              <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm" style={{ backgroundColor: chartColor }} />{chartId.endsWith("-market-cap") ? "Market Cap" : "BTC Price"}</span>
+              <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm bg-red-400" />Fair Value (로그 회귀)</span>
+              <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm border border-dashed border-emerald-400" />Upper / Lower Band (±2σ)</span>
             </div>
           )}
           {chartId === "stock-to-flow" && (
