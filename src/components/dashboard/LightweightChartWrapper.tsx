@@ -132,6 +132,19 @@ export default function LightweightChartWrapper({
       },
       timeScale: {
         borderVisible: false,
+        minBarSpacing: 0.5,
+        rightOffset: 5,
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
       },
       crosshair: {
         horzLine: {
@@ -196,12 +209,14 @@ export default function LightweightChartWrapper({
 
     chart.timeScale().fitContent();
 
-    // Observe container resize as a fallback for autoSize.
+    // Observe container resize — update width and re-fit visible range.
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width: w } = entry.contentRect;
         if (w > 0) {
           chart.applyOptions({ width: w });
+          // Re-fit to keep all data visible after resize
+          chart.timeScale().fitContent();
         }
       }
     });
@@ -253,11 +268,19 @@ export default function LightweightChartWrapper({
       }
     }
 
-    // Fit to main data range (not overlay extensions like future regression)
-    if (cleanData.length > 0) {
-      const from = cleanData[0].time as string;
-      const to = cleanData[cleanData.length - 1].time as string;
-      chart.timeScale().setVisibleRange({ from, to } as { from: Time; to: Time });
+    // If overlays extend beyond main data (future regression), show main data range only.
+    // Otherwise just fitContent.
+    const hasExtendedOverlay = overlays && overlays.some((o) => {
+      const lastOverlay = o.data[o.data.length - 1]?.time;
+      const lastMain = cleanData[cleanData.length - 1]?.time;
+      return lastOverlay && lastMain && lastOverlay > lastMain;
+    });
+
+    if (hasExtendedOverlay && cleanData.length > 0) {
+      chart.timeScale().setVisibleRange({
+        from: cleanData[0].time as Time,
+        to: cleanData[cleanData.length - 1].time as Time,
+      });
     } else {
       chart.timeScale().fitContent();
     }
