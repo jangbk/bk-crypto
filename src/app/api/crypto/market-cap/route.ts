@@ -19,7 +19,7 @@ const LABELS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 async function fetchMarketCaps(
   coinId: string,
-  days: number = 365,
+  days: string = "max",
 ): Promise<Array<[number, number]> | null> {
   try {
     const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=daily`;
@@ -256,6 +256,11 @@ export async function GET(request: NextRequest) {
     } else if (usdtCaps) {
       liveData = usdtCaps;
     }
+  }
+
+  // Filter out zero/null market cap entries (early history can have zeros)
+  if (liveData) {
+    liveData = liveData.filter(([, val]) => val > 0);
   }
 
   if (liveData && liveData.length > 0) {
