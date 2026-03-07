@@ -238,26 +238,26 @@ const ETH_HISTORY: Array<[number, number]> = [
   [dateMs(2025, 2, 20), 330_000_000_000],
 ];
 
-// Interpolate between milestones to create daily data
+// Interpolate between milestones to create weekly data
 function interpolateHistory(
   milestones: Array<[number, number]>,
 ): Array<[number, number]> {
   if (milestones.length < 2) return milestones;
   const DAY_MS = 86_400_000;
+  const STEP_MS = 3 * DAY_MS; // every 3 days for balance of detail vs size
   const result: Array<[number, number]> = [];
 
   for (let i = 0; i < milestones.length - 1; i++) {
     const [t0, v0] = milestones[i];
     const [t1, v1] = milestones[i + 1];
-    const days = Math.round((t1 - t0) / DAY_MS);
+    const span = t1 - t0;
 
     // Use log-space interpolation for exponential growth
     const lnV0 = Math.log(Math.max(v0, 1));
     const lnV1 = Math.log(Math.max(v1, 1));
 
-    for (let d = 0; d < days; d++) {
-      const frac = d / days;
-      const ts = t0 + d * DAY_MS;
+    for (let ts = t0; ts < t1; ts += STEP_MS) {
+      const frac = (ts - t0) / span;
       const lnVal = lnV0 + (lnV1 - lnV0) * frac;
       result.push([ts, Math.round(Math.exp(lnVal))]);
     }

@@ -253,7 +253,14 @@ export default function LightweightChartWrapper({
       }
     }
 
-    chart.timeScale().fitContent();
+    // Fit to main data range (not overlay extensions like future regression)
+    if (cleanData.length > 0) {
+      const from = cleanData[0].time as string;
+      const to = cleanData[cleanData.length - 1].time as string;
+      chart.timeScale().setVisibleRange({ from, to } as { from: Time; to: Time });
+    } else {
+      chart.timeScale().fitContent();
+    }
   }, [cleanData, overlays]);
 
   // -----------------------------------------------------------------------
