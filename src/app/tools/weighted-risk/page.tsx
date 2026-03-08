@@ -372,6 +372,8 @@ export default function WeightedRiskPage() {
     setPortfolio(savedPortfolio);
     setInitialized(true);
     fetchRiskData();
+    const iv = setInterval(fetchRiskData, 60_000);
+    return () => clearInterval(iv);
   }, [fetchRiskData]);
 
   // Save to localStorage whenever metrics or portfolio change (after initial load)
@@ -978,6 +980,17 @@ export default function WeightedRiskPage() {
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 기본 가중치: Tier 1 밸류에이션(MVRV 20, NUPL 15) → Tier 2 투자심리(Reserve 12, SOPR 12) → Tier 3 구조(Pi 10, Puell 10, 200W 8) → Tier 4 자금흐름(RHODL 7, Exchange 6)
               </p>
+              <div className="flex items-center gap-3 mt-1.5">
+                <span className="inline-flex items-center gap-1 text-[10px]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  <span className="text-green-500">실시간 {metrics.filter(m => m.live).length}개</span>
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
+                  <span className="text-yellow-500">수동 입력 {metrics.filter(m => !m.live).length}개</span>
+                  <span className="text-muted-foreground/60">— 노란 입력란에 최신값을 직접 입력하세요</span>
+                </span>
+              </div>
             </div>
             <button
               onClick={() => {
@@ -1009,16 +1022,25 @@ export default function WeightedRiskPage() {
                     <div>
                       <span className="font-medium">
                         {m.name}
-                        {!m.live && m.refUrl && (
-                          <a
-                            href={m.refUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex ml-1 text-muted-foreground hover:text-primary transition-colors align-middle"
-                            title={`${m.name} 실시간 확인`}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
+                        {m.live ? (
+                          <span className="ml-1.5 inline-flex items-center gap-1 text-[9px] text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded-full align-middle">
+                            <span className="h-1 w-1 rounded-full bg-green-500 animate-pulse" />실시간
+                          </span>
+                        ) : (
+                          <span className="ml-1.5 inline-flex items-center gap-1 text-[9px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded-full align-middle">
+                            수동 입력
+                            {m.refUrl && (
+                              <a
+                                href={m.refUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-yellow-400 transition-colors"
+                                title={`${m.name} 최신값 확인`}
+                              >
+                                <ExternalLink className="h-2.5 w-2.5" />
+                              </a>
+                            )}
+                          </span>
                         )}
                       </span>
                       <span className="block text-[10px] text-muted-foreground">{m.description}</span>

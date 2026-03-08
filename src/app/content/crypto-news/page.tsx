@@ -180,8 +180,18 @@ export default function CryptoNewsPage() {
   // Source list for archive view
   const archiveList = useMemo(() => Object.values(bookmarks), [bookmarks]);
 
+  // Merge: news tab includes bookmarked articles even if they disappeared from feed
+  const mergedStudies = useMemo(() => {
+    const map = new Map<string, Study>();
+    // Add all bookmarked articles first (so they never disappear)
+    for (const bm of archiveList) map.set(bm.id, bm);
+    // Add/overwrite with fresh API data
+    for (const s of studies) map.set(s.id, s);
+    return Array.from(map.values());
+  }, [studies, archiveList]);
+
   // The list to filter (either live news or archive)
-  const baseList = showArchive ? archiveList : studies;
+  const baseList = showArchive ? archiveList : mergedStudies;
 
   // Derived: all tags & categories
   const allTags = useMemo(

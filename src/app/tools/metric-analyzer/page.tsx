@@ -253,17 +253,16 @@ export default function MetricAnalyzerPage() {
 
   const fetchRealData = useCallback(() => {
     setLoading(true);
-    const now = new Date();
-    const from = new Date(now);
-    from.setDate(from.getDate() - lookbackDays);
-    const fromStr = from.toISOString().split("T")[0];
-    const toStr = now.toISOString().split("T")[0];
 
-    fetch(`/api/tools/dca-history?asset=BTC&from=${fromStr}&to=${toStr}`)
+    fetch(`/api/crypto/history?coin=bitcoin&days=${lookbackDays}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.prices && data.prices.length > 0) {
-          setRealPrices(data.prices);
+        if (data.data && data.data.length > 0) {
+          const mapped = (data.data as Array<[number, number]>).map(([ts, price]) => ({
+            date: new Date(ts).toISOString().split("T")[0],
+            price,
+          }));
+          setRealPrices(mapped);
           setDataSource(data.source || "api");
         }
         setLoading(false);
@@ -460,7 +459,7 @@ export default function MetricAnalyzerPage() {
             <span className={`h-2 w-2 rounded-full ${realPrices.length > 0 ? "bg-green-500" : "bg-yellow-500"}`} />
             <span>
               BTC 가격 데이터: {realPrices.length > 0
-                ? `${dataSource} (${realPrices.length.toLocaleString()}일)`
+                ? `${dataSource === "coingecko" ? "CoinGecko 실시간" : dataSource} (${realPrices.length.toLocaleString()}일)`
                 : "로드 실패"}
               {realPrices.length > 0 && ` | ${realPrices[0].date} ~ ${realPrices[realPrices.length - 1].date}`}
             </span>
