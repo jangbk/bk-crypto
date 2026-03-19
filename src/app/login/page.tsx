@@ -54,7 +54,7 @@ export default function LoginPage() {
               />
             </div>
             <h1 className="text-3xl font-black text-white tracking-tight font-[var(--font-orbitron)]">
-              BK INVESTMENT
+              BK CRYPTO
             </h1>
             <p className="text-sm text-white/60 mt-1 tracking-widest uppercase">
               Investment Analysis Platform
@@ -97,7 +97,7 @@ export default function LoginPage() {
 
         {/* Copyright */}
         <p className="text-center text-white/30 text-xs mt-6">
-          &copy; 2026 BK INVESTMENT. All rights reserved.
+          &copy; 2026 BK CRYPTO. All rights reserved.
         </p>
       </div>
     </div>
