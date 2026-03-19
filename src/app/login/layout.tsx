@@ -11,11 +11,11 @@ export default function LoginLayout({
         muted
         loop
         playsInline
-        poster="https://assets.mixkit.co/videos/47016/47016-thumb-720-2.jpg"
+        poster="https://assets.mixkit.co/videos/12262/12262-thumb-720-0.jpg"
         className="absolute inset-0 w-full h-full object-cover"
       >
         <source
-          src="https://assets.mixkit.co/videos/47016/47016-720.mp4"
+          src="https://assets.mixkit.co/videos/12262/12262-720.mp4"
           type="video/mp4"
         />
       </video>
