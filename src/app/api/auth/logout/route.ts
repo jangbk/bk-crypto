@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { COOKIE_NAME } from "@/lib/auth";
 
 export async function POST() {
-  const response = NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+  const response = NextResponse.json({ success: true });
 
   response.cookies.set(COOKIE_NAME, "", {
     httpOnly: true,
