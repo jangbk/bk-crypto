@@ -1,50 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { Star, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import { getChartsBySection, getCategoriesForSection } from "@/data/chart-catalog";
-import type { ChartItem } from "@/data/chart-catalog";
-
-function hashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0; }
-  return Math.abs(hash);
-}
-
-function generateRandomLine(id: string): string {
-  const seed = hashCode(id);
-  const points: string[] = [];
-  let y = 30 + (seed % 20);
-  for (let x = 0; x <= 200; x += 10) {
-    y = Math.max(5, Math.min(55, y + ((((seed * (x + 1)) % 17) - 8) * 0.8)));
-    points.push(`${x},${y.toFixed(1)}`);
-  }
-  return `M${points.join(" L")}`;
-}
-
-function ChartCard({ chart }: { chart: ChartItem }) {
-  return (
-    <Link href={`/charts/${chart.id}`} className="group rounded-lg border border-border bg-card p-3 transition-all hover:border-primary/50 hover:shadow-md">
-      <div className="relative h-16 mb-2 rounded-md bg-muted/30 overflow-hidden">
-        <svg viewBox="0 0 200 60" className="w-full h-full" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id={`grad-${chart.id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={chart.color} stopOpacity="0.3" />
-              <stop offset="100%" stopColor={chart.color} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={`${generateRandomLine(chart.id)} L200,60 L0,60 Z`} fill={`url(#grad-${chart.id})`} />
-          <path d={generateRandomLine(chart.id)} fill="none" stroke={chart.color} strokeWidth="1.5" />
-        </svg>
-        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Star className="h-3.5 w-3.5 text-muted-foreground hover:text-yellow-400" />
-        </button>
-      </div>
-      <h3 className="text-xs font-medium group-hover:text-primary transition-colors line-clamp-1">{chart.title}</h3>
-      <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{chart.description}</p>
-    </Link>
-  );
-}
+import ChartCard from "@/components/charts/ChartCard";
 
 export default function MacroChartsPage() {
   const categories = getCategoriesForSection("macro");

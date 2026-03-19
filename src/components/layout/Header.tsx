@@ -14,7 +14,7 @@ import type { NavItem } from "@/lib/types";
 
 function Logo() {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="BK INVESTMENT 홈">
+    <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="BK CRYPTO 홈">
       <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-[#f7931a] flex items-center justify-center shadow-md">
         <svg viewBox="0 0 40 40" className="h-10 w-10" aria-hidden="true">
           <rect width="40" height="40" rx="8" fill="#f7931a" />
@@ -25,7 +25,7 @@ function Logo() {
         <span className="text-xl font-black text-primary tracking-tight">BK</span>
         <br />
         <span className="text-xs font-bold text-foreground tracking-widest">
-          INVESTMENT
+          CRYPTO
         </span>
       </span>
     </Link>
@@ -349,6 +349,19 @@ export function Header() {
 
           {/* Right side actions */}
           <div className="ml-auto flex items-center gap-1">
+            <a
+              href="https://bk-stock.vercel.app/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-[#00bfff]/40 text-[#00bfff] hover:bg-[#00bfff]/10 transition-colors shrink-0"
+              aria-label="BK STOCK 사이트로 이동"
+            >
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true">
+                <rect width="16" height="16" rx="3" fill="#00bfff" />
+                <polyline points="3,11 5.5,9 8,10.5 10.5,5.5 13,7" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              BK STOCK
+            </a>
             <button
               onClick={() => setSearchOpen(true)}
               className="relative rounded-lg p-2 hover:bg-muted transition-colors"

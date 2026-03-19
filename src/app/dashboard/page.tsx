@@ -261,6 +261,8 @@ export default function DashboardPage() {
       setAssetsLoading(false);
     }
     fetchAll();
+    const iv = setInterval(fetchAll, 60_000);
+    return () => clearInterval(iv);
   }, []);
 
   // ─── Initialize favoriteIds from localStorage or default top 10 ─
@@ -491,7 +493,7 @@ export default function DashboardPage() {
                             {i + 1}
                           </td>
                           <td className="py-3 pr-4">
-                            <div className="flex items-center gap-2">
+                            <Link href={`/assets/${asset.id}/risk`} className="flex items-center gap-2 hover:text-primary transition-colors">
                               {asset.image ? (
                                 <Image
                                   src={asset.image}
@@ -506,9 +508,9 @@ export default function DashboardPage() {
                               )}
                               <span className="font-medium">{asset.name}</span>
                               <span className="text-xs text-muted-foreground uppercase">
-                                {asset.symbol}
+                                ({asset.symbol})
                               </span>
-                            </div>
+                            </Link>
                           </td>
                           <td className="py-3 pr-4 text-right font-mono">
                             {formatCurrency(asset.current_price)}

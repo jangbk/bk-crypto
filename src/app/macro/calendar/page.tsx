@@ -103,19 +103,75 @@ const INDICATOR_GUIDES: Record<string, IndicatorGuide> = {
 };
 
 // Fallback static events (used when API is unavailable)
-const FALLBACK_EVENTS = [
-  { date: "2026-02-07", time: "08:30", event: "US Non-Farm Payrolls", actual: "216K", forecast: "185K", previous: "256K", impact: "high", country: "US" },
-  { date: "2026-02-07", time: "08:30", event: "US Unemployment Rate", actual: "3.9%", forecast: "4.0%", previous: "3.8%", impact: "high", country: "US" },
-  { date: "2026-02-07", time: "10:00", event: "US ISM Non-Manufacturing PMI", actual: "", forecast: "53.5", previous: "54.1", impact: "medium", country: "US" },
-  { date: "2026-02-10", time: "02:00", event: "China CPI YoY", actual: "", forecast: "0.8%", previous: "0.7%", impact: "medium", country: "CN" },
-  { date: "2026-02-10", time: "10:00", event: "US Wholesale Inventories", actual: "", forecast: "0.2%", previous: "0.2%", impact: "low", country: "US" },
-  { date: "2026-02-11", time: "05:00", event: "UK GDP QoQ", actual: "", forecast: "0.2%", previous: "0.1%", impact: "high", country: "UK" },
-  { date: "2026-02-12", time: "08:30", event: "US CPI YoY", actual: "", forecast: "3.0%", previous: "3.1%", impact: "high", country: "US" },
-  { date: "2026-02-12", time: "08:30", event: "US Core CPI MoM", actual: "", forecast: "0.2%", previous: "0.3%", impact: "high", country: "US" },
-  { date: "2026-02-13", time: "08:30", event: "US PPI YoY", actual: "", forecast: "1.8%", previous: "1.9%", impact: "medium", country: "US" },
-  { date: "2026-02-13", time: "08:30", event: "US Initial Jobless Claims", actual: "", forecast: "220K", previous: "218K", impact: "medium", country: "US" },
-  { date: "2026-02-14", time: "08:30", event: "US Retail Sales MoM", actual: "", forecast: "0.3%", previous: "-0.1%", impact: "high", country: "US" },
-  { date: "2026-02-14", time: "09:15", event: "US Industrial Production MoM", actual: "", forecast: "0.2%", previous: "0.1%", impact: "medium", country: "US" },
+const FALLBACK_EVENTS: CalendarEvent[] = [
+  // ── Economic Indicators (경제지표) ──
+  { date: "2026-02-07", time: "08:30", event: "US Non-Farm Payrolls", actual: "216K", forecast: "185K", previous: "256K", impact: "high", country: "US", category: "economic" },
+  { date: "2026-02-07", time: "08:30", event: "US Unemployment Rate", actual: "3.9%", forecast: "4.0%", previous: "3.8%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-02-07", time: "10:00", event: "US ISM Non-Manufacturing PMI", actual: "", forecast: "53.5", previous: "54.1", impact: "medium", country: "US", category: "economic" },
+  { date: "2026-02-10", time: "02:00", event: "China CPI YoY", actual: "", forecast: "0.8%", previous: "0.7%", impact: "medium", country: "CN", category: "economic" },
+  { date: "2026-02-10", time: "10:00", event: "US Wholesale Inventories", actual: "", forecast: "0.2%", previous: "0.2%", impact: "low", country: "US", category: "economic" },
+  { date: "2026-02-11", time: "05:00", event: "UK GDP QoQ", actual: "", forecast: "0.2%", previous: "0.1%", impact: "high", country: "UK", category: "economic" },
+  { date: "2026-02-12", time: "08:30", event: "US CPI YoY", actual: "", forecast: "3.0%", previous: "3.1%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-02-12", time: "08:30", event: "US Core CPI MoM", actual: "", forecast: "0.2%", previous: "0.3%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-02-13", time: "08:30", event: "US PPI YoY", actual: "", forecast: "1.8%", previous: "1.9%", impact: "medium", country: "US", category: "economic" },
+  { date: "2026-02-13", time: "08:30", event: "US Initial Jobless Claims", actual: "", forecast: "220K", previous: "218K", impact: "medium", country: "US", category: "economic" },
+  { date: "2026-02-14", time: "08:30", event: "US Retail Sales MoM", actual: "", forecast: "0.3%", previous: "-0.1%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-02-14", time: "09:15", event: "US Industrial Production MoM", actual: "", forecast: "0.2%", previous: "0.1%", impact: "medium", country: "US", category: "economic" },
+  // March economic
+  { date: "2026-03-04", time: "10:00", event: "US ISM Non-Manufacturing PMI", actual: "", forecast: "53.8", previous: "53.5", impact: "medium", country: "US", category: "economic" },
+  { date: "2026-03-06", time: "08:30", event: "US Non-Farm Payrolls", actual: "", forecast: "200K", previous: "216K", impact: "high", country: "US", category: "economic" },
+  { date: "2026-03-06", time: "08:30", event: "US Unemployment Rate", actual: "", forecast: "3.9%", previous: "3.9%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-03-11", time: "08:30", event: "US CPI YoY", actual: "", forecast: "2.9%", previous: "3.0%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-03-11", time: "08:30", event: "US Core CPI MoM", actual: "", forecast: "0.2%", previous: "0.2%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-03-12", time: "08:30", event: "US PPI YoY", actual: "", forecast: "1.7%", previous: "1.8%", impact: "medium", country: "US", category: "economic" },
+  { date: "2026-03-13", time: "08:30", event: "US Initial Jobless Claims", actual: "", forecast: "215K", previous: "220K", impact: "medium", country: "US", category: "economic" },
+  { date: "2026-03-14", time: "08:30", event: "US Retail Sales MoM", actual: "", forecast: "0.4%", previous: "0.3%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-03-18", time: "14:00", event: "FOMC 금리결정", actual: "", forecast: "4.25%", previous: "4.50%", impact: "high", country: "US", category: "economic" },
+  { date: "2026-03-18", time: "14:30", event: "FOMC 기자회견 (파월 의장)", actual: "", forecast: "-", previous: "-", impact: "high", country: "US", category: "economic" },
+  { date: "2026-03-27", time: "08:30", event: "US GDP QoQ (확정)", actual: "", forecast: "2.3%", previous: "2.3%", impact: "high", country: "US", category: "economic" },
+
+  // ── Crypto Events (암호화폐) ──
+  { date: "2026-02-10", time: "00:00", event: "ARB 토큰 언락 (1.1억 달러)", actual: "", forecast: "-", previous: "-", impact: "medium", country: "CRYPTO", category: "crypto" },
+  { date: "2026-02-12", time: "00:00", event: "SEC 비트코인 ETF 옵션 검토 마감", actual: "", forecast: "-", previous: "-", impact: "high", country: "CRYPTO", category: "crypto" },
+  { date: "2026-02-14", time: "00:00", event: "Ethereum Pectra 업그레이드 테스트넷", actual: "", forecast: "-", previous: "-", impact: "medium", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-03", time: "00:00", event: "OP 토큰 언락 (3,100만 달러)", actual: "", forecast: "-", previous: "-", impact: "medium", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-05", time: "00:00", event: "Bitcoin ETF 옵션 만기일", actual: "", forecast: "-", previous: "-", impact: "high", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-07", time: "09:00", event: "White House 크립토 서밋", actual: "", forecast: "-", previous: "-", impact: "high", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-10", time: "00:00", event: "SUI 토큰 언락 (6,400만 달러)", actual: "", forecast: "-", previous: "-", impact: "medium", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-12", time: "00:00", event: "Ethereum Pectra 메인넷 업그레이드", actual: "", forecast: "-", previous: "-", impact: "high", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-14", time: "00:00", event: "APT 토큰 언락 (7,700만 달러)", actual: "", forecast: "-", previous: "-", impact: "medium", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-17", time: "00:00", event: "SEC 이더리움 ETF 스테이킹 결정", actual: "", forecast: "-", previous: "-", impact: "high", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-21", time: "00:00", event: "CME BTC/ETH 선물 만기", actual: "", forecast: "-", previous: "-", impact: "high", country: "CRYPTO", category: "crypto" },
+  { date: "2026-03-28", time: "00:00", event: "DYDX 토큰 언락 (5,500만 달러)", actual: "", forecast: "-", previous: "-", impact: "medium", country: "CRYPTO", category: "crypto" },
+
+  // ── Stock Market Events (주식시장) ──
+  { date: "2026-02-10", time: "16:00", event: "McDonald's (MCD) 실적발표", actual: "", forecast: "-", previous: "-", impact: "medium", country: "US", category: "stock" },
+  { date: "2026-02-11", time: "16:00", event: "Coca-Cola (KO) 실적발표", actual: "", forecast: "-", previous: "-", impact: "medium", country: "US", category: "stock" },
+  { date: "2026-02-13", time: "16:00", event: "Airbnb (ABNB) 실적발표", actual: "", forecast: "-", previous: "-", impact: "medium", country: "US", category: "stock" },
+  { date: "2026-02-21", time: "00:00", event: "미국 옵션만기일 (월간)", actual: "", forecast: "-", previous: "-", impact: "high", country: "US", category: "stock" },
+  { date: "2026-03-03", time: "16:00", event: "Tesla (TSLA) 실적발표 (Q4)", actual: "", forecast: "-", previous: "-", impact: "high", country: "US", category: "stock" },
+  { date: "2026-03-05", time: "16:00", event: "Broadcom (AVGO) 실적발표", actual: "", forecast: "-", previous: "-", impact: "high", country: "US", category: "stock" },
+  { date: "2026-03-10", time: "16:00", event: "Oracle (ORCL) 실적발표", actual: "", forecast: "-", previous: "-", impact: "medium", country: "US", category: "stock" },
+  { date: "2026-03-12", time: "16:00", event: "Adobe (ADBE) 실적발표", actual: "", forecast: "-", previous: "-", impact: "medium", country: "US", category: "stock" },
+  { date: "2026-03-14", time: "00:00", event: "S&P 500 리밸런싱 발표", actual: "", forecast: "-", previous: "-", impact: "high", country: "US", category: "stock" },
+  { date: "2026-03-21", time: "00:00", event: "미국 옵션 트리플위칭 만기일", actual: "", forecast: "-", previous: "-", impact: "high", country: "US", category: "stock" },
+
+  // ── Korean Domestic Events (국내일정) ──
+  { date: "2026-02-07", time: "08:00", event: "한국 수출입 동향 (1월)", actual: "", forecast: "-", previous: "-", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-02-10", time: "08:00", event: "한국 소비자물가지수 (CPI) 발표", actual: "", forecast: "2.1%", previous: "1.9%", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-02-12", time: "10:00", event: "삼성전자 (005930) 실적발표 (잠정)", actual: "", forecast: "-", previous: "-", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-02-13", time: "10:00", event: "KOSPI 200 선물옵션 만기일", actual: "", forecast: "-", previous: "-", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-02-14", time: "10:00", event: "한국은행 금리결정 (2월)", actual: "", forecast: "2.75%", previous: "3.00%", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-03-03", time: "08:00", event: "한국 수출입 동향 (2월)", actual: "", forecast: "-", previous: "-", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-03-04", time: "08:00", event: "한국 소비자물가지수 (CPI) 발표", actual: "", forecast: "2.0%", previous: "2.1%", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-03-06", time: "10:00", event: "SK하이닉스 (000660) 실적발표", actual: "", forecast: "-", previous: "-", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-03-10", time: "09:00", event: "한국 경상수지 발표 (1월)", actual: "", forecast: "-", previous: "-", impact: "medium", country: "KR", category: "korea" },
+  { date: "2026-03-12", time: "10:00", event: "KOSPI 200 선물옵션 만기일", actual: "", forecast: "-", previous: "-", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-03-13", time: "10:00", event: "한국은행 금리결정 (3월)", actual: "", forecast: "2.50%", previous: "2.75%", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-03-14", time: "10:00", event: "현대자동차 (005380) 실적발표", actual: "", forecast: "-", previous: "-", impact: "medium", country: "KR", category: "korea" },
+  { date: "2026-03-17", time: "08:00", event: "한국 고용동향 (2월)", actual: "", forecast: "-", previous: "-", impact: "medium", country: "KR", category: "korea" },
+  { date: "2026-03-25", time: "08:00", event: "한국 GDP 속보치 (Q4)", actual: "", forecast: "1.8%", previous: "2.0%", impact: "high", country: "KR", category: "korea" },
+  { date: "2026-03-27", time: "09:00", event: "한국 산업활동동향 (2월)", actual: "", forecast: "-", previous: "-", impact: "medium", country: "KR", category: "korea" },
 ];
 
 // Map ForexFactory event names to our indicator guide keys
@@ -156,6 +212,8 @@ function analyzeResult(event: CalendarEvent): { label: string; color: string } |
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+type EventCategory = "economic" | "crypto" | "stock" | "korea";
+
 interface CalendarEvent {
   date: string;
   time: string;
@@ -165,11 +223,20 @@ interface CalendarEvent {
   previous: string;
   impact: string;
   country: string;
+  category: EventCategory;
 }
+
+const CATEGORY_CONFIG: Record<EventCategory, { label: string; shortLabel: string; color: string; bg: string; border: string }> = {
+  economic: { label: "경제지표", shortLabel: "경제", color: "text-blue-400", bg: "bg-blue-500/15", border: "border-blue-500/30" },
+  crypto: { label: "암호화폐", shortLabel: "크립토", color: "text-orange-400", bg: "bg-orange-500/15", border: "border-orange-500/30" },
+  stock: { label: "주식시장", shortLabel: "주식", color: "text-green-400", bg: "bg-green-500/15", border: "border-green-500/30" },
+  korea: { label: "국내일정", shortLabel: "국내", color: "text-purple-400", bg: "bg-purple-500/15", border: "border-purple-500/30" },
+};
 
 export default function MacroCalendarPage() {
   const [impactFilter, setImpactFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | EventCategory>("all");
   const [weekOffset, setWeekOffset] = useState(0);
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -201,8 +268,12 @@ export default function MacroCalendarPage() {
               previous: e.prev || "-",
               impact: e.importance,
               country: e.country,
+              category: "economic" as EventCategory,
             };
           });
+          // Merge with non-economic fallback events (crypto, stock, korea)
+          const nonEconomicFallback = FALLBACK_EVENTS.filter((fe) => fe.category !== "economic");
+          mapped.push(...nonEconomicFallback);
 
           setEvents(mapped);
           setDataSource(json.source === "forexfactory" ? "ForexFactory (실시간)" : "sample");
@@ -216,9 +287,12 @@ export default function MacroCalendarPage() {
       }
     }
     fetchCalendar();
+    const iv = setInterval(fetchCalendar, 60_000);
+    return () => clearInterval(iv);
   }, []);
 
   const filteredEvents = events.filter((e) => {
+    if (categoryFilter !== "all" && e.category !== categoryFilter) return false;
     if (impactFilter !== "all" && e.impact !== impactFilter) return false;
     if (countryFilter !== "all" && e.country !== countryFilter) return false;
     // Filter by week range
@@ -242,10 +316,10 @@ export default function MacroCalendarPage() {
       <div>
         <div className="flex items-center gap-2 mb-1">
           <Calendar className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Economic Calendar</h1>
+          <h1 className="text-2xl font-bold">Investment Calendar</h1>
         </div>
         <p className="text-muted-foreground">
-          주요 거시경제 지표 발표 일정 — 예측치, 실제치, 시장 영향도, 투자 가이드 제공
+          경제지표 · 암호화폐 · 주식시장 · 국내일정 — 주요 발표일 및 이벤트 통합 캘린더
         </p>
         <div className="flex items-center gap-2 mt-2">
           {isLoading ? (
@@ -324,6 +398,36 @@ export default function MacroCalendarPage() {
         )}
       </div>
 
+      {/* Category Filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setCategoryFilter("all")}
+          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-colors ${
+            categoryFilter === "all"
+              ? "bg-foreground text-background border-foreground"
+              : "border-border text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          전체
+        </button>
+        {(Object.keys(CATEGORY_CONFIG) as EventCategory[]).map((cat) => {
+          const cfg = CATEGORY_CONFIG[cat];
+          return (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-colors ${
+                categoryFilter === cat
+                  ? `${cfg.bg} ${cfg.color} ${cfg.border}`
+                  : "border-border text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {cfg.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
@@ -360,11 +464,20 @@ export default function MacroCalendarPage() {
           <option value="UK">United Kingdom</option>
           <option value="CN">China</option>
           <option value="JP">Japan</option>
+          <option value="KR">Korea</option>
+          <option value="CRYPTO">Crypto</option>
         </select>
       </div>
 
       {/* Calendar Events */}
       <div className="space-y-6">
+        {Object.keys(groupedEvents).length === 0 && (
+          <div className="rounded-lg border border-border bg-card p-12 text-center">
+            <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">이 주에 해당하는 이벤트가 없습니다</p>
+            <p className="text-xs text-muted-foreground mt-1">주간 범위를 변경하거나 필터를 조정해보세요</p>
+          </div>
+        )}
         {Object.entries(groupedEvents).map(([date, events]) => {
           const d = new Date(date + "T00:00:00");
           const dayName = WEEKDAYS[d.getDay()];
@@ -385,6 +498,7 @@ export default function MacroCalendarPage() {
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
                       <th className="px-4 py-2 text-left font-medium text-muted-foreground w-16">Time</th>
+                      <th className="px-4 py-2 text-center font-medium text-muted-foreground w-16">구분</th>
                       <th className="px-4 py-2 text-center font-medium text-muted-foreground w-12"></th>
                       <th className="px-4 py-2 text-left font-medium text-muted-foreground">Event</th>
                       <th className="px-4 py-2 text-center font-medium text-muted-foreground w-16">Impact</th>
@@ -412,6 +526,11 @@ export default function MacroCalendarPage() {
                             <td className="px-4 py-2.5 text-muted-foreground">
                               <span className="inline-flex items-center gap-1">
                                 <Clock className="h-3 w-3" /> {event.time}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-bold border ${CATEGORY_CONFIG[event.category].bg} ${CATEGORY_CONFIG[event.category].color} ${CATEGORY_CONFIG[event.category].border}`}>
+                                {CATEGORY_CONFIG[event.category].shortLabel}
                               </span>
                             </td>
                             <td className="px-4 py-2.5 text-center">
@@ -454,7 +573,7 @@ export default function MacroCalendarPage() {
                           </tr>
                           {isExpanded && guide && (
                             <tr key={`${eventKey}-detail`} className="border-b border-border last:border-0">
-                              <td colSpan={7} className="px-4 py-4 bg-muted/10">
+                              <td colSpan={8} className="px-4 py-4 bg-muted/10">
                                 <div className="space-y-3 max-w-4xl">
                                   {/* Why Important */}
                                   <div className="flex gap-3">

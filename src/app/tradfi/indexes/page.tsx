@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BarChart3, TrendingUp, TrendingDown, RefreshCw, Wifi, WifiOff } from "lucide-react";
 
 interface IndexData {
@@ -13,6 +13,19 @@ interface IndexData {
   low52w: number;
   pe: number;
 }
+
+const INDEX_KR: Record<string, string> = {
+  "S&P 500": "S&P 500",
+  "Dow Jones": "다우존스",
+  "Nasdaq 100": "나스닥 100",
+  "Russell 2000": "러셀 2000",
+  "FTSE 100": "FTSE 100 (영국)",
+  "DAX": "DAX (독일)",
+  "Nikkei 225": "닛케이 225 (일본)",
+  "Shanghai Composite": "상해종합 (중국)",
+  "Hang Seng": "항셍 (홍콩)",
+  "KOSPI": "코스피 (한국)",
+};
 
 const FALLBACK_INDEXES: IndexData[] = [
   { name: "S&P 500", symbol: "^GSPC", price: 6142.8, change: 0.82, changeAbs: 50.1, high52w: 6198, low52w: 4682, pe: 24.8 },
@@ -31,71 +44,97 @@ export default function IndexesPage() {
   const [indexes, setIndexes] = useState<IndexData[]>(FALLBACK_INDEXES);
   const [dataSource, setDataSource] = useState<string>("loading");
   const [isLoading, setIsLoading] = useState(true);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+
+  const fetchIndexes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tradfi/quotes?type=index");
+      if (!res.ok) throw new Error("API error");
+      const json = await res.json();
+      if (json.data && json.data.length > 0) {
+        const mapped: IndexData[] = json.data.map((d: { symbol: string; name: string; price: number; change: number; changeAbs: number; high52w: number; low52w: number; pe: number }) => ({
+          symbol: d.symbol,
+          name: d.name,
+          price: d.price || 0,
+          change: d.change || 0,
+          changeAbs: d.changeAbs || 0,
+          high52w: d.high52w || 0,
+          low52w: d.low52w || 0,
+          pe: d.pe || 0,
+        }));
+        setIndexes(mapped);
+        setDataSource(json.source === "yahoo" ? "yahoo" : "sample");
+      } else {
+        setDataSource("fallback");
+      }
+    } catch {
+      setDataSource("fallback");
+    } finally {
+      setIsLoading(false);
+      setUpdatedAt(new Date().toISOString());
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchIndexes() {
-      try {
-        const res = await fetch("/api/tradfi/quotes?type=index");
-        if (!res.ok) throw new Error("API error");
-        const json = await res.json();
-        if (json.data && json.data.length > 0) {
-          const mapped: IndexData[] = json.data.map((d: { symbol: string; name: string; price: number; change: number; changeAbs: number; high52w: number; low52w: number; pe: number }) => ({
-            symbol: d.symbol,
-            name: d.name,
-            price: d.price || 0,
-            change: d.change || 0,
-            changeAbs: d.changeAbs || 0,
-            high52w: d.high52w || 0,
-            low52w: d.low52w || 0,
-            pe: d.pe || 0,
-          }));
-          setIndexes(mapped);
-          setDataSource(json.source === "yahoo" ? "Yahoo Finance (실시간)" : "sample");
-        } else {
-          setDataSource("fallback");
-        }
-      } catch {
-        setDataSource("fallback");
-      } finally {
-        setIsLoading(false);
-      }
-    }
     fetchIndexes();
-  }, []);
+    const iv = setInterval(fetchIndexes, 60_000);
+    return () => clearInterval(iv);
+  }, [fetchIndexes]);
+
+  const gainers = indexes.filter((i) => i.change > 0).length;
+  const losers = indexes.filter((i) => i.change < 0).length;
 
   return (
     <div className="p-6 space-y-6 mx-auto max-w-[1600px]">
+      {/* Header */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <BarChart3 className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Global Indexes</h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="h-6 w-6 text-primary" />
+              <h1 className="text-2xl font-bold">글로벌 주요 지수</h1>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              전 세계 주요 증시 지수의 실시간 가격, 등락률, 밸류에이션 지표를 추적합니다.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full border ${
+              dataSource === "yahoo"
+                ? "bg-green-500/10 text-green-400 border-green-500/20"
+                : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+            }`}>
+              {dataSource === "yahoo" ? (
+                <><Wifi className="w-3 h-3" /><span>Yahoo Finance 실시간</span></>
+              ) : isLoading ? (
+                <><RefreshCw className="w-3 h-3 animate-spin" /><span>로딩 중</span></>
+              ) : (
+                <><WifiOff className="w-3 h-3" /><span>샘플 데이터</span></>
+              )}
+            </span>
+            <button
+              onClick={fetchIndexes}
+              disabled={isLoading}
+              className="p-1.5 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground disabled:opacity-50"
+              title="새로고침"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
-        <p className="text-muted-foreground">
-          Track major global stock market indices with real-time prices, performance, and valuation metrics.
-        </p>
-        <div className="mt-1.5">
-          {isLoading ? (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <RefreshCw className="h-3 w-3 animate-spin" /> 데이터 로딩 중...
-            </span>
-          ) : dataSource.includes("실시간") ? (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-400">
-              <Wifi className="h-3 w-3" /> {dataSource}
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-              <WifiOff className="h-3 w-3" /> 샘플 데이터 (Yahoo Finance 연결 대기)
-            </span>
-          )}
-        </div>
+        {updatedAt && (
+          <p className="text-[10px] text-muted-foreground/60 mt-1">
+            마지막 업데이트: {new Date(updatedAt).toLocaleString("ko-KR")} · 60초 자동 갱신
+          </p>
+        )}
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {indexes.slice(0, 4).map((idx) => (
           <div key={idx.symbol} className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">{idx.name}</p>
-            <p className="text-xl font-bold mt-1">{idx.price.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
+            <p className="text-xs text-muted-foreground">{INDEX_KR[idx.name] ?? idx.name}</p>
+            <p className="text-xl font-bold mt-1 font-mono">{idx.price.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
             <div className={`flex items-center gap-1 mt-1 text-sm ${idx.change >= 0 ? "text-green-500" : "text-red-500"}`}>
               {idx.change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
               <span>{idx.change >= 0 ? "+" : ""}{idx.change.toFixed(2)}%</span>
@@ -105,19 +144,35 @@ export default function IndexesPage() {
         ))}
       </div>
 
+      {/* Market Overview */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-green-500" />
+          상승 {gainers}개
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-red-500" />
+          하락 {losers}개
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-gray-400" />
+          보합 {indexes.length - gainers - losers}개
+        </span>
+      </div>
+
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Index</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Ticker</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Price</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Change</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Change %</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">52W High</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">52W Low</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">P/E</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">지수</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">티커</th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">현재가</th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">등락</th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">등락률</th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">52주 최고</th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">52주 최저</th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">PER</th>
             </tr>
           </thead>
           <tbody>
@@ -128,22 +183,40 @@ export default function IndexesPage() {
                   데이터를 불러오는 중...
                 </td>
               </tr>
-            ) : indexes.map((idx) => (
-              <tr key={idx.symbol} className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="px-4 py-3 font-medium">{idx.name}</td>
-                <td className="px-4 py-3 text-primary font-mono">{idx.symbol}</td>
-                <td className="px-4 py-3 text-right font-mono font-semibold">{idx.price.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
-                <td className={`px-4 py-3 text-right font-mono ${idx.changeAbs >= 0 ? "text-green-500" : "text-red-500"}`}>
-                  {idx.changeAbs >= 0 ? "+" : ""}{idx.changeAbs.toFixed(1)}
-                </td>
-                <td className={`px-4 py-3 text-right font-mono ${idx.change >= 0 ? "text-green-500" : "text-red-500"}`}>
-                  {idx.change >= 0 ? "+" : ""}{idx.change.toFixed(2)}%
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-muted-foreground">{idx.high52w.toLocaleString()}</td>
-                <td className="px-4 py-3 text-right font-mono text-muted-foreground">{idx.low52w.toLocaleString()}</td>
-                <td className="px-4 py-3 text-right font-mono">{idx.pe > 0 ? idx.pe.toFixed(1) : "—"}</td>
-              </tr>
-            ))}
+            ) : indexes.map((idx) => {
+              const fromHigh = idx.high52w > 0 ? ((idx.price - idx.high52w) / idx.high52w * 100) : 0;
+              return (
+                <tr key={idx.symbol} className="border-b border-border hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <div>
+                      <span className="font-medium block">{INDEX_KR[idx.name] ?? idx.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{idx.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-primary font-mono text-xs">{idx.symbol}</td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold">{idx.price.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
+                  <td className={`px-4 py-3 text-right font-mono ${idx.changeAbs >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    {idx.changeAbs >= 0 ? "+" : ""}{idx.changeAbs.toFixed(1)}
+                  </td>
+                  <td className={`px-4 py-3 text-right font-mono ${idx.change >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    <span className="inline-flex items-center gap-1">
+                      {idx.change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {idx.change >= 0 ? "+" : ""}{idx.change.toFixed(2)}%
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                    <div>
+                      <span>{idx.high52w.toLocaleString()}</span>
+                      {fromHigh < -1 && (
+                        <span className="text-[9px] text-red-400 block">{fromHigh.toFixed(1)}%</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-muted-foreground">{idx.low52w.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right font-mono">{idx.pe > 0 ? idx.pe.toFixed(1) : "—"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

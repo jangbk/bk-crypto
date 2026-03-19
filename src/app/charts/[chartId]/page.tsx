@@ -1016,6 +1016,8 @@ export default function ChartDetailPage() {
 
   const [period, setPeriod] = useState<string>(chartId.endsWith("-market-cap") ? "All" : "1Y");
   const [scaleType, setScaleType] = useState<"linear" | "log">(chartId.endsWith("-market-cap") ? "log" : "linear");
+  const [showMA, setShowMA] = useState(false);
+  const [showRiskOverlay, setShowRiskOverlay] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [rawData, setRawData] = useState<
     Array<{ time: string; value: number }>
@@ -1260,11 +1262,45 @@ export default function ChartDetailPage() {
 
   const chartData = useMemo(() => filterByPeriod(rawData), [rawData, period]);
   const secondaryData = useMemo(() => filterByPeriod(rawSecondary), [rawSecondary, period]);
-  const overlayData = useMemo(
+  const baseOverlayData = useMemo(
     () => rawOverlays.map((o) => ({ ...o, data: filterByPeriod(o.data) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rawOverlays, period]
   );
+
+  // Compute Moving Average overlay from chart data
+  const maOverlay = useMemo(() => {
+    if (!showMA || chartData.length < 50) return null;
+    const window = Math.min(50, Math.floor(chartData.length / 4));
+    const maData: Array<{ time: string; value: number }> = [];
+    for (let i = window - 1; i < chartData.length; i++) {
+      let sum = 0;
+      for (let j = i - window + 1; j <= i; j++) sum += chartData[j].value;
+      maData.push({ time: chartData[i].time, value: sum / window });
+    }
+    return { label: `${window}-period MA`, color: "#f59e0b", data: maData };
+  }, [showMA, chartData]);
+
+  // Compute Risk Overlay (normalized 0-1 based on ATH/ATL in visible range)
+  const riskOverlay = useMemo(() => {
+    if (!showRiskOverlay || chartData.length < 10) return null;
+    const values = chartData.map((d) => d.value);
+    const logMin = Math.log(Math.max(0.0001, Math.min(...values)));
+    const logMax = Math.log(Math.max(...values));
+    const logRange = logMax - logMin || 1;
+    const riskData = chartData.map((d) => ({
+      time: d.time,
+      value: Math.max(0, Math.min(1, (Math.log(Math.max(0.0001, d.value)) - logMin) / logRange)),
+    }));
+    return { label: "Risk Level", color: "#ef4444", data: riskData };
+  }, [showRiskOverlay, chartData]);
+
+  const overlayData = useMemo(() => {
+    const result = [...baseOverlayData];
+    if (maOverlay) result.push(maOverlay);
+    if (riskOverlay) result.push(riskOverlay);
+    return result;
+  }, [baseOverlayData, maOverlay, riskOverlay]);
 
   // Statistics from data
   const stats = useMemo(() => {
@@ -1368,6 +1404,25 @@ export default function ChartDetailPage() {
           <option value="linear">Linear</option>
           <option value="log">Logarithmic</option>
         </select>
+        <div className="h-6 w-px bg-border" />
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showMA}
+            onChange={(e) => setShowMA(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-border accent-primary"
+          />
+          <span className="text-xs text-muted-foreground">Moving Avg</span>
+        </label>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showRiskOverlay}
+            onChange={(e) => setShowRiskOverlay(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-border accent-primary"
+          />
+          <span className="text-xs text-muted-foreground">Risk Overlay</span>
+        </label>
         {chart && (
           <div className="ml-auto flex items-center gap-2">
             <span

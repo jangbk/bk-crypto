@@ -330,6 +330,8 @@ export default function CryptoTreasuriesPage() {
     fetchPrices();
     fetchBtcEtf();
     fetchWhaleFlow();
+    const iv = setInterval(() => { fetchPrices(); fetchBtcEtf(); fetchWhaleFlow(); }, 60_000);
+    return () => clearInterval(iv);
   }, []);
 
   const companies = useMemo(() => {
@@ -715,7 +717,20 @@ export default function CryptoTreasuriesPage() {
       {/* ETFs Table */}
       {etfs.length > 0 && (
         <section>
-          <h2 className="text-lg font-semibold mb-4">{sym} ETF 현황</h2>
+          <h2 className="text-lg font-semibold mb-3">{sym} ETF 현황</h2>
+          <div className="rounded-lg border border-border bg-muted/30 p-3 mb-4">
+            <p className="text-xs font-medium text-foreground/80 mb-2">색상 기준 — 시장 영향 기준으로 통일</p>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-green-500/70" />
+                <span><strong className="text-green-500">+금액 (초록)</strong> = 순유입 — ETF로 자금 유입, 매수 수요 증가 → 가격 상승 압력</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-red-500/70" />
+                <span><strong className="text-red-500">-금액 (빨간)</strong> = 순유출 — ETF에서 환매, 매도 우위 → 가격 하락 압력</span>
+              </div>
+            </div>
+          </div>
           <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead>
@@ -779,7 +794,7 @@ export default function CryptoTreasuriesPage() {
       {/* ─── Exchange Flow Section ─── */}
       {exchangeFlows.length > 0 && (
         <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <ArrowRightLeft className="h-5 w-5 text-blue-500" />
             거래소 자금 흐름 (Exchange Flow)
             <span className="text-xs font-normal text-muted-foreground ml-1">
@@ -788,6 +803,19 @@ export default function CryptoTreasuriesPage() {
               ) : whaleSource}
             </span>
           </h2>
+          <div className="rounded-lg border border-border bg-muted/30 p-3 mb-4">
+            <p className="text-xs font-medium text-foreground/80 mb-2">색상 기준 — 시장 영향 기준으로 통일</p>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-green-500/70" />
+                <span><strong className="text-green-500">순유출 (초록)</strong> = 거래소 → 개인지갑 인출, 장기 보유 의지 (축적) → 가격 상승 압력</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-red-500/70" />
+                <span><strong className="text-red-500">순유입 (빨간)</strong> = 개인지갑 → 거래소 입금, 매도 준비 (분산) → 가격 하락 압력</span>
+              </div>
+            </div>
+          </div>
           <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead>
@@ -850,9 +878,6 @@ export default function CryptoTreasuriesPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            순유입(+, 빨간색) = 거래소로 이동 → 매도 압력 | 순유출(-, 녹색) = 거래소에서 인출 → 보유 의지 (축적)
-          </p>
         </section>
       )}
 
@@ -882,6 +907,24 @@ export default function CryptoTreasuriesPage() {
                   {p.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-muted/30 p-3 mb-4">
+            <p className="text-xs font-medium text-foreground/80 mb-2">색상 기준 — 시장 영향 기준으로 통일</p>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-green-500/70" />
+                <span><strong className="text-green-500">거래소 출금 (초록)</strong> = 거래소 → 개인지갑, 장기 보유/축적 신호 → 가격 상승 압력</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-red-500/70" />
+                <span><strong className="text-red-500">거래소 입금 (빨간)</strong> = 개인지갑 → 거래소, 매도 준비 신호 → 가격 하락 압력</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-gray-500/70" />
+                <span><strong className="text-muted-foreground">지갑 이동 (회색)</strong> = 거래소 미경유, OTC 거래 또는 내부 이동 → 직접적 가격 영향 낮음</span>
+              </div>
             </div>
           </div>
 
@@ -962,9 +1005,6 @@ export default function CryptoTreasuriesPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            거래소 입금(빨간) = 매도 가능성 | 거래소 출금(녹색) = 보유 의지 | 지갑 이동(회색) = OTC 또는 내부 이동. 데이터는 큐레이션 기반.
-          </p>
         </section>
       )}
     </div>

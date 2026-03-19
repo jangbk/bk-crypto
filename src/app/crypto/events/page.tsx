@@ -202,6 +202,8 @@ export default function CryptoEventsPage() {
       }
     }
     fetchEvents();
+    const iv = setInterval(fetchEvents, 60_000);
+    return () => clearInterval(iv);
   }, []);
 
   // Build dynamic category and coin lists from actual data

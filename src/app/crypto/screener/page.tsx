@@ -20,9 +20,78 @@ interface CoinData {
   current_price: number;
   price_change_percentage_24h: number;
   price_change_percentage_7d_in_currency: number;
+  price_change_percentage_30d_in_currency?: number;
   market_cap: number;
   total_volume: number;
   sparkline_in_7d?: { price: number[] };
+  ath?: number;
+  atl?: number;
+}
+
+// Categories based on market cap & ecosystem
+const COIN_CATEGORIES: Record<string, string> = {
+  bitcoin: "Store of Value",
+  ethereum: "Smart Contract",
+  tether: "Stablecoin",
+  binancecoin: "Exchange",
+  solana: "Smart Contract",
+  ripple: "Payment",
+  "usd-coin": "Stablecoin",
+  cardano: "Smart Contract",
+  dogecoin: "Meme",
+  tron: "Smart Contract",
+  chainlink: "Oracle",
+  polkadot: "Interoperability",
+  avalanche: "Smart Contract",
+  "shiba-inu": "Meme",
+  litecoin: "Payment",
+  stellar: "Payment",
+  monero: "Privacy",
+  hedera: "Enterprise",
+  sui: "Smart Contract",
+  aave: "DeFi",
+  uniswap: "DeFi",
+  "the-open-network": "Smart Contract",
+  near: "Smart Contract",
+  aptos: "Smart Contract",
+  arbitrum: "Layer 2",
+  optimism: "Layer 2",
+  polygon: "Layer 2",
+  filecoin: "Storage",
+  render: "AI/GPU",
+  injective: "DeFi",
+};
+
+function calculateLogRisk(price: number, ath: number, atl: number): number {
+  if (!ath || !atl || ath <= atl || price <= 0) return 0.5;
+  const logPrice = Math.log(price);
+  const logHigh = Math.log(ath);
+  const logLow = Math.log(atl);
+  return Math.max(0, Math.min(1, (logPrice - logLow) / (logHigh - logLow)));
+}
+
+function riskColorClass(risk: number): string {
+  if (risk <= 0.2) return "text-green-400 bg-green-500/20";
+  if (risk <= 0.4) return "text-green-300 bg-green-500/15";
+  if (risk <= 0.5) return "text-yellow-400 bg-yellow-500/15";
+  if (risk <= 0.65) return "text-orange-400 bg-orange-500/15";
+  if (risk <= 0.8) return "text-orange-500 bg-orange-500/20";
+  return "text-red-500 bg-red-500/20";
+}
+
+function riskBarBg(risk: number): string {
+  if (risk <= 0.3) return "bg-green-500";
+  if (risk <= 0.5) return "bg-yellow-500";
+  if (risk <= 0.7) return "bg-orange-500";
+  return "bg-red-500";
+}
+
+function confidenceLevel(coin: CoinData): { label: string; color: string } {
+  // Confidence based on data availability & market cap
+  if (!coin.ath || !coin.atl) return { label: "Low", color: "text-gray-500" };
+  if (coin.market_cap > 10e9) return { label: "High", color: "text-green-400" };
+  if (coin.market_cap > 1e9) return { label: "Med", color: "text-yellow-400" };
+  return { label: "Low", color: "text-orange-400" };
 }
 
 type SortKey =
@@ -30,7 +99,9 @@ type SortKey =
   | "current_price"
   | "price_change_percentage_24h"
   | "price_change_percentage_7d_in_currency"
-  | "total_volume";
+  | "price_change_percentage_30d_in_currency"
+  | "total_volume"
+  | "fiat_risk";
 
 function formatCurrency(value: number): string {
   if (value == null || Number.isNaN(value)) return "$0";
@@ -88,6 +159,18 @@ export default function CryptoScreenerPage() {
     }
   };
 
+  // BTC and ETH data for relative risk calculations
+  const btcData = useMemo(() => coins.find((c) => c.id === "bitcoin"), [coins]);
+  const ethData = useMemo(() => coins.find((c) => c.id === "ethereum"), [coins]);
+  const btcRisk = useMemo(
+    () => (btcData?.ath && btcData?.atl ? calculateLogRisk(btcData.current_price, btcData.ath, btcData.atl) : 0.5),
+    [btcData]
+  );
+  const ethRisk = useMemo(
+    () => (ethData?.ath && ethData?.atl ? calculateLogRisk(ethData.current_price, ethData.ath, ethData.atl) : 0.5),
+    [ethData]
+  );
+
   const filteredAndSorted = useMemo(() => {
     let data = [...coins];
 
@@ -101,8 +184,13 @@ export default function CryptoScreenerPage() {
     }
 
     data.sort((a, b) => {
-      const aVal = a[sortKey] ?? 0;
-      const bVal = b[sortKey] ?? 0;
+      if (sortKey === "fiat_risk") {
+        const aRisk = a.ath && a.atl ? calculateLogRisk(a.current_price, a.ath, a.atl) : 0.5;
+        const bRisk = b.ath && b.atl ? calculateLogRisk(b.current_price, b.ath, b.atl) : 0.5;
+        return sortDir === "desc" ? bRisk - aRisk : aRisk - bRisk;
+      }
+      const aVal = (a as unknown as Record<string, number>)[sortKey] ?? 0;
+      const bVal = (b as unknown as Record<string, number>)[sortKey] ?? 0;
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
 
@@ -224,11 +312,39 @@ export default function CryptoScreenerPage() {
                 </th>
                 <th
                   className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
+                  onClick={() => handleSort("price_change_percentage_30d_in_currency")}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    30d % <SortIcon column="price_change_percentage_30d_in_currency" />
+                  </span>
+                </th>
+                <th
+                  className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
                   onClick={() => handleSort("market_cap")}
                 >
                   <span className="inline-flex items-center gap-1">
                     시가총액 <SortIcon column="market_cap" />
                   </span>
+                </th>
+                <th
+                  className="px-4 py-3 text-center font-medium text-muted-foreground cursor-pointer hover:text-foreground"
+                  onClick={() => handleSort("fiat_risk")}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    Fiat Risk <SortIcon column="fiat_risk" />
+                  </span>
+                </th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">
+                  BTC Risk
+                </th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">
+                  ETH Risk
+                </th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">
+                  Conf.
+                </th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">
+                  Category
                 </th>
                 <th
                   className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
@@ -246,8 +362,16 @@ export default function CryptoScreenerPage() {
             <tbody>
               {filteredAndSorted.map((coin, index) => {
                 const change24h = coin.price_change_percentage_24h ?? 0;
-                const change7d =
-                  coin.price_change_percentage_7d_in_currency ?? 0;
+                const change7d = coin.price_change_percentage_7d_in_currency ?? 0;
+                const change30d = coin.price_change_percentage_30d_in_currency ?? 0;
+                const fiatRisk = coin.ath && coin.atl
+                  ? calculateLogRisk(coin.current_price, coin.ath, coin.atl)
+                  : null;
+                // BTC/ETH relative risk: how the asset's fiat risk compares
+                const btcRelRisk = fiatRisk !== null ? Math.max(0, Math.min(1, fiatRisk - btcRisk + 0.5)) : null;
+                const ethRelRisk = fiatRisk !== null ? Math.max(0, Math.min(1, fiatRisk - ethRisk + 0.5)) : null;
+                const conf = confidenceLevel(coin);
+                const category = COIN_CATEGORIES[coin.id] ?? "Other";
 
                 return (
                   <tr
@@ -300,8 +424,61 @@ export default function CryptoScreenerPage() {
                       {change7d >= 0 ? "+" : ""}
                       {change7d.toFixed(2)}%
                     </td>
+                    <td
+                      className={`px-4 py-3 text-right font-mono text-sm ${
+                        change30d >= 0 ? "text-green-500" : "text-red-500"
+                      }`}
+                    >
+                      {change30d >= 0 ? "+" : ""}
+                      {change30d.toFixed(2)}%
+                    </td>
                     <td className="px-4 py-3 text-right font-mono text-sm">
                       {formatCurrency(coin.market_cap)}
+                    </td>
+                    {/* Fiat Risk */}
+                    <td className="px-4 py-3 text-center">
+                      {fiatRisk !== null ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(fiatRisk)}`}>
+                            {fiatRisk.toFixed(3)}
+                          </span>
+                          <div className="w-12 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${riskBarBg(fiatRisk)}`} style={{ width: `${fiatRisk * 100}%` }} />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    {/* BTC Risk */}
+                    <td className="px-4 py-3 text-center">
+                      {btcRelRisk !== null ? (
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(btcRelRisk)}`}>
+                          {btcRelRisk.toFixed(3)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    {/* ETH Risk */}
+                    <td className="px-4 py-3 text-center">
+                      {ethRelRisk !== null ? (
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(ethRelRisk)}`}>
+                          {ethRelRisk.toFixed(3)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    {/* Confidence */}
+                    <td className={`px-4 py-3 text-center text-xs font-medium ${conf.color}`}>
+                      {conf.label}
+                    </td>
+                    {/* Category */}
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-xs bg-muted/50 px-2 py-0.5 rounded-full text-muted-foreground whitespace-nowrap">
+                        {category}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-sm">
                       {formatCurrency(coin.total_volume)}

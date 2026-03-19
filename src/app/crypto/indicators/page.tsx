@@ -279,7 +279,7 @@ export default function CryptoIndicatorsPage() {
 
       // 1. Fear & Greed Index (alternative.me)
       if (fgRes.status === "fulfilled") {
-        const fgVal = fgRes.value.value ?? 50;
+        const fgVal = fgRes.value.current?.value ?? fgRes.value.value ?? 50;
         results.push({
           name: "Fear & Greed Index",
           value: fgVal,
@@ -515,6 +515,8 @@ export default function CryptoIndicatorsPage() {
     }
 
     fetchAll();
+    const interval = setInterval(fetchAll, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredIndicators = useMemo(

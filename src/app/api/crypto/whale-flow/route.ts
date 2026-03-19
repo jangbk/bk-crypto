@@ -127,7 +127,7 @@ async function fetchCoinMetrics(asset: string): Promise<CoinMetricsRow[]> {
     `https://community-api.coinmetrics.io/v4/timeseries/asset-metrics` +
     `?assets=${asset.toLowerCase()}` +
     `&metrics=FlowInExUSD,FlowOutExUSD,FlowInExNtv,FlowOutExNtv` +
-    `&frequency=1d&page_size=30`;
+    `&frequency=1d&page_size=366`;
 
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`CoinMetrics ${res.status}`);
@@ -178,11 +178,29 @@ function parseFlow(rows: CoinMetricsRow[], asset: string): ExchangeFlow {
 }
 
 // ---------------------------------------------------------------------------
+// Daily history builder
+// ---------------------------------------------------------------------------
+function buildDailyHistory(rows: CoinMetricsRow[]): { date: string; netflow: number; inflow: number; outflow: number }[] {
+  return rows.map((r) => {
+    const inflow = parseFloat(r.FlowInExUSD ?? "0");
+    const outflow = parseFloat(r.FlowOutExUSD ?? "0");
+    return {
+      date: r.time.split("T")[0],
+      netflow: Math.round(inflow - outflow),
+      inflow: Math.round(inflow),
+      outflow: Math.round(outflow),
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Cache
 // ---------------------------------------------------------------------------
 let cache: {
   flows: ExchangeFlow[];
   whales: WhaleTransaction[];
+  btcDailyHistory: { date: string; netflow: number; inflow: number; outflow: number }[];
+  btcPrices: { date: string; price: number }[];
   ts: number;
 } | null = null;
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -193,12 +211,13 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 export async function GET() {
   if (cache && Date.now() - cache.ts < CACHE_TTL) {
     return NextResponse.json(
-      { flows: cache.flows, whales: cache.whales, cached: true },
+      { flows: cache.flows, whales: cache.whales, btcDailyHistory: cache.btcDailyHistory, btcPrices: cache.btcPrices, cached: true },
       { headers: { "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600" } },
     );
   }
 
   const flows: ExchangeFlow[] = [];
+  let btcDailyHistory: { date: string; netflow: number; inflow: number; outflow: number }[] = [];
 
   // Fetch BTC & ETH from CoinMetrics in parallel
   try {
@@ -208,6 +227,7 @@ export async function GET() {
     ]);
     flows.push(parseFlow(btcRows, "BTC"));
     flows.push(parseFlow(ethRows, "ETH"));
+    btcDailyHistory = buildDailyHistory(btcRows);
   } catch {
     // If CoinMetrics fails, use estimated fallbacks for BTC & ETH too
     flows.push({
@@ -239,10 +259,28 @@ export async function GET() {
   // Add curated fallback flows for XRP, USDT, USDC
   flows.push(...FALLBACK_FLOWS);
 
-  cache = { flows, whales: CURATED_WHALE_TXS, ts: Date.now() };
+  // Fetch BTC price history (30 days) from CoinGecko
+  let btcPrices: { date: string; price: number }[] = [];
+  try {
+    const priceRes = await fetch(
+      "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily",
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (priceRes.ok) {
+      const priceData = await priceRes.json();
+      btcPrices = (priceData.prices as [number, number][]).map(([ts, price]) => ({
+        date: new Date(ts).toISOString().split("T")[0],
+        price: Math.round(price),
+      }));
+    }
+  } catch {
+    // BTC prices are optional
+  }
+
+  cache = { flows, whales: CURATED_WHALE_TXS, btcDailyHistory, btcPrices, ts: Date.now() };
 
   return NextResponse.json(
-    { flows, whales: CURATED_WHALE_TXS },
+    { flows, whales: CURATED_WHALE_TXS, btcDailyHistory, btcPrices },
     { headers: { "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600" } },
   );
 }

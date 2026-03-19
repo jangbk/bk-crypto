@@ -40,19 +40,21 @@ function getChangeForTimeframe(coin: CoinData, tf: Timeframe): number {
 }
 
 function getHeatColor(change: number): string {
-  // Interpolate between red and green
+  // Vibrant color scale: deep red → neutral gray → bright green
   const clamped = Math.max(-15, Math.min(15, change));
   if (clamped >= 0) {
-    const t = clamped / 15;
-    const r = Math.round(20 + (16 - 20) * t);
-    const g = Math.round(20 + (185 - 20) * t);
-    const b = Math.round(20 + (129 - 20) * t);
+    const t = Math.min(clamped / 10, 1); // saturate faster
+    // Neutral dark → bright vivid green
+    const r = Math.round(30 * (1 - t));
+    const g = Math.round(60 + 140 * t);
+    const b = Math.round(40 + 40 * t);
     return `rgb(${r},${g},${b})`;
   } else {
-    const t = Math.abs(clamped) / 15;
-    const r = Math.round(20 + (239 - 20) * t);
-    const g = Math.round(20 + (68 - 20) * t);
-    const b = Math.round(20 + (68 - 20) * t);
+    const t = Math.min(Math.abs(clamped) / 10, 1);
+    // Neutral dark → bright vivid red
+    const r = Math.round(60 + 170 * t);
+    const g = Math.round(30 * (1 - t));
+    const b = Math.round(35 * (1 - t));
     return `rgb(${r},${g},${b})`;
   }
 }
@@ -268,7 +270,7 @@ export default function CryptoHeatmapPage() {
           { label: "<-10%", color: getHeatColor(-12) },
           { label: "-5%", color: getHeatColor(-5) },
           { label: "-1%", color: getHeatColor(-1) },
-          { label: "0%", color: "rgb(20,20,20)" },
+          { label: "0%", color: "rgb(40,45,40)" },
           { label: "+1%", color: getHeatColor(1) },
           { label: "+5%", color: getHeatColor(5) },
           { label: ">+10%", color: getHeatColor(12) },

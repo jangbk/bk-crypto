@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 // ---------------------------------------------------------------------------
 
 const COINGECKO_URL =
-  "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=30&page=1&sparkline=true&price_change_percentage=24h,7d";
+  "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=30&page=1&sparkline=true&price_change_percentage=24h,7d,30d";
 
 // ---------------------------------------------------------------------------
 // Helper: generate a realistic-looking 7-day sparkline (168 hourly points)
@@ -42,8 +42,11 @@ function getSampleData() {
     current_price: number;
     price_change_percentage_24h: number;
     price_change_percentage_7d_in_currency: number;
+    price_change_percentage_30d_in_currency?: number;
     market_cap: number;
     total_volume: number;
+    ath?: number;
+    atl?: number;
     volatility: number;
     trend: number;
   }> = [
@@ -55,8 +58,11 @@ function getSampleData() {
       current_price: 97250.0,
       price_change_percentage_24h: 1.42,
       price_change_percentage_7d_in_currency: 4.87,
+      price_change_percentage_30d_in_currency: 12.5,
       market_cap: 1_912_000_000_000,
       total_volume: 42_300_000_000,
+      ath: 108786,
+      atl: 67.81,
       volatility: 0.015,
       trend: 0.05,
     },
@@ -68,8 +74,11 @@ function getSampleData() {
       current_price: 3285.0,
       price_change_percentage_24h: -0.38,
       price_change_percentage_7d_in_currency: 2.14,
+      price_change_percentage_30d_in_currency: 8.2,
       market_cap: 395_000_000_000,
       total_volume: 18_700_000_000,
+      ath: 4891.7,
+      atl: 0.432979,
       volatility: 0.02,
       trend: 0.02,
     },
@@ -309,34 +318,23 @@ function getSampleData() {
     },
   ];
 
-  return assets.map(
-    ({
-      id,
-      symbol,
-      name,
-      image,
-      current_price,
-      price_change_percentage_24h,
-      price_change_percentage_7d_in_currency,
-      market_cap,
-      total_volume,
-      volatility,
-      trend,
-    }) => ({
-      id,
-      symbol,
-      name,
-      image,
-      current_price,
-      price_change_percentage_24h,
-      price_change_percentage_7d_in_currency,
-      market_cap,
-      total_volume,
-      sparkline_in_7d: {
-        price: generateSparkline(current_price, volatility, trend),
-      },
-    }),
-  );
+  return assets.map((a) => ({
+    id: a.id,
+    symbol: a.symbol,
+    name: a.name,
+    image: a.image,
+    current_price: a.current_price,
+    price_change_percentage_24h: a.price_change_percentage_24h,
+    price_change_percentage_7d_in_currency: a.price_change_percentage_7d_in_currency,
+    price_change_percentage_30d_in_currency: a.price_change_percentage_30d_in_currency ?? (a.price_change_percentage_7d_in_currency * 2.5),
+    market_cap: a.market_cap,
+    total_volume: a.total_volume,
+    ath: a.ath ?? a.current_price * (1.5 + Math.random()),
+    atl: a.atl ?? a.current_price * 0.005,
+    sparkline_in_7d: {
+      price: generateSparkline(a.current_price, a.volatility, a.trend),
+    },
+  }));
 }
 
 export async function GET() {

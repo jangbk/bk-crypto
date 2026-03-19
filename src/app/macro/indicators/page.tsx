@@ -395,29 +395,60 @@ function generateMacroAnalysis(
   {
     const evidence: string[] = [];
     const positiveFactors: string[] = [];
+    const neutralFactors: string[] = [];
     const negativeFactors: string[] = [];
 
     // Analyze each factor for crypto specifically
-    if (isRateCutting) { positiveFactors.push("금리 인하 추세"); evidence.push(`기준금리 ${fedRate!.displayValue} (${fedRate!.trend === "down" ? "↓ 인하 추세" : "횡보"}) → 유동성 증가 기대 → 크립토 긍정적`); }
-    else if (isLowRate) { positiveFactors.push("저금리 환경"); evidence.push(`기준금리 ${fedRate!.displayValue} → 풍부한 유동성 → 크립토 강세 요인`); }
-    else if (isHighRate) { negativeFactors.push("고금리 유동성 제약"); evidence.push(`기준금리 ${fedRate!.displayValue} → 유동성 제한. 국채 대비 크립토 기회비용 증가. 2022년 금리인상기 BTC -65% 하락 선례.`); }
+    // Rate environment
+    if (fedRate) {
+      if (isRateCutting) { positiveFactors.push("금리 인하 추세"); evidence.push(`기준금리 ${fedRate.displayValue} (↓ 인하 추세) → 유동성 증가 기대 → 크립토 긍정적`); }
+      else if (isLowRate) { positiveFactors.push("저금리 환경"); evidence.push(`기준금리 ${fedRate.displayValue} → 풍부한 유동성 → 크립토 강세 요인`); }
+      else if (isHighRate) { negativeFactors.push("고금리 유동성 제약"); evidence.push(`기준금리 ${fedRate.displayValue} → 유동성 제한. 국채 대비 크립토 기회비용 증가.`); }
+      else if (fedRate.value >= 3.5) { neutralFactors.push("중립 이상 금리 수준"); evidence.push(`기준금리 ${fedRate.displayValue} → 중립금리 이상이나 극단적 긴축은 아님. 유동성 환경이 크립토에 중립적.`); }
+      else { neutralFactors.push("중립 금리 환경"); evidence.push(`기준금리 ${fedRate.displayValue} → 중립 수준. 유동성 환경이 크립토에 뚜렷한 방향성을 주지 않음.`); }
+    }
 
-    if (isLowInflation) { positiveFactors.push("안정적 물가"); evidence.push(`CPI ${cpi!.displayValue} → 금리 인하 여력 → 크립토 유동성 환경 개선`); }
-    else if (isHighInflation) { negativeFactors.push("인플레이션 지속"); evidence.push(`CPI ${cpi!.displayValue} → 연준 긴축 연장 가능 → 유동성 축소 리스크`); }
+    // Inflation
+    if (cpi) {
+      if (isLowInflation) { positiveFactors.push("안정적 물가"); evidence.push(`CPI ${cpi.displayValue} → 금리 인하 여력 → 크립토 유동성 환경 개선`); }
+      else if (isHighInflation) { negativeFactors.push("인플레이션 지속"); evidence.push(`CPI ${cpi.displayValue} → 연준 긴축 연장 가능 → 유동성 축소 리스크`); }
+      else if (cpi.trend === "down") { positiveFactors.push("물가 하락 추세"); evidence.push(`CPI ${cpi.displayValue} (하락세) → 인플레 완화 시 금리 인하 기대감 → 크립토 긍정적`); }
+      else if (cpi.trend === "up") { negativeFactors.push("물가 상승 압력 잔존"); evidence.push(`CPI ${cpi.displayValue} (상승세) → 연준 목표(2%) 상회. 긴축 완화 지연 가능성 → 크립토 단기 부담.`); }
+      else { neutralFactors.push("물가 횡보"); evidence.push(`CPI ${cpi.displayValue} → 연준 목표 상회하나 추세 변화 없음. 크립토에 중립적.`); }
+    }
 
-    if (isStrongGrowth) { positiveFactors.push("건전한 경제 성장"); evidence.push(`GDP ${gdp!.displayValue} → Risk-on 심리 지지 → 크립토 포함 위험자산 선호`); }
-    else if (isNegativeGrowth) { negativeFactors.push("경기 위축"); evidence.push(`GDP ${gdp!.displayValue} → 침체기 위험자산 전반 매도 → 크립토 동반 하락 (2022년 패턴)`); }
+    // Growth
+    if (gdp) {
+      if (isStrongGrowth) { positiveFactors.push("건전한 경제 성장"); evidence.push(`GDP ${gdp.displayValue} → Risk-on 심리 지지 → 크립토 포함 위험자산 선호`); }
+      else if (isNegativeGrowth) { negativeFactors.push("경기 위축"); evidence.push(`GDP ${gdp.displayValue} → 침체기 위험자산 전반 매도 → 크립토 동반 하락 (2022년 패턴)`); }
+      else if (gdp.value > 1.0) { positiveFactors.push("양호한 경제 성장"); evidence.push(`GDP ${gdp.displayValue} → 경기 확장 지속. 위험자산 선호 환경 유지.`); }
+      else if (gdp.value > 0) { neutralFactors.push("저성장 국면"); evidence.push(`GDP ${gdp.displayValue} → 성장은 유지되나 모멘텀 약화. 크립토에 뚜렷한 방향성 없음.`); }
+      else { negativeFactors.push("성장 둔화"); evidence.push(`GDP ${gdp.displayValue} → 경기 모멘텀 약화. 위험자산 투자심리 위축 가능.`); }
+    }
 
-    if (isLowVix) { positiveFactors.push("낮은 변동성"); evidence.push(`VIX ${vix!.displayValue} → 시장 안정 → 위험자산 선호 환경`); }
-    else if (isHighVix) { negativeFactors.push("높은 변동성"); evidence.push(`VIX ${vix!.displayValue} → 리스크-오프 심리 → 크립토 매도 압력. 다만 VIX 극단치는 역사적 매수 기회와 겹침.`); }
+    // Volatility
+    if (vix) {
+      if (isLowVix) { positiveFactors.push("낮은 변동성"); evidence.push(`VIX ${vix.displayValue} → 시장 안정 → 위험자산 선호 환경`); }
+      else if (isHighVix) { negativeFactors.push("높은 변동성"); evidence.push(`VIX ${vix.displayValue} → 리스크-오프 심리 → 크립토 매도 압력.`); }
+      else { neutralFactors.push("정상 범위 변동성"); evidence.push(`VIX ${vix.displayValue} → 정상 범위 내. 시장 심리가 크립토에 특별한 방향성을 주지 않음.`); }
+    }
 
+    // Real rate
     if (realRate !== null) {
       if (realRate < 0) { positiveFactors.push("음(-)의 실질금리"); evidence.push(`실질금리 ${realRate.toFixed(1)}%p → 현금 보유 불리 → BTC 등 대체자산 매력↑ (2020~2021년 패턴)`); }
       else if (realRate > 2.0) { negativeFactors.push("높은 실질금리"); evidence.push(`실질금리 +${realRate.toFixed(1)}%p → 무위험수익률 매력 → 크립토 기회비용 큼`); }
+      else if (realRate > 1.0) { neutralFactors.push("양(+)의 실질금리"); evidence.push(`실질금리 +${realRate.toFixed(1)}%p → 현금·채권의 실질 수익 존재. 크립토 기회비용은 있으나 극단적이지 않음.`); }
+      else { neutralFactors.push("낮은 실질금리"); evidence.push(`실질금리 ${realRate.toFixed(1)}%p → 현금 실질수익 미미. 대체자산 탐색 심리와 전통 자산 간 균형.`); }
     }
 
+    // Recession risk
     if (recessionRisk > 0.35) { negativeFactors.push("높은 침체 확률"); evidence.push(`침체 확률 ${(recessionRisk * 100).toFixed(0)}% → 역사적으로 침체기 크립토 대폭 하락 (2020.03 BTC -50%, 2022 BTC -65%)`); }
-    if (recessionRisk <= 0.15 && isLowUnemp) { positiveFactors.push("경기 확장 + 완전고용"); evidence.push(`침체 확률 ${(recessionRisk * 100).toFixed(0)}%, 실업률 ${unemp!.displayValue} → 골디락스 환경. 2024~2025년 BTC 사이클과 유사.`); }
+    else if (recessionRisk <= 0.15) {
+      if (isLowUnemp) { positiveFactors.push("경기 확장 + 완전고용"); evidence.push(`침체 확률 ${(recessionRisk * 100).toFixed(0)}%, 실업률 ${unemp!.displayValue} → 골디락스 환경. 크립토에 이상적 매크로 조건.`); }
+      else { positiveFactors.push("낮은 침체 확률"); evidence.push(`침체 확률 ${(recessionRisk * 100).toFixed(0)}% → 경기 확장 국면 지속 → 위험자산 선호 환경`); }
+    } else {
+      neutralFactors.push("보통 수준 침체 확률"); evidence.push(`침체 확률 ${(recessionRisk * 100).toFixed(0)}% → 침체 리스크가 크지 않으나 경계는 필요. 크립토에 중립적.`);
+    }
 
     // Yield curve inversion check
     if (t10y && fedRate) {
@@ -429,27 +460,31 @@ function generateMacroAnalysis(
     }
 
     const posCount = positiveFactors.length;
+    const neutCount = neutralFactors.length;
     const negCount = negativeFactors.length;
 
     let cryptoColor: string;
     let cryptoContent: string;
 
-    if (posCount >= negCount + 2) {
+    // Net score: positive minus negative (neutral doesn't shift the balance)
+    const netScore = posCount - negCount;
+
+    if (netScore >= 2) {
       cryptoColor = "green";
-      cryptoContent = `거시경제 환경이 크립토에 우호적입니다. 긍정 요인(${positiveFactors.join(", ")})이 부정 요인을 크게 상회합니다. ${isRateCutting || isLowRate ? "유동성 확대 구간은 역사적으로 크립토 강세장(2020 Q4~2021, 2024~2025)과 일치합니다." : "다만 유동성 환경의 변화를 지속 모니터링하세요."} 포트폴리오 내 크립토 비중을 적극적으로 운영할 수 있는 구간이나, 거시 환경 변화에 대한 리밸런싱 기준을 미리 설정하세요.`;
-    } else if (posCount > negCount) {
+      cryptoContent = `거시경제 환경이 크립토에 우호적입니다. 긍정 요인(${positiveFactors.join(", ")})이 부정 요인을 크게 상회합니다. ${isRateCutting || isLowRate ? "유동성 확대 구간은 역사적으로 크립토 강세장(2020 Q4~2021, 2024~2025)과 일치합니다." : "다만 유동성 환경의 변화를 지속 모니터링하세요."} ${neutralFactors.length > 0 ? `중립 요인(${neutralFactors.join(", ")})은 추세 전환 시 방향성을 결정할 변수입니다.` : ""} 포트폴리오 내 크립토 비중을 적극적으로 운영할 수 있는 구간이나, 거시 환경 변화에 대한 리밸런싱 기준을 미리 설정하세요.`;
+    } else if (netScore > 0) {
       cryptoColor = "yellow";
-      cryptoContent = `거시 환경이 크립토에 조건부 우호적입니다. 긍정 요인(${positiveFactors.join(", ")})이 우세하나, ${negativeFactors.length > 0 ? `부정 요인(${negativeFactors.join(", ")})도 존재합니다.` : "불확실성이 잔존합니다."} ${isHighRate ? `특히 기준금리 ${fedRate!.displayValue}의 높은 수준은 크립토 시장의 상승 탄력을 제한합니다. 2018~2019년처럼 거시는 나쁘지 않으나 유동성 부족으로 크립토가 횡보한 사례를 참고하세요.` : ""} 선별적 접근과 분할 매수 전략을 권장합니다.`;
-    } else if (posCount === negCount) {
+      cryptoContent = `거시 환경이 크립토에 조건부 우호적입니다. 긍정 요인(${positiveFactors.join(", ")})이 소폭 우세하나, ${negativeFactors.length > 0 ? `부정 요인(${negativeFactors.join(", ")})도 존재합니다.` : "불확실성이 잔존합니다."} ${neutralFactors.length > 0 ? `중립 요인(${neutralFactors.join(", ")})의 향후 변화 방향이 중요합니다.` : ""} ${isHighRate ? `특히 기준금리 ${fedRate!.displayValue}의 높은 수준은 크립토 시장의 상승 탄력을 제한합니다.` : ""} 선별적 접근과 분할 매수 전략을 권장합니다.`;
+    } else if (netScore === 0) {
       cryptoColor = "orange";
-      cryptoContent = `거시 환경이 크립토에 혼조세입니다. 긍정 요인(${positiveFactors.join(", ")})과 부정 요인(${negativeFactors.join(", ")})이 팽팽히 맞서고 있습니다. 방향성 판단이 어려운 구간으로, 크립토 포지션을 축소하거나 현금 비중을 높여 관망하세요. 거시 데이터의 변화 방향(특히 금리·인플레 추세)이 향후 크립토 방향을 결정할 핵심 변수입니다.`;
+      cryptoContent = `거시 환경이 크립토에 혼조세입니다. 긍정 요인(${positiveFactors.join(", ")})과 부정 요인(${negativeFactors.join(", ")})이 팽팽히 맞서고 있습니다. ${neutralFactors.length > 0 ? `중립 요인(${neutralFactors.join(", ")})이 다수 존재하여, 이 요인들의 변화 방향에 따라 시장 분위기가 전환될 수 있습니다.` : ""} 방향성 판단이 어려운 구간으로, 크립토 포지션을 축소하거나 현금 비중을 높여 관망하세요.`;
     } else {
       cryptoColor = "red";
-      cryptoContent = `거시 환경이 크립토에 비우호적입니다. 부정 요인(${negativeFactors.join(", ")})이 긍정 요인을 압도합니다. ${recessionRisk > 0.35 ? "경기침체 시 크립토는 리스크 자산으로서 큰 하락을 경험합니다 (2022년 BTC -65%, ETH -68%)." : ""} ${isHighRate && isHighInflation ? "고금리+고인플레 조합은 크립토에 가장 불리한 거시 환경입니다 (2022년 패턴)." : ""} 현금 비중을 극대화하고, 하락 시 DCA 매수를 위한 자금을 확보하세요. 매크로 바닥 확인 후 진입이 리스크 대비 수익이 높습니다.`;
+      cryptoContent = `거시 환경이 크립토에 비우호적입니다. 부정 요인(${negativeFactors.join(", ")})이 긍정 요인을 압도합니다. ${neutralFactors.length > 0 ? `중립 요인(${neutralFactors.join(", ")})도 악화 시 추가 하방 압력이 될 수 있습니다.` : ""} ${recessionRisk > 0.35 ? "경기침체 시 크립토는 리스크 자산으로서 큰 하락을 경험합니다 (2022년 BTC -65%, ETH -68%)." : ""} ${isHighRate && isHighInflation ? "고금리+고인플레 조합은 크립토에 가장 불리한 거시 환경입니다 (2022년 패턴)." : ""} 현금 비중을 극대화하고, 하락 시 DCA 매수를 위한 자금을 확보하세요.`;
     }
 
     guide.push({
-      title: `암호화폐 시사점 (긍정 ${posCount} / 부정 ${negCount})`,
+      title: `암호화폐 시사점 (긍정 ${posCount} / 중립 ${neutCount} / 부정 ${negCount})`,
       content: cryptoContent,
       color: cryptoColor,
       evidence,
@@ -695,6 +730,8 @@ export default function MacroIndicatorsPage() {
     }
 
     fetchAll();
+    const iv = setInterval(fetchAll, 60_000);
+    return () => clearInterval(iv);
   }, []);
 
   const analysis = useMemo(
@@ -730,6 +767,26 @@ export default function MacroIndicatorsPage() {
         <p className="text-muted-foreground">
           글로벌 거시경제 지표 — 경기 사이클 분석 및 투자 전략 가이드
         </p>
+        {indicators.length > 0 && (
+          <div className="flex items-center gap-2 mt-2">
+            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full ${
+              indicators.some(i => i.source === "FRED")
+                ? "bg-green-500/10 text-green-500 border border-green-500/20"
+                : "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                indicators.some(i => i.source === "FRED") ? "bg-green-500 animate-pulse" : "bg-yellow-500"
+              }`} />
+              {indicators.some(i => i.source === "FRED")
+                ? `FRED 실시간 데이터 (${indicators.filter(i => i.source === "FRED").length}/${indicators.length})`
+                : "샘플 데이터 (FRED API 키 미설정)"
+              }
+            </span>
+            <span className="text-[10px] text-muted-foreground/60">
+              {indicators.some(i => i.source === "FRED") ? "미 연방준비제도 경제데이터(FRED) 제공" : ""}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Gauges: Recession Risk + Category */}
