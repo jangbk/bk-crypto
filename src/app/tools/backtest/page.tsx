@@ -214,6 +214,254 @@ const ASSET_TO_COINGECKO: Record<string, string> = {
   "BTC/USD": "bitcoin",
 };
 
+// --- v6-hybrid backtest (Confidence Score filter + trend/meanrev) ---
+function runV6Hybrid(
+  prices: PriceBar[],
+  scoreThreshold: number,
+  slMult: number,
+  tpMult: number,
+  initialCapital: number,
+): BacktestResult {
+  let capital = initialCapital;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital;
+  let maxDD = 0;
+
+  // Simple indicators inline
+  const closes = prices.map((p) => p.close);
+  const highs = prices.map((p) => p.high);
+  const lows = prices.map((p) => p.low);
+
+  function sma(arr: number[], period: number, idx: number): number {
+    if (idx < period - 1) return arr[idx];
+    let sum = 0;
+    for (let i = idx - period + 1; i <= idx; i++) sum += arr[i];
+    return sum / period;
+  }
+  function ema(arr: number[], period: number): number[] {
+    const result: number[] = [arr[0]];
+    const k = 2 / (period + 1);
+    for (let i = 1; i < arr.length; i++) result.push(arr[i] * k + result[i - 1] * (1 - k));
+    return result;
+  }
+  function atr(h: number[], l: number[], c: number[], period: number): number[] {
+    const tr: number[] = [h[0] - l[0]];
+    for (let i = 1; i < h.length; i++) {
+      tr.push(Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])));
+    }
+    const result: number[] = [tr[0]];
+    for (let i = 1; i < tr.length; i++) {
+      if (i < period) { result.push(tr.slice(0, i + 1).reduce((a, b) => a + b) / (i + 1)); }
+      else { result.push((result[i - 1] * (period - 1) + tr[i]) / period); }
+    }
+    return result;
+  }
+  function rsi(arr: number[], period: number): number[] {
+    const result: number[] = new Array(arr.length).fill(50);
+    let avgGain = 0, avgLoss = 0;
+    for (let i = 1; i <= period && i < arr.length; i++) {
+      const diff = arr[i] - arr[i - 1];
+      if (diff > 0) avgGain += diff; else avgLoss -= diff;
+    }
+    avgGain /= period; avgLoss /= period;
+    for (let i = period; i < arr.length; i++) {
+      const diff = arr[i] - arr[i - 1];
+      avgGain = (avgGain * (period - 1) + (diff > 0 ? diff : 0)) / period;
+      avgLoss = (avgLoss * (period - 1) + (diff < 0 ? -diff : 0)) / period;
+      result[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+    }
+    return result;
+  }
+
+  const ma20 = closes.map((_, i) => sma(closes, 20, i));
+  const ma50 = closes.map((_, i) => sma(closes, 50, i));
+  const ma100 = closes.map((_, i) => sma(closes, 100, i));
+  const atrArr = atr(highs, lows, closes, 14);
+  const rsiArr = rsi(closes, 14);
+
+  // ADX approximation (simplified)
+  function calcADX(): number[] {
+    const adx: number[] = new Array(closes.length).fill(20);
+    for (let i = 14; i < closes.length; i++) {
+      const slice = closes.slice(i - 14, i + 1);
+      const range = Math.max(...slice) - Math.min(...slice);
+      const avgPrice = slice.reduce((a, b) => a + b) / slice.length;
+      adx[i] = Math.min(50, (range / avgPrice) * 100 * 8);
+    }
+    return adx;
+  }
+  const adxArr = calcADX();
+
+  let pos: { side: string; entry: number; qty: number; sl: number; tp: number; entryIdx: number } | null = null;
+  const FEE = 0.00055; // taker
+
+  for (let i = 100; i < prices.length; i++) {
+    const price = closes[i];
+    const high = highs[i];
+    const low = lows[i];
+    const curATR = atrArr[i];
+    const curRSI = rsiArr[i];
+    const curADX = adxArr[i];
+
+    // SL/TP check
+    if (pos) {
+      if (pos.side === "Buy" && low <= pos.sl) {
+        const pnl = (pos.sl - pos.entry) * pos.qty;
+        capital += pnl - Math.abs(pnl) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        pos = null;
+      } else if (pos.side === "Buy" && high >= pos.tp) {
+        const pnl = (pos.tp - pos.entry) * pos.qty;
+        capital += pnl - Math.abs(pnl) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        pos = null;
+      } else if (pos.side === "Sell" && high >= pos.sl) {
+        const pnl = (pos.entry - pos.sl) * pos.qty;
+        capital += pnl - Math.abs(pnl) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        pos = null;
+      } else if (pos.side === "Sell" && low <= pos.tp) {
+        const pnl = (pos.entry - pos.tp) * pos.qty;
+        capital += pnl - Math.abs(pnl) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        pos = null;
+      }
+    }
+
+    // Confidence Score
+    let score = 0, wt = 0;
+    const adxV = curADX > 40 ? 1 : curADX > 30 ? 0.8 : curADX > 25 ? 0.6 : curADX > 20 ? 0.3 : 0;
+    score += adxV * 3; wt += 3;
+    const aligned = (price > ma20[i] && ma20[i] > ma50[i] && ma50[i] > ma100[i]) ||
+                    (price < ma20[i] && ma20[i] < ma50[i] && ma50[i] < ma100[i]);
+    const partial = (price > ma20[i] && ma20[i] > ma50[i]) || (price < ma20[i] && ma20[i] < ma50[i]);
+    score += (aligned ? 1 : partial ? 0.5 : 0) * 3; wt += 3;
+    score += 0.5 * 2; wt += 2; // cross placeholder
+    score += 0.5 * 1; wt += 1; // volume placeholder
+    const diDiff = Math.abs(ma20[i] - ma50[i]) / price * 1000;
+    score += (diDiff > 15 ? 1 : diDiff > 10 ? 0.6 : diDiff > 5 ? 0.3 : 0) * 1; wt += 1;
+    const finalScore = score / wt;
+
+    // Signal generation
+    if (!pos && finalScore >= scoreThreshold) {
+      const isBull = price > ma20[i] && ma20[i] > ma50[i];
+      const isBear = price < ma20[i] && ma20[i] < ma50[i];
+
+      if (isBull && curRSI > 55) {
+        const qty = (capital * 0.02) / (curATR * slMult);
+        pos = { side: "Buy", entry: price, qty, sl: price - curATR * slMult, tp: price + curATR * tpMult, entryIdx: i };
+        capital -= qty * price * 0.0002;
+      } else if (isBear && curRSI < 45) {
+        const qty = (capital * 0.02) / (curATR * slMult);
+        pos = { side: "Sell", entry: price, qty, sl: price + curATR * slMult, tp: price - curATR * tpMult, entryIdx: i };
+        capital -= qty * price * 0.0002;
+      }
+    }
+
+    // Exit signals
+    if (pos) {
+      if (pos.side === "Buy" && (curRSI < 45 || price < ma20[i])) {
+        const pnl = (price - pos.entry) * pos.qty;
+        capital += pnl - Math.abs(pnl) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        pos = null;
+      } else if (pos.side === "Sell" && (curRSI > 55 || price > ma20[i])) {
+        const pnl = (pos.entry - price) * pos.qty;
+        capital += pnl - Math.abs(pnl) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        pos = null;
+      }
+    }
+
+    peak = Math.max(peak, capital);
+    const dd = ((capital - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((capital / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+
+  if (pos) {
+    const price = closes[closes.length - 1];
+    const pnl = pos.side === "Buy" ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty;
+    capital += pnl;
+    trades.push({ pnl: (pnl / capital) * 100, holdDays: closes.length - pos.entryIdx });
+  }
+
+  return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
+    "Bybit v6-hybrid (Confidence Score)", "BTC/USD", "CryptoCompare (실제 데이터)");
+}
+
+// --- Funding Rate Arbitrage simulation ---
+function runFundingArbSim(prices: PriceBar[], initialCapital: number): BacktestResult {
+  // 펀딩비는 가격 데이터에 없으므로 통계적 시뮬레이션
+  // BTC 평균 펀딩비: 양수 78%, 평균 0.004%/8h → 연환산 ~4.3%
+  let capital = initialCapital;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital;
+  let maxDD = 0;
+
+  const DAILY_FUNDING = 0.00004 * 3; // 0.004% × 3회/일
+  const ENTRY_FEE = 0.0002 * 2; // maker 양쪽
+  const POSITION_PCT = 0.5; // 자본의 50% 배분
+
+  let inPosition = false;
+  let entryIdx = 0;
+  let positionCapital = 0;
+
+  for (let i = 1; i < prices.length; i++) {
+    // 간단한 진입/청산: 20일 MA 위에서 양수 펀딩비 가정
+    const ma20 = i >= 20 ? prices.slice(i - 20, i).reduce((s, p) => s + p.close, 0) / 20 : prices[i].close;
+    const aboveMA = prices[i].close > ma20;
+
+    if (!inPosition && aboveMA && i > 20) {
+      // 진입 (양수 펀딩비 구간)
+      positionCapital = capital * POSITION_PCT;
+      capital -= positionCapital * ENTRY_FEE; // 진입 수수료
+      inPosition = true;
+      entryIdx = i;
+    } else if (inPosition && !aboveMA) {
+      // 청산 (펀딩비 방향 전환)
+      const holdDays = i - entryIdx;
+      const fundingEarned = positionCapital * DAILY_FUNDING * holdDays;
+      // 가격 변동은 delta neutral이므로 0 (이상적)
+      // 실제로는 약간의 슬리피지 발생
+      const slippage = positionCapital * 0.001; // 0.1% 슬리피지
+      const netPnl = fundingEarned - slippage;
+      capital += positionCapital + netPnl - positionCapital * ENTRY_FEE;
+      trades.push({ pnl: (netPnl / initialCapital) * 100, holdDays });
+      inPosition = false;
+    } else if (inPosition) {
+      // 보유 중: 일일 펀딩비 수취
+      // (최종 정산 시 반영)
+    }
+
+    const equity = inPosition
+      ? capital + positionCapital + positionCapital * DAILY_FUNDING * (i - entryIdx)
+      : capital;
+    peak = Math.max(peak, equity);
+    const dd = ((equity - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((equity / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+
+  // 최종 청산
+  if (inPosition) {
+    const holdDays = prices.length - 1 - entryIdx;
+    const fundingEarned = positionCapital * DAILY_FUNDING * holdDays;
+    const netPnl = fundingEarned - positionCapital * 0.001;
+    capital += positionCapital + netPnl;
+    trades.push({ pnl: (netPnl / initialCapital) * 100, holdDays });
+  }
+
+  return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
+    "Funding Rate Arbitrage (시뮬레이션)", "BTC/USD", "CryptoCompare + 펀딩비 통계 (시뮬레이션)");
+}
+
 // --- Helper: compute common stats from equity curve and trades ---
 function computeStats(
   prices: PriceBar[],
@@ -706,6 +954,8 @@ function getBotDefaults(strategyId: string): string[] {
     case "bot-seykota-ema": return ["100", "1.5", "14"];
     case "bot-ptj-200ma": return ["200", "1.5", "14"];
     case "bot-kis-rsi-macd": return ["12/26/9", "20", "7"];
+    case "bot-bybit-v6-hybrid": return ["0.6", "1.5", "2.5"];
+    case "bot-bybit-funding-arb": return ["0.03", "70", "15"];
     default: return ["0.5", "80", "5"];
   }
 }
@@ -725,7 +975,7 @@ export default function BacktestPage() {
   const strategy = STRATEGIES.find((s) => s.id === selectedStrategy)!;
   const isBotStrategy = strategy?.isBotStrategy ?? false;
   const isKIS = selectedStrategy === "bot-kis-rsi-macd";
-  const isCryptoBotStrategy = selectedStrategy === "bot-seykota-ema" || selectedStrategy === "bot-ptj-200ma";
+  const isCryptoBotStrategy = selectedStrategy === "bot-seykota-ema" || selectedStrategy === "bot-ptj-200ma" || selectedStrategy === "bot-bybit-v6-hybrid" || selectedStrategy === "bot-bybit-funding-arb";
 
   const normalStrategies = STRATEGIES.filter((s) => !s.isBotStrategy);
   const botStrategies = STRATEGIES.filter((s) => s.isBotStrategy);
@@ -739,6 +989,9 @@ export default function BacktestPage() {
     if (strategyId === "bot-seykota-ema" || strategyId === "bot-ptj-200ma") {
       setAsset("BTC/USD");
       setStartDate("2017-01-01");
+    } else if (strategyId === "bot-bybit-v6-hybrid" || strategyId === "bot-bybit-funding-arb") {
+      setAsset("BTC/USD");
+      setStartDate("2020-04-01");
     } else if (strategyId === "bot-kis-rsi-macd") {
       setAsset("삼성전자");
     }
@@ -812,6 +1065,8 @@ export default function BacktestPage() {
         warmupBars = (parseInt(paramValues[0]) || 200) + 10;
       } else if (selectedStrategy === "bot-seykota-ema") {
         warmupBars = (parseInt(paramValues[0]) || 100) + 10;
+      } else if (selectedStrategy === "bot-bybit-v6-hybrid" || selectedStrategy === "bot-bybit-funding-arb") {
+        warmupBars = 110; // MA100 + buffer
       }
       const totalBarsNeeded = daysDiff + warmupBars;
       const toTs = Math.floor(end.getTime() / 1000);
@@ -865,6 +1120,17 @@ export default function BacktestPage() {
             const atrMult = parseFloat(paramValues[1]) || 1.5;
             const atrPeriod = parseInt(paramValues[2]) || 14;
             backResult = runPTJ200MA(prices, emaPeriod, atrMult, atrPeriod, 0.001, capital);
+            break;
+          }
+          case "bot-bybit-v6-hybrid": {
+            const scoreThreshold = parseFloat(paramValues[0]) || 0.6;
+            const slMult = parseFloat(paramValues[1]) || 1.5;
+            const tpMult = parseFloat(paramValues[2]) || 2.5;
+            backResult = runV6Hybrid(prices, scoreThreshold, slMult, tpMult, capital);
+            break;
+          }
+          case "bot-bybit-funding-arb": {
+            backResult = runFundingArbSim(prices, capital);
             break;
           }
           default: {
