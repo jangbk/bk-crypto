@@ -4,6 +4,61 @@ import { getCoinoneBotData } from "../coinone/route";
 import { getKisBotData } from "../kis/route";
 
 // Fallback data — 거래 없는 초기 상태
+const BYBIT_BOTS = [
+  {
+    id: "bybit-v6-hybrid",
+    name: "Bybit v6-hybrid Bot",
+    description: "Confidence Score ≥ 0.6 필터 + 추세추종/MeanRev + CHOPPY 자동감지",
+    asset: "BTC/USDT",
+    exchange: "Bybit (Demo)",
+    status: "active" as const,
+    startDate: "2026-03-21",
+    initialCapital: 50000,
+    currentValue: 50000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [] as number[],
+    monthlyReturns: [] as number[],
+    recentTrades: [] as Array<{ time: string; type: string; price: string; qty: string; pnl: string }>,
+    _live: false,
+  },
+  {
+    id: "bybit-funding-arb",
+    name: "Funding Rate Arb Bot",
+    description: "Delta Neutral 펀딩비 아비트라지 (멀티코인 로테이션)",
+    asset: "BTC, ETH, SOL 등 10코인",
+    exchange: "Bybit (Demo)",
+    status: "active" as const,
+    startDate: "2026-03-21",
+    initialCapital: 50000,
+    currentValue: 50000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [] as number[],
+    monthlyReturns: [] as number[],
+    recentTrades: [] as Array<{ time: string; type: string; price: string; qty: string; pnl: string }>,
+    _live: false,
+  },
+];
+
 const FALLBACK_STRATEGIES = [
   {
     id: "seykota-ema",
@@ -106,6 +161,9 @@ export async function GET() {
     );
     return { ...FALLBACK_STRATEGIES[index], _live: false };
   });
+
+  // Bybit 봇 추가 (별도 API 없이 정적 데이터)
+  strategies.push(...BYBIT_BOTS);
 
   return NextResponse.json(
     { strategies, timestamp: new Date().toISOString() },
