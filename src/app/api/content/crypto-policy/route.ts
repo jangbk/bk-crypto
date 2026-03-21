@@ -6,7 +6,8 @@ const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6시간 캐시
 let cachedData: { data: unknown; timestamp: number } | null = null;
 
 async function fetchLatestPolicies() {
-  if (!ANTHROPIC_API_KEY) return null;
+  const apiKey = ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -14,12 +15,12 @@ async function fetchLatestPolicies() {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
+      "x-api-key": apiKey!,
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 4000,
+      max_tokens: 8000,
       system: `You are a crypto regulation analyst. Today is ${today}. Respond ONLY with valid JSON, no markdown.`,
       messages: [{
         role: "user",
@@ -95,13 +96,17 @@ async function fetchLatestPolicies() {
     }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error("Claude API error:", res.status, await res.text().catch(() => ""));
+    return null;
+  }
   const data = await res.json();
   const text = data.content?.[0]?.text || "";
 
   try {
     return JSON.parse(text.replace(/```(?:json)?|```/g, "").trim());
-  } catch {
+  } catch (e) {
+    console.error("JSON parse error:", e, "raw:", text.slice(0, 200));
     return null;
   }
 }
