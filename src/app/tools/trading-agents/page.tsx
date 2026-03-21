@@ -527,12 +527,12 @@ Respond ONLY with valid JSON (no markdown, no backticks):
         .ta-page { --ta-bg:#070B14; --ta-card:rgba(255,255,255,0.03); --ta-border:#1E293B; --ta-text:#E2E8F0; --ta-muted:#94A3B8; --ta-dim:#64748B; --ta-dark:#0F172A; }
         /* Light mode — html.light (next-themes) */
         html.light .ta-page {
-          --ta-bg:#FFFFFF; --ta-card:rgba(0,0,0,0.03); --ta-border:#CBD5E1; --ta-text:#0F172A; --ta-muted:#334155; --ta-dim:#475569; --ta-dark:#F1F5F9;
+          --ta-bg:#FFFFFF; --ta-card:rgba(0,0,0,0.04); --ta-border:#94A3B8; --ta-text:#020617; --ta-muted:#1E293B; --ta-dim:#334155; --ta-dark:#E2E8F0;
         }
         /* Light mode — prefers-color-scheme fallback */
         @media(prefers-color-scheme:light) {
           html:not(.dark) .ta-page {
-            --ta-bg:#FFFFFF; --ta-card:rgba(0,0,0,0.03); --ta-border:#CBD5E1; --ta-text:#0F172A; --ta-muted:#334155; --ta-dim:#475569; --ta-dark:#F1F5F9;
+            --ta-bg:#FFFFFF; --ta-card:rgba(0,0,0,0.04); --ta-border:#94A3B8; --ta-text:#020617; --ta-muted:#1E293B; --ta-dim:#334155; --ta-dark:#E2E8F0;
           }
         }
       `}</style>
