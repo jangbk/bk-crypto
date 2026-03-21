@@ -141,23 +141,22 @@ async function callClaude(system: string, user: string) {
 async function fetchMarketData() {
   let usd: { price: number; change: number; mcap: number; vol: number } | null = null;
   let krw: { price: number; change: number } | null = null;
+  // USD: CoinGecko
   try {
-    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,krw&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true",{cache:"no-cache"});
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true",{cache:"no-cache"});
     const d = await r.json();
     usd = { price:d.bitcoin.usd, change:d.bitcoin.usd_24h_change, mcap:d.bitcoin.usd_market_cap, vol:d.bitcoin.usd_24h_vol };
-    krw = { price:d.bitcoin.krw, change:d.bitcoin.krw_24h_change };
   } catch{}
-  if (!krw) {
-    try {
-      const r = await fetch("https://api.upbit.com/v1/ticker?markets=KRW-BTC");
-      const [d] = await r.json();
-      krw = { price:d.trade_price, change:d.signed_change_rate*100 };
-    } catch{}
-  }
+  // KRW: 항상 Upbit 실시간 (CoinGecko KRW는 환율 추정이라 부정확)
+  try {
+    const r = await fetch("https://api.upbit.com/v1/ticker?markets=KRW-BTC");
+    const [d] = await r.json();
+    krw = { price:d.trade_price, change:d.signed_change_rate*100 };
+  } catch{}
   return {
     usd: usd||{price:83500,change:-0.8,mcap:1.65e12,vol:38e9},
     krw: krw||{price:121800000,change:-0.9},
-    live: !!usd,
+    live: !!usd && !!krw,
   };
 }
 
@@ -322,8 +321,8 @@ function ReportCard({ stepKey, content, weights, signals, lang="ko" }: { stepKey
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
           <span style={{ fontSize:13 }}>{a.icon}</span>
           <span style={{ fontSize:11, color:a.color, letterSpacing:3, fontWeight:700 }}>{lang==="ko"?a.nameKo:a.name}</span>
-          {w != null && <div style={{ fontSize:10, padding:"2px 8px", borderRadius:3, background:"var(--ta-card)", border:"1px solid var(--ta-border)", color:"var(--ta-text)", fontWeight:600 }}>{w}%</div>}
-          {sig != null && <div style={{ fontSize:10, padding:"2px 8px", borderRadius:3, background: sig===1?"#22C55E12":sig===-1?"#EF444412":"#F59E0B12", border:`1px solid ${sig===1?"#22C55E30":sig===-1?"#EF444430":"#F59E0B30"}`, color: sig===1?"#22C55E":sig===-1?"#EF4444":"#F59E0B" }}>{sig===1?"▲ 강세":sig===-1?"▼ 약세":"— 중립"}</div>}
+          {w != null && <div style={{ fontSize:12, padding:"3px 10px", borderRadius:4, background:"var(--ta-card)", border:"1px solid var(--ta-border)", color:"var(--ta-text)", fontWeight:600 }}>{w}%</div>}
+          {sig != null && <div style={{ fontSize:12, padding:"3px 10px", borderRadius:4, background: sig===1?"#22C55E12":sig===-1?"#EF444412":"#F59E0B12", border:`1px solid ${sig===1?"#22C55E30":sig===-1?"#EF444430":"#F59E0B30"}`, color: sig===1?"#22C55E":sig===-1?"#EF4444":"#F59E0B" }}>{sig===1?"▲ 강세":sig===-1?"▼ 약세":"— 중립"}</div>}
           <div style={{ flex:1, height:1, background:`linear-gradient(90deg,${a.color}40,transparent)` }} />
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
@@ -343,10 +342,10 @@ function ReportCard({ stepKey, content, weights, signals, lang="ko" }: { stepKey
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
-        <span style={{ fontSize:13 }}>{a.icon}</span>
-        <span style={{ fontSize:11, color:a.color, letterSpacing:3, fontWeight:700 }}>{lang==="ko"?a.nameKo:a.name}</span>
-        {w != null && <div style={{ fontSize:10, padding:"2px 8px", borderRadius:3, background:"var(--ta-card)", border:"1px solid var(--ta-border)", color:"var(--ta-text)", fontWeight:600 }}>{w}%</div>}
-        {sig != null && <div style={{ fontSize:10, padding:"2px 8px", borderRadius:3, background: sig===1?"#22C55E12":sig===-1?"#EF444412":"#F59E0B12", border:`1px solid ${sig===1?"#22C55E30":sig===-1?"#EF444430":"#F59E0B30"}`, color: sig===1?"#22C55E":sig===-1?"#EF4444":"#F59E0B" }}>{sig===1?"▲ 강세":sig===-1?"▼ 약세":"— 중립"}</div>}
+        <span style={{ fontSize:16 }}>{a.icon}</span>
+        <span style={{ fontSize:14, color:a.color, letterSpacing:3, fontWeight:700 }}>{lang==="ko"?a.nameKo:a.name}</span>
+        {w != null && <div style={{ fontSize:12, padding:"3px 10px", borderRadius:4, background:"var(--ta-card)", border:"1px solid var(--ta-border)", color:"var(--ta-text)", fontWeight:600 }}>{w}%</div>}
+        {sig != null && <div style={{ fontSize:12, padding:"3px 10px", borderRadius:4, background: sig===1?"#22C55E12":sig===-1?"#EF444412":"#F59E0B12", border:`1px solid ${sig===1?"#22C55E30":sig===-1?"#EF444430":"#F59E0B30"}`, color: sig===1?"#22C55E":sig===-1?"#EF4444":"#F59E0B" }}>{sig===1?"▲ 강세":sig===-1?"▼ 약세":"— 중립"}</div>}
         <div style={{ flex:1, height:1, background:`linear-gradient(90deg,${a.color}40,transparent)` }} />
       </div>
       <div style={{ background:`${a.color}07`, border:`1px solid ${a.color}20`, borderRadius:8, padding:16 }}>
@@ -366,7 +365,7 @@ function DecisionCard({ decision, krwPrice, regime, score, lang="ko" }: { decisi
     <div style={{ background:"linear-gradient(135deg,rgba(236,72,153,0.06),rgba(139,92,246,0.06))", border:"1px solid rgba(236,72,153,0.22)", borderRadius:12, padding:24 }}>
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
         <span style={{ fontSize:13 }}>👔</span>
-        <span style={{ fontSize:11, color:"#F472B6", letterSpacing:3, fontWeight:700 }}>{lang==="ko"?"포트폴리오 매니저 — 최종 결정":"PORTFOLIO MANAGER — FINAL DECISION"}</span>
+        <span style={{ fontSize:14, color:"#F472B6", letterSpacing:3, fontWeight:700 }}>{lang==="ko"?"포트폴리오 매니저 — 최종 결정":"PORTFOLIO MANAGER — FINAL DECISION"}</span>
         {codeAction && (
           <div style={{ marginLeft:"auto", fontSize:8, padding:"2px 10px", borderRadius:4, background: matches?"rgba(74,222,128,0.1)":"rgba(245,158,11,0.1)", border:`1px solid ${matches?"#4ADE8040":"#F59E0B40"}`, color: matches?"#4ADE80":"#F59E0B" }}>
             {matches ? (lang==="ko"?"✓ 스코어 일치":"✓ Score Match") : (lang==="ko"?"⚠ 스코어와 상이":"⚠ Score Mismatch")}
@@ -492,21 +491,21 @@ Market Cap: ${fmtB(usd.mcap)}  |  24h Volume: ${fmtB(usd.vol)}
 
       setActiveStep("debate");
       const [bullR, bearR] = await Promise.all([
-        callClaude("You are Bullish Researcher. 3 sharp bullet counter to bear.", `Bear:\n${bear}\nRebuttal:`),
-        callClaude("You are Bearish Researcher. 3 precise bullet counter to bull.", `Bull:\n${bull}\nCounter:`),
+        callClaude(`You are Bullish Researcher. ${langInst} 3 sharp bullet counter to bear.`, `Bear:\n${bear}\nRebuttal:`),
+        callClaude(`You are Bearish Researcher. ${langInst} 3 precise bullet counter to bull.`, `Bull:\n${bull}\nCounter:`),
       ]);
       addReport("debate", { bull:bullR, bear:bearR });
 
       setActiveStep("trader");
-      const trade = await callClaude(`You are the BTC Trader. 국면: ${ri.label}.\n**ACTION:** BUY/SELL/HOLD\n**ENTRY:** **STOP LOSS:** **TAKE PROFIT:** **POSITION SIZE:** **TIMEFRAME:** **RATIONALE:** **CONFIDENCE:** X%`, `Decide:\nBULL:\n${bull}\nBEAR:\n${bear}\nDEBATE:\nBull:${bullR}\nBear:${bearR}\nBTC: ${fmtUSD(usd.price)} (${fmtKRW(krw.price)})\n국면: ${ri.label}`);
+      const trade = await callClaude(`You are the BTC Trader. ${langInst} 국면: ${ri.label}.\n**ACTION:** BUY/SELL/HOLD\n**ENTRY:** **STOP LOSS:** **TAKE PROFIT:** **POSITION SIZE:** **TIMEFRAME:** **RATIONALE:** **CONFIDENCE:** X%`, `Decide:\nBULL:\n${bull}\nBEAR:\n${bear}\nDEBATE:\nBull:${bullR}\nBear:${bearR}\nBTC: ${fmtUSD(usd.price)} (${fmtKRW(krw.price)})\n국면: ${ri.label}`);
       addReport("trader", trade);
 
       setActiveStep("riskTeam");
       const rCtx = `Trade:\n${trade}\nBTC: ${fmtUSD(usd.price)} (${fmtPct(usd.change)})\n국면: ${ri.label}`;
       const [agg, neu, con] = await Promise.all([
-        callClaude(`AGGRESSIVE Risk Manager. ★ HIGH PRIORITY (${weights.riskTeam}% weight). 3 sentences. Last line: ✅ APPROVE or ⚠️ APPROVE WITH CONDITIONS.`, rCtx),
-        callClaude(`NEUTRAL Risk Manager. ★ HIGH PRIORITY (${weights.riskTeam}% weight). 3 sentences. Last line: ✅ APPROVE, ⚠️ MODIFY, or ❌ REJECT.`, rCtx),
-        callClaude(`CONSERVATIVE Risk Manager. ★ HIGH PRIORITY (${weights.riskTeam}% weight). 3 sentences. Last line: ✅ APPROVE, ⚠️ REDUCE SIZE, or ❌ REJECT.`, rCtx),
+        callClaude(`AGGRESSIVE Risk Manager. ${langInst} ★ HIGH PRIORITY (${weights.riskTeam}% weight). 3 sentences. Last line: ✅ APPROVE or ⚠️ APPROVE WITH CONDITIONS.`, rCtx),
+        callClaude(`NEUTRAL Risk Manager. ${langInst} ★ HIGH PRIORITY (${weights.riskTeam}% weight). 3 sentences. Last line: ✅ APPROVE, ⚠️ MODIFY, or ❌ REJECT.`, rCtx),
+        callClaude(`CONSERVATIVE Risk Manager. ${langInst} ★ HIGH PRIORITY (${weights.riskTeam}% weight). 3 sentences. Last line: ✅ APPROVE, ⚠️ REDUCE SIZE, or ❌ REJECT.`, rCtx),
       ]);
       addReport("riskTeam", { aggressive:agg, neutral:neu, conservative:con });
       const riskSig = parseRiskSignal({ aggressive:agg, neutral:neu, conservative:con });
@@ -524,10 +523,11 @@ Market Cap: ${fmtB(usd.mcap)}  |  24h Volume: ${fmtB(usd.vol)}
         return `  ${k.padEnd(12)} signal=${s!=null?s:"-"} × weight=${w}% → contribution=${c}`;
       }).join("\n");
 
+      const reasoningLang = language === "ko" ? "reasoning은 반드시 한국어로 작성하라." : "Write reasoning in English.";
       const finalRaw = await callClaude(
-        `You are the Portfolio Manager. 코드 레벨 가중 점수를 최우선으로 참고하여 최종 결정하라.
+        `You are the Portfolio Manager. ${langInst} 코드 레벨 가중 점수를 최우선으로 참고하여 최종 결정하라.
 Respond ONLY with valid JSON (no markdown, no backticks):
-{"action":"BUY|SELL|HOLD","confidence":0-100,"positionSize":"X%","entry":"$XX,XXX","stopLoss":"$XX,XXX","takeProfit":"$XX,XXX","timeframe":"string","reasoning":"2-3 sentences","riskLevel":"HIGH|MEDIUM|LOW"}`,
+{"action":"BUY|SELL|HOLD","confidence":0-100,"positionSize":"X%","entry":"$XX,XXX","stopLoss":"$XX,XXX","takeProfit":"$XX,XXX","timeframe":"string","reasoning":"2-3 sentences ${reasoningLang}","riskLevel":"HIGH|MEDIUM|LOW"}`,
         `═══ 코드 레벨 가중 점수 ═══\n시장 국면: ${ri.label}\n가중 점수: ${score.toFixed(4)}\n코드 신호: ${codeAction}\n\n에이전트별:\n${breakdown}\n\n임계값: ≥+0.25→BUY | ≤-0.25→SELL | 사이→HOLD\n\nTrader: ${trade}\nRisk: Agg:${agg} / Neu:${neu} / Con:${con}\n\nBTC: ${fmtUSD(usd.price)}`
       );
 
