@@ -137,7 +137,7 @@ const fmtUSD = (n: number) => n ? `${Number(n).toLocaleString("en-US")}` : "—"
 const fmtKRW = (n: number) => n ? `₩${Number(n).toLocaleString("ko-KR")}` : "—";
 const fmtB   = (n: number) => n ? `${(n/1e9).toFixed(1)}B` : "—";
 const fmtPct = (n: number | null) => n!=null ? `${n>=0?"+":""}${Number(n).toFixed(2)}%` : "—";
-const chgClr = (v: number | null) => v==null?"#475569":v>=0?"#4ADE80":"#F87171";
+const chgClr = (v: number | null) => v==null?"var(--ta-muted)":v>=0?"#4ADE80":"#F87171";
 
 /* ══════════════════════════════════════════════════
    UI COMPONENTS
@@ -154,11 +154,11 @@ function ScoreGauge({ signals, weights, score, regime }: { signals: Record<strin
   return (
     <div style={{ background:"rgba(255,255,255,0.02)", border:`1px solid ${col}22`, borderRadius:10, padding:16, marginBottom:18 }}>
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-        <div style={{ fontSize:8, color:"#475569", letterSpacing:3 }}>⚖️ WEIGHTED SCORE ENGINE</div>
+        <div style={{ fontSize:8, color:"var(--ta-muted)", letterSpacing:3 }}>⚖️ WEIGHTED SCORE ENGINE</div>
         {r && <div style={{ fontSize:8, color:r.color, letterSpacing:2, marginLeft:"auto" }}>{r.icon} {regime}</div>}
       </div>
       <div style={{ position:"relative", marginBottom:8 }}>
-        <div style={{ height:8, background:"#0F172A", borderRadius:4, overflow:"hidden", position:"relative" }}>
+        <div style={{ height:8, background:"var(--ta-dark)", borderRadius:4, overflow:"hidden", position:"relative" }}>
           <div style={{ position:"absolute", inset:0, background:"linear-gradient(90deg,#EF4444,#F59E0B 50%,#22C55E)", opacity:0.15 }} />
           <div style={{ position:"absolute", top:0, height:"100%", left:`${Math.max(0,Math.min(100,pct))}%`, transform:"translateX(-50%)", width:3, background:col, boxShadow:`0 0 8px ${col}`, borderRadius:2, transition:"left 1s ease" }} />
         </div>
@@ -170,17 +170,17 @@ function ScoreGauge({ signals, weights, score, regime }: { signals: Record<strin
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:14 }}>
         <div>
-          <div style={{ fontSize:7, color:"#334155", letterSpacing:3, marginBottom:3 }}>WEIGHTED SCORE</div>
+          <div style={{ fontSize:7, color:"var(--ta-dim)", letterSpacing:3, marginBottom:3 }}>WEIGHTED SCORE</div>
           <div style={{ fontSize:32, fontWeight:700, color:col, lineHeight:1, letterSpacing:2 }}>{score >= 0 ? "+" : ""}{score.toFixed(3)}</div>
         </div>
-        <div style={{ width:1, height:36, background:"#1E293B" }} />
+        <div style={{ width:1, height:36, background:"var(--ta-border)" }} />
         <div>
-          <div style={{ fontSize:7, color:"#334155", letterSpacing:3, marginBottom:3 }}>CODE SIGNAL</div>
+          <div style={{ fontSize:7, color:"var(--ta-dim)", letterSpacing:3, marginBottom:3 }}>CODE SIGNAL</div>
           <div style={{ fontSize:22, fontWeight:700, color:col, letterSpacing:3 }}>{action}</div>
         </div>
       </div>
-      <div style={{ borderTop:"1px solid #0F172A", paddingTop:12 }}>
-        <div style={{ fontSize:7, color:"#334155", letterSpacing:3, marginBottom:8 }}>에이전트별 기여도</div>
+      <div style={{ borderTop:"1px solid var(--ta-border)", paddingTop:12 }}>
+        <div style={{ fontSize:7, color:"var(--ta-dim)", letterSpacing:3, marginBottom:8 }}>에이전트별 기여도</div>
         <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
           {SCORE_KEYS.map(key => {
             const sig = signals[key];
@@ -191,16 +191,16 @@ function ScoreGauge({ signals, weights, score, regime }: { signals: Record<strin
             const a = AGENTS[key];
             return (
               <div key={key} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <div style={{ width:90, fontSize:9, color:a?.color || "#334155", flexShrink:0 }}>{a?.name.split(" ")[0]}</div>
+                <div style={{ width:90, fontSize:9, color:a?.color || "var(--ta-dim)", flexShrink:0 }}>{a?.name.split(" ")[0]}</div>
                 <div style={{ width:58, fontSize:8, color:sigColor, background:`${sigColor}12`, border:`1px solid ${sigColor}22`, borderRadius:3, padding:"1px 6px", textAlign:"center", flexShrink:0 }}>{sigLabel}</div>
-                <div style={{ width:26, fontSize:8, color:"#475569", textAlign:"right", flexShrink:0 }}>{w}%</div>
-                <div style={{ flex:1, height:4, background:"#0F172A", borderRadius:2, overflow:"hidden", position:"relative" }}>
+                <div style={{ width:26, fontSize:8, color:"var(--ta-muted)", textAlign:"right", flexShrink:0 }}>{w}%</div>
+                <div style={{ flex:1, height:4, background:"var(--ta-dark)", borderRadius:2, overflow:"hidden", position:"relative" }}>
                   {contribution != null && (
                     <div style={{ position:"absolute", height:"100%", width:`${Math.abs(contribution)*100}%`, left: contribution >= 0 ? "50%" : `${50 - Math.abs(contribution)*100}%`, background: contribution > 0 ? "#22C55E" : contribution < 0 ? "#EF4444" : "#F59E0B", opacity:0.7, borderRadius:2, transition:"all 0.8s ease" }} />
                   )}
-                  <div style={{ position:"absolute", left:"50%", top:0, height:"100%", width:1, background:"#1E293B" }} />
+                  <div style={{ position:"absolute", left:"50%", top:0, height:"100%", width:1, background:"var(--ta-border)" }} />
                 </div>
-                <div style={{ width:40, fontSize:8, color: contribution && contribution > 0 ? "#22C55E" : contribution && contribution < 0 ? "#EF4444" : "#475569", textAlign:"right", flexShrink:0 }}>
+                <div style={{ width:40, fontSize:8, color: contribution && contribution > 0 ? "#22C55E" : contribution && contribution < 0 ? "#EF4444" : "var(--ta-muted)", textAlign:"right", flexShrink:0 }}>
                   {contribution != null ? `${contribution >= 0?"+":""}${contribution.toFixed(3)}` : "—"}
                 </div>
               </div>
@@ -231,7 +231,7 @@ function RegimePanel({ regime, weights }: { regime: string; weights: Record<stri
           return (
             <div key={key} style={{ display:"flex", alignItems:"center", gap:6 }}>
               <div style={{ fontSize:10, color:"var(--ta-muted)", width:75, flexShrink:0, letterSpacing:1 }}>{lbl}</div>
-              <div style={{ flex:1, height:3, background:"#0F172A", borderRadius:2, overflow:"hidden" }}>
+              <div style={{ flex:1, height:3, background:"var(--ta-dark)", borderRadius:2, overflow:"hidden" }}>
                 <div style={{ height:"100%", width:`${w}%`, background:r.color, borderRadius:2, transition:"width 0.8s ease" }} />
               </div>
               <div style={{ fontSize:10, color:"var(--ta-muted)", width:28, textAlign:"right", flexShrink:0, fontWeight:600 }}>{w}%</div>
@@ -277,7 +277,7 @@ function ReportCard({ stepKey, content, weights, signals }: { stepKey: string; c
           {[["bull","🐂 BULL REBUTTAL","#4ADE80",content.bull],["bear","🐻 BEAR COUNTER","#F87171",content.bear]].map(([k,lbl,col,txt])=>(
             <div key={k as string} style={{ background:`${col}07`, border:`1px solid ${col}22`, borderRadius:8, padding:13 }}>
               <div style={{ fontSize:8, color:col as string, letterSpacing:3, marginBottom:8 }}>{lbl}</div>
-              <pre style={{ fontSize:10, color:"#94A3B8", whiteSpace:"pre-wrap", margin:0, lineHeight:1.8 }}>{txt}</pre>
+              <pre style={{ fontSize:10, color:"var(--ta-text)", whiteSpace:"pre-wrap", margin:0, lineHeight:1.8 }}>{txt}</pre>
             </div>
           ))}
         </div>
@@ -293,15 +293,15 @@ function ReportCard({ stepKey, content, weights, signals }: { stepKey: string; c
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
           <span style={{ fontSize:13 }}>{a.icon}</span>
           <span style={{ fontSize:8, color:a.color, letterSpacing:3 }}>{a.name.toUpperCase()}</span>
-          {w != null && <div style={{ fontSize:8, padding:"1px 6px", borderRadius:3, background:"rgba(255,255,255,0.03)", border:"1px solid #1E293B", color:"#475569" }}>{w}%</div>}
+          {w != null && <div style={{ fontSize:8, padding:"1px 6px", borderRadius:3, background:"rgba(255,255,255,0.03)", border:"1px solid var(--ta-border)", color:"var(--ta-muted)" }}>{w}%</div>}
           {sig != null && <div style={{ fontSize:8, padding:"1px 7px", borderRadius:3, background: sig===1?"#22C55E12":sig===-1?"#EF444412":"#F59E0B12", border:`1px solid ${sig===1?"#22C55E30":sig===-1?"#EF444430":"#F59E0B30"}`, color: sig===1?"#22C55E":sig===-1?"#EF4444":"#F59E0B" }}>{sig===1?"▲ BULLISH":sig===-1?"▼ BEARISH":"— NEUTRAL"}</div>}
           <div style={{ flex:1, height:1, background:`linear-gradient(90deg,${a.color}40,transparent)` }} />
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
-          {[["aggressive","AGGRESSIVE","#EF4444","🔴"],["neutral","NEUTRAL","#94A3B8","⚪"],["conservative","CONSERVATIVE","#60A5FA","🔵"]].map(([k,lbl,col,ic])=>(
+          {[["aggressive","AGGRESSIVE","#EF4444","🔴"],["neutral","NEUTRAL","#64748B","⚪"],["conservative","CONSERVATIVE","#60A5FA","🔵"]].map(([k,lbl,col,ic])=>(
             <div key={k as string} style={{ background:`${col}07`, border:`1px solid ${col}22`, borderRadius:8, padding:12 }}>
               <div style={{ fontSize:8, color:col as string, letterSpacing:3, marginBottom:8 }}>{ic} {lbl}</div>
-              <pre style={{ fontSize:10, color:"#94A3B8", whiteSpace:"pre-wrap", margin:0, lineHeight:1.7 }}>{content[k as string]}</pre>
+              <pre style={{ fontSize:10, color:"var(--ta-text)", whiteSpace:"pre-wrap", margin:0, lineHeight:1.7 }}>{content[k as string]}</pre>
             </div>
           ))}
         </div>
@@ -316,12 +316,12 @@ function ReportCard({ stepKey, content, weights, signals }: { stepKey: string; c
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
         <span style={{ fontSize:13 }}>{a.icon}</span>
         <span style={{ fontSize:8, color:a.color, letterSpacing:3 }}>{a.name.toUpperCase()}</span>
-        {w != null && <div style={{ fontSize:8, padding:"1px 6px", borderRadius:3, background:"rgba(255,255,255,0.03)", border:"1px solid #1E293B", color:"#475569" }}>{w}%</div>}
+        {w != null && <div style={{ fontSize:8, padding:"1px 6px", borderRadius:3, background:"rgba(255,255,255,0.03)", border:"1px solid var(--ta-border)", color:"var(--ta-muted)" }}>{w}%</div>}
         {sig != null && <div style={{ fontSize:8, padding:"1px 7px", borderRadius:3, background: sig===1?"#22C55E12":sig===-1?"#EF444412":"#F59E0B12", border:`1px solid ${sig===1?"#22C55E30":sig===-1?"#EF444430":"#F59E0B30"}`, color: sig===1?"#22C55E":sig===-1?"#EF4444":"#F59E0B" }}>{sig===1?"▲ BULLISH":sig===-1?"▼ BEARISH":"— NEUTRAL"}</div>}
         <div style={{ flex:1, height:1, background:`linear-gradient(90deg,${a.color}40,transparent)` }} />
       </div>
       <div style={{ background:`${a.color}07`, border:`1px solid ${a.color}20`, borderRadius:8, padding:14 }}>
-        <pre style={{ fontSize:11, color:"#94A3B8", whiteSpace:"pre-wrap", margin:0, lineHeight:1.8 }}>{content}</pre>
+        <pre style={{ fontSize:11, color:"var(--ta-text)", whiteSpace:"pre-wrap", margin:0, lineHeight:1.8 }}>{content}</pre>
       </div>
     </div>
   );
@@ -329,7 +329,7 @@ function ReportCard({ stepKey, content, weights, signals }: { stepKey: string; c
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function DecisionCard({ decision, krwPrice, regime, score }: { decision: any; krwPrice: number; regime: string; score: number | null }) {
-  const col  = { BUY:"#22C55E", SELL:"#EF4444", HOLD:"#F59E0B" }[decision.action as string] || "#94A3B8";
+  const col  = { BUY:"#22C55E", SELL:"#EF4444", HOLD:"#F59E0B" }[decision.action as string] || "var(--ta-muted)";
   const r    = regime ? REGIMES[regime] : null;
   const codeAction = score != null ? scoreToAction(score) : null;
   const matches = codeAction === decision.action;
@@ -352,28 +352,28 @@ function DecisionCard({ decision, krwPrice, regime, score }: { decision: any; kr
       <div style={{ display:"flex", alignItems:"center", gap:28, marginBottom:18, flexWrap:"wrap" }}>
         <div style={{ fontSize:56, fontWeight:900, lineHeight:1, color:col, letterSpacing:5, textShadow:`0 0 40px ${col}55` }}>{decision.action}</div>
         <div>
-          <div style={{ fontSize:8, color:"#334155", letterSpacing:3, marginBottom:4 }}>CONFIDENCE</div>
+          <div style={{ fontSize:8, color:"var(--ta-dim)", letterSpacing:3, marginBottom:4 }}>CONFIDENCE</div>
           <div style={{ fontSize:24, color:col, fontWeight:700 }}>{decision.confidence}%</div>
-          <div style={{ width:110, height:4, background:"#0F172A", borderRadius:2, marginTop:5 }}>
+          <div style={{ width:110, height:4, background:"var(--ta-dark)", borderRadius:2, marginTop:5 }}>
             <div style={{ width:`${decision.confidence}%`, height:"100%", background:col, borderRadius:2 }} />
           </div>
         </div>
         <div style={{ marginLeft:"auto", background:`${col}10`, border:`1px solid ${col}28`, borderRadius:8, padding:"10px 16px", textAlign:"center" }}>
-          <div style={{ fontSize:8, color:"#334155", letterSpacing:2, marginBottom:4 }}>RISK LEVEL</div>
+          <div style={{ fontSize:8, color:"var(--ta-dim)", letterSpacing:2, marginBottom:4 }}>RISK LEVEL</div>
           <div style={{ fontSize:15, color:col, fontWeight:700, letterSpacing:2 }}>{decision.riskLevel}</div>
         </div>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:8, marginBottom:16 }}>
         {([["POSITION SIZE",decision.positionSize],["ENTRY (USD)",decision.entry||decision.entryPrice],["STOP LOSS",decision.stopLoss],["TAKE PROFIT",decision.takeProfit],["TIMEFRAME",decision.timeframe],krwPrice?["현재가 (KRW)",fmtKRW(krwPrice)]:null] as (string[] | null)[]).filter((x): x is string[] => x !== null).map((item) => item[1] ? (
           <div key={item[0]} style={{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:6, padding:"9px 12px" }}>
-            <div style={{ fontSize:7, color:"#334155", letterSpacing:2, marginBottom:4 }}>{item[0]}</div>
-            <div style={{ fontSize:12, color:"#CBD5E1", fontWeight:600 }}>{item[1]}</div>
+            <div style={{ fontSize:7, color:"var(--ta-dim)", letterSpacing:2, marginBottom:4 }}>{item[0]}</div>
+            <div style={{ fontSize:12, color:"var(--ta-text)", fontWeight:600 }}>{item[1]}</div>
           </div>
         ) : null)}
       </div>
       <div style={{ borderTop:"1px solid rgba(255,255,255,0.04)", paddingTop:14 }}>
-        <div style={{ fontSize:8, color:"#334155", letterSpacing:2, marginBottom:6 }}>REASONING</div>
-        <div style={{ fontSize:12, color:"#94A3B8", lineHeight:1.85 }}>{decision.reasoning}</div>
+        <div style={{ fontSize:8, color:"var(--ta-dim)", letterSpacing:2, marginBottom:6 }}>REASONING</div>
+        <div style={{ fontSize:12, color:"var(--ta-text)", lineHeight:1.85 }}>{decision.reasoning}</div>
       </div>
     </div>
   );
@@ -523,12 +523,17 @@ Respond ONLY with valid JSON (no markdown, no backticks):
         @keyframes slideIn        { from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)} }
         @keyframes decisionReveal { from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)} }
         @keyframes spin           { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
-        .ta-page { --ta-bg:#070B14; --ta-card:rgba(255,255,255,0.02); --ta-border:#1E293B; --ta-text:#CBD5E1; --ta-muted:#94A3B8; --ta-dim:#475569; --ta-dark:#0F172A; }
-        @media(prefers-color-scheme:light) {
-          .ta-page { --ta-bg:#F8FAFC; --ta-card:rgba(0,0,0,0.02); --ta-border:#E2E8F0; --ta-text:#1E293B; --ta-muted:#475569; --ta-dim:#64748B; --ta-dark:#F1F5F9; }
+        /* Dark mode (default) */
+        .ta-page { --ta-bg:#070B14; --ta-card:rgba(255,255,255,0.03); --ta-border:#1E293B; --ta-text:#E2E8F0; --ta-muted:#94A3B8; --ta-dim:#64748B; --ta-dark:#0F172A; }
+        /* Light mode — html.light (next-themes) */
+        html.light .ta-page {
+          --ta-bg:#FFFFFF; --ta-card:rgba(0,0,0,0.03); --ta-border:#CBD5E1; --ta-text:#0F172A; --ta-muted:#334155; --ta-dim:#475569; --ta-dark:#F1F5F9;
         }
-        :root[class*="light"] .ta-page, :root[data-theme="light"] .ta-page {
-          --ta-bg:#F8FAFC; --ta-card:rgba(0,0,0,0.02); --ta-border:#E2E8F0; --ta-text:#1E293B; --ta-muted:#475569; --ta-dim:#64748B; --ta-dark:#F1F5F9;
+        /* Light mode — prefers-color-scheme fallback */
+        @media(prefers-color-scheme:light) {
+          html:not(.dark) .ta-page {
+            --ta-bg:#FFFFFF; --ta-card:rgba(0,0,0,0.03); --ta-border:#CBD5E1; --ta-text:#0F172A; --ta-muted:#334155; --ta-dim:#475569; --ta-dark:#F1F5F9;
+          }
         }
       `}</style>
 
@@ -536,34 +541,34 @@ Respond ONLY with valid JSON (no markdown, no backticks):
         <div style={{ position:"relative", zIndex:1, maxWidth:1200, margin:"0 auto" }}>
 
           {/* HEADER */}
-          <div style={{ borderBottom:"1px solid #0F172A", paddingBottom:20, marginBottom:20 }}>
+          <div style={{ borderBottom:"1px solid var(--ta-border)", paddingBottom:20, marginBottom:20 }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-              <span style={{ fontSize:10, color:"#475569", letterSpacing:4 }}>◈ TRADINGAGENTS v4 · WEIGHTED SCORE ENGINE</span>
+              <span style={{ fontSize:10, color:"var(--ta-muted)", letterSpacing:4 }}>◈ TRADINGAGENTS v4 · WEIGHTED SCORE ENGINE</span>
               <span style={{ fontSize:11, padding:"3px 10px", borderRadius:4, background:"rgba(251,191,36,0.12)", border:"1px solid rgba(251,191,36,0.3)", color:"#FBBF24", fontWeight:700, letterSpacing:2 }}>₿ BITCOIN</span>
             </div>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:16 }}>
               <div>
                 <div style={{ display:"flex", alignItems:"baseline", gap:12, marginBottom:8 }}>
-                  <div style={{ fontSize:38, fontWeight:700, color:"#F1F5F9", lineHeight:1 }}>{usd ? fmtUSD(usd.price) : "LOADING…"}</div>
+                  <div style={{ fontSize:38, fontWeight:700, color:"var(--ta-text)", lineHeight:1 }}>{usd ? fmtUSD(usd.price) : "LOADING…"}</div>
                   <span style={{ fontSize:14, color:chgClr(usd?.change ?? null), fontWeight:600 }}>{fmtPct(usd?.change ?? null)}</span>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
                   <div style={{ fontSize:8, color:"#F59E0B", letterSpacing:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:4, padding:"2px 7px" }}>UPBIT</div>
-                  <div style={{ fontSize:20, color:"#CBD5E1", fontWeight:600 }}>{krw ? fmtKRW(krw.price) : "—"}</div>
+                  <div style={{ fontSize:20, color:"var(--ta-text)", fontWeight:600 }}>{krw ? fmtKRW(krw.price) : "—"}</div>
                   <span style={{ fontSize:12, color:chgClr(krw?.change ?? null), fontWeight:600 }}>{fmtPct(krw?.change ?? null)}</span>
                   <span style={{ fontSize:8, color:live?"#4ADE80":"#F59E0B", letterSpacing:2 }}>{live?"● LIVE":"○ MOCK"}</span>
                 </div>
               </div>
               {/* 언어 선택 */}
-              <div style={{ display:"flex", gap:0, borderRadius:6, overflow:"hidden", border:"1px solid #1E293B", alignSelf:"flex-start" }}>
+              <div style={{ display:"flex", gap:0, borderRadius:6, overflow:"hidden", border:"1px solid var(--ta-border)", alignSelf:"flex-start" }}>
                 {(["ko","en"] as const).map(l => (
-                  <button key={l} onClick={() => setLanguage(l)} disabled={isRunning} style={{ padding:"8px 14px", fontSize:11, fontFamily:"monospace", letterSpacing:2, cursor:isRunning?"not-allowed":"pointer", background: language===l ? "rgba(56,189,248,0.15)" : "transparent", color: language===l ? "#38BDF8" : "#475569", border:"none", fontWeight: language===l ? 700 : 400, transition:"all 0.2s" }}>
+                  <button key={l} onClick={() => setLanguage(l)} disabled={isRunning} style={{ padding:"8px 14px", fontSize:11, fontFamily:"monospace", letterSpacing:2, cursor:isRunning?"not-allowed":"pointer", background: language===l ? "rgba(56,189,248,0.15)" : "transparent", color: language===l ? "#38BDF8" : "var(--ta-muted)", border:"none", fontWeight: language===l ? 700 : 400, transition:"all 0.2s" }}>
                     {l==="ko" ? "한국어" : "English"}
                   </button>
                 ))}
               </div>
 
-              <button onClick={runAnalysis} disabled={isRunning} style={{ alignSelf:"flex-start", background:isRunning?"rgba(99,102,241,0.08)":"linear-gradient(135deg,#0EA5E9,#6366F1,#8B5CF6)", color:"#F1F5F9", border:isRunning?"1px solid rgba(99,102,241,0.25)":"none", borderRadius:8, padding:"12px 24px", fontSize:11, fontFamily:"monospace", letterSpacing:3, cursor:isRunning?"not-allowed":"pointer", opacity:isRunning?0.55:1, boxShadow:isRunning?"none":"0 0 28px rgba(99,102,241,0.45)", display:"flex", alignItems:"center", gap:8 }}>
+              <button onClick={runAnalysis} disabled={isRunning} style={{ alignSelf:"flex-start", background:isRunning?"rgba(99,102,241,0.08)":"linear-gradient(135deg,#0EA5E9,#6366F1,#8B5CF6)", color:"var(--ta-text)", border:isRunning?"1px solid rgba(99,102,241,0.25)":"none", borderRadius:8, padding:"12px 24px", fontSize:11, fontFamily:"monospace", letterSpacing:3, cursor:isRunning?"not-allowed":"pointer", opacity:isRunning?0.55:1, boxShadow:isRunning?"none":"0 0 28px rgba(99,102,241,0.45)", display:"flex", alignItems:"center", gap:8 }}>
                 {isRunning ? <><Spinner color="#6366F1" /> ANALYZING…</> : "▶  RUN ANALYSIS"}
               </button>
             </div>
@@ -589,10 +594,10 @@ Respond ONLY with valid JSON (no markdown, no backticks):
               ))}
               {isRunning && (
                 <div style={{ paddingLeft:10, marginTop:14 }}>
-                  <div style={{ height:3, background:"#0F172A", borderRadius:2, overflow:"hidden" }}>
+                  <div style={{ height:3, background:"var(--ta-dark)", borderRadius:2, overflow:"hidden" }}>
                     <div style={{ height:"100%", width:`${progress}%`, background:"linear-gradient(90deg,#0EA5E9,#6366F1,#8B5CF6)", borderRadius:2, transition:"width 0.5s ease" }} />
                   </div>
-                  <div style={{ fontSize:9, color:"#334155", marginTop:5 }}>{doneCount}/{STEPS.length}</div>
+                  <div style={{ fontSize:9, color:"var(--ta-dim)", marginTop:5 }}>{doneCount}/{STEPS.length}</div>
                 </div>
               )}
             </div>
@@ -602,10 +607,10 @@ Respond ONLY with valid JSON (no markdown, no backticks):
               {!isRunning && doneCount===0 && (
                 <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
                   {/* Hero */}
-                  <div style={{ textAlign:"center", padding:"32px 20px", border:"1px solid #0F172A", borderRadius:12, background:"linear-gradient(135deg,rgba(14,165,233,0.04),rgba(139,92,246,0.04))" }}>
+                  <div style={{ textAlign:"center", padding:"32px 20px", border:"1px solid var(--ta-border)", borderRadius:12, background:"linear-gradient(135deg,rgba(14,165,233,0.04),rgba(139,92,246,0.04))" }}>
                     <div style={{ fontSize:48, marginBottom:12 }}>⚖️</div>
-                    <div style={{ fontSize:20, color:"#F1F5F9", fontWeight:700, letterSpacing:3, marginBottom:8 }}>TRADINGAGENTS v4</div>
-                    <div style={{ fontSize:14, color:"#94A3B8", letterSpacing:2, marginBottom:16 }}>월스트리트 AI 트레이딩팀 · 멀티에이전트 가중 점수 엔진</div>
+                    <div style={{ fontSize:20, color:"var(--ta-text)", fontWeight:700, letterSpacing:3, marginBottom:8 }}>TRADINGAGENTS v4</div>
+                    <div style={{ fontSize:14, color:"var(--ta-text)", letterSpacing:2, marginBottom:16 }}>월스트리트 AI 트레이딩팀 · 멀티에이전트 가중 점수 엔진</div>
                     {regime && (
                       <div style={{ display:"inline-flex", alignItems:"center", gap:10, background:REGIMES[regime]?.bg, border:`2px solid ${REGIMES[regime]?.color}60`, borderRadius:12, padding:"10px 24px", marginTop:8 }}>
                         <span style={{ fontSize:28 }}>{REGIMES[regime]?.icon}</span>
@@ -618,10 +623,10 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                   </div>
 
                   {/* 시스템 소개 */}
-                  <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid #0F172A", borderRadius:10, padding:20 }}>
+                  <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid var(--ta-border)", borderRadius:10, padding:20 }}>
                     <div style={{ fontSize:12, color:"#38BDF8", letterSpacing:3, marginBottom:12, fontWeight:700 }}>SYSTEM OVERVIEW</div>
-                    <div style={{ fontSize:14, color:"#CBD5E1", lineHeight:2.2 }}>
-                      Columbia University AI 연구에서 영감을 받은 <strong style={{ color:"#F1F5F9" }}>비트코인 전용</strong> 멀티에이전트 트레이딩 시스템입니다.<br/>
+                    <div style={{ fontSize:14, color:"var(--ta-text)", lineHeight:2.2 }}>
+                      Columbia University AI 연구에서 영감을 받은 <strong style={{ color:"var(--ta-text)" }}>비트코인 전용</strong> 멀티에이전트 트레이딩 시스템입니다.<br/>
                       10개의 전문 AI 에이전트가 각자의 관점에서 비트코인 시장을 분석하고,<br/>
                       시장 국면(CRASH/BEAR/RANGE/BULL/SURGE)에 따라 동적으로 가중치를 조정하여<br/>
                       최종 투자 결정(BUY/SELL/HOLD)을 도출합니다.
@@ -629,30 +634,30 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                   </div>
 
                   {/* 파이프라인 */}
-                  <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid #0F172A", borderRadius:10, padding:20 }}>
+                  <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid var(--ta-border)", borderRadius:10, padding:20 }}>
                     <div style={{ fontSize:12, color:"#C084FC", letterSpacing:3, marginBottom:14, fontWeight:700 }}>ANALYSIS PIPELINE</div>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr auto 1fr auto 1fr", gap:10, alignItems:"center" }}>
                       {/* Analyst Team */}
                       <div style={{ background:"rgba(56,189,248,0.06)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:8, padding:12 }}>
                         <div style={{ fontSize:11, color:"#38BDF8", letterSpacing:2, marginBottom:8, fontWeight:700 }}>ANALYST TEAM</div>
                         {["📊 Technical Analyst","💬 Sentiment Analyst","📰 News Analyst","⛓️ Fundamentals Analyst"].map(a=>(
-                          <div key={a} style={{ fontSize:12, color:"#94A3B8", padding:"4px 0" }}>{a}</div>
+                          <div key={a} style={{ fontSize:12, color:"var(--ta-text)", padding:"4px 0" }}>{a}</div>
                         ))}
                       </div>
-                      <div style={{ color:"#1E293B", fontSize:16 }}>→</div>
+                      <div style={{ color:"var(--ta-dim)", fontSize:16 }}>→</div>
                       {/* Researcher Team */}
                       <div style={{ background:"rgba(74,222,128,0.06)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:8, padding:12 }}>
                         <div style={{ fontSize:11, color:"#4ADE80", letterSpacing:2, marginBottom:8, fontWeight:700 }}>RESEARCHER TEAM</div>
                         {["🐂 Bullish Researcher","🐻 Bearish Researcher","⚔️ Bull vs Bear Debate"].map(a=>(
-                          <div key={a} style={{ fontSize:12, color:"#94A3B8", padding:"4px 0" }}>{a}</div>
+                          <div key={a} style={{ fontSize:12, color:"var(--ta-text)", padding:"4px 0" }}>{a}</div>
                         ))}
                       </div>
-                      <div style={{ color:"#1E293B", fontSize:16 }}>→</div>
+                      <div style={{ color:"var(--ta-dim)", fontSize:16 }}>→</div>
                       {/* Execution Team */}
                       <div style={{ background:"rgba(244,114,182,0.06)", border:"1px solid rgba(244,114,182,0.2)", borderRadius:8, padding:12 }}>
                         <div style={{ fontSize:11, color:"#F472B6", letterSpacing:2, marginBottom:8, fontWeight:700 }}>EXECUTION TEAM</div>
                         {["⚡ Trader Agent","🛡️ Risk Team (3명)","👔 Portfolio Manager"].map(a=>(
-                          <div key={a} style={{ fontSize:12, color:"#94A3B8", padding:"4px 0" }}>{a}</div>
+                          <div key={a} style={{ fontSize:12, color:"var(--ta-text)", padding:"4px 0" }}>{a}</div>
                         ))}
                       </div>
                     </div>
@@ -660,21 +665,21 @@ Respond ONLY with valid JSON (no markdown, no backticks):
 
                   {/* 핵심 기능 */}
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                    <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid #0F172A", borderRadius:10, padding:16 }}>
+                    <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid var(--ta-border)", borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:12, color:"#FBBF24", letterSpacing:3, marginBottom:10, fontWeight:700 }}>MARKET REGIME DETECTION</div>
                       <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                         {Object.entries(REGIMES).map(([key, r]) => (
                           <div key={key} style={{ display:"flex", alignItems:"center", gap:8 }}>
                             <span style={{ fontSize:14 }}>{r.icon}</span>
                             <span style={{ fontSize:12, color:r.color, width:100, fontWeight:700 }}>{r.label}</span>
-                            <span style={{ fontSize:11, color:"#94A3B8" }}>{r.desc}</span>
+                            <span style={{ fontSize:11, color:"var(--ta-text)" }}>{r.desc}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                    <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid #0F172A", borderRadius:10, padding:16 }}>
+                    <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid var(--ta-border)", borderRadius:10, padding:16 }}>
                       <div style={{ fontSize:12, color:"#22C55E", letterSpacing:3, marginBottom:10, fontWeight:700 }}>WEIGHTED SCORE ENGINE</div>
-                      <div style={{ fontSize:13, color:"#CBD5E1", lineHeight:2.2 }}>
+                      <div style={{ fontSize:13, color:"var(--ta-text)", lineHeight:2.2 }}>
                         각 에이전트의 신호(BULLISH/NEUTRAL/BEARISH)를<br/>
                         +1, 0, -1로 변환 후 국면별 가중치로 합산<br/><br/>
                         <span style={{ color:"#22C55E", fontWeight:700, fontSize:14 }}>Score ≥ +0.25 → BUY</span><br/>
@@ -685,24 +690,24 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                   </div>
 
                   {/* 활용법 */}
-                  <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid #0F172A", borderRadius:10, padding:20 }}>
+                  <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid var(--ta-border)", borderRadius:10, padding:20 }}>
                     <div style={{ fontSize:12, color:"#FB923C", fontWeight:700, letterSpacing:3, marginBottom:12 }}>HOW TO USE</div>
-                    <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:"10px 16px", fontSize:13, color:"#CBD5E1", lineHeight:2 }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:"10px 16px", fontSize:13, color:"var(--ta-text)", lineHeight:2 }}>
                       <span style={{ color:"#38BDF8", fontWeight:700 }}>1.</span>
-                      <span><strong style={{ color:"#CBD5E1" }}>▶ RUN ANALYSIS</strong> 버튼을 클릭하면 10개 에이전트가 순차적으로 분석을 시작합니다 (약 60~90초 소요)</span>
+                      <span><strong style={{ color:"var(--ta-text)" }}>▶ RUN ANALYSIS</strong> 버튼을 클릭하면 10개 에이전트가 순차적으로 분석을 시작합니다 (약 60~90초 소요)</span>
                       <span style={{ color:"#38BDF8", fontWeight:700 }}>2.</span>
-                      <span>왼쪽 사이드바에서 각 에이전트의 <strong style={{ color:"#CBD5E1" }}>진행 상황</strong>과 <strong style={{ color:"#CBD5E1" }}>신호(▲▼—)</strong>를 실시간으로 확인할 수 있습니다</span>
+                      <span>왼쪽 사이드바에서 각 에이전트의 <strong style={{ color:"var(--ta-text)" }}>진행 상황</strong>과 <strong style={{ color:"var(--ta-text)" }}>신호(▲▼—)</strong>를 실시간으로 확인할 수 있습니다</span>
                       <span style={{ color:"#38BDF8", fontWeight:700 }}>3.</span>
-                      <span>모든 분석이 완료되면 <strong style={{ color:"#CBD5E1" }}>가중 점수 게이지</strong>가 나타나며, 에이전트별 기여도를 시각적으로 보여줍니다</span>
+                      <span>모든 분석이 완료되면 <strong style={{ color:"var(--ta-text)" }}>가중 점수 게이지</strong>가 나타나며, 에이전트별 기여도를 시각적으로 보여줍니다</span>
                       <span style={{ color:"#38BDF8", fontWeight:700 }}>4.</span>
-                      <span>마지막으로 <strong style={{ color:"#CBD5E1" }}>Portfolio Manager</strong>가 진입가/손절/익절/포지션 크기까지 포함한 최종 결정을 내립니다</span>
+                      <span>마지막으로 <strong style={{ color:"var(--ta-text)" }}>Portfolio Manager</strong>가 진입가/손절/익절/포지션 크기까지 포함한 최종 결정을 내립니다</span>
                     </div>
                   </div>
 
                   {/* 주의사항 */}
                   <div style={{ background:"rgba(239,68,68,0.04)", border:"1px solid rgba(239,68,68,0.15)", borderRadius:10, padding:16 }}>
                     <div style={{ fontSize:12, color:"#EF4444", letterSpacing:3, marginBottom:8, fontWeight:700 }}>DISCLAIMER</div>
-                    <div style={{ fontSize:12, color:"#94A3B8", lineHeight:2 }}>
+                    <div style={{ fontSize:12, color:"var(--ta-text)", lineHeight:2 }}>
                       본 도구는 교육 및 참고 목적으로 제공됩니다. AI 에이전트의 분석은 실시간 시장 데이터를 기반으로 하지만,
                       투자 조언이 아닙니다. 실제 투자 결정은 본인의 판단과 책임 하에 이루어져야 합니다.
                       암호화폐 투자는 높은 변동성과 손실 위험이 있습니다.
@@ -710,12 +715,12 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                   </div>
 
                   {/* vs ai-hedge-fund */}
-                  <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid #0F172A", borderRadius:10, padding:20 }}>
+                  <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid var(--ta-border)", borderRadius:10, padding:20 }}>
                     <div style={{ fontSize:12, color:"#A78BFA", letterSpacing:3, marginBottom:12, fontWeight:700 }}>VS AI HEDGE FUND</div>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
                       <div>
-                        <div style={{ fontSize:11, color:"#94A3B8", letterSpacing:2, marginBottom:8, fontWeight:700 }}>AI HEDGE FUND (기존)</div>
-                        <div style={{ fontSize:12, color:"#94A3B8", lineHeight:2.2 }}>
+                        <div style={{ fontSize:11, color:"var(--ta-text)", letterSpacing:2, marginBottom:8, fontWeight:700 }}>AI HEDGE FUND (기존)</div>
+                        <div style={{ fontSize:12, color:"var(--ta-text)", lineHeight:2.2 }}>
                           - 주식 종목 분석 (글로벌)<br/>
                           - 5개 분석 에이전트<br/>
                           - 7명 투자 대가 페르소나<br/>
@@ -725,12 +730,12 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                       </div>
                       <div>
                         <div style={{ fontSize:11, color:"#38BDF8", letterSpacing:2, marginBottom:8, fontWeight:700 }}>TRADING AGENTS v4 (신규)</div>
-                        <div style={{ fontSize:12, color:"#CBD5E1", lineHeight:2.2 }}>
-                          - <strong style={{ color:"#CBD5E1" }}>비트코인 전용</strong> 심층 분석<br/>
-                          - <strong style={{ color:"#CBD5E1" }}>10개</strong> 전문 에이전트<br/>
-                          - <strong style={{ color:"#CBD5E1" }}>Bull vs Bear 디베이트</strong><br/>
-                          - <strong style={{ color:"#CBD5E1" }}>레짐 가중 점수</strong> 의사결정<br/>
-                          - <strong style={{ color:"#CBD5E1" }}>3인 리스크 위원회</strong>
+                        <div style={{ fontSize:12, color:"var(--ta-text)", lineHeight:2.2 }}>
+                          - <strong style={{ color:"var(--ta-text)" }}>비트코인 전용</strong> 심층 분석<br/>
+                          - <strong style={{ color:"var(--ta-text)" }}>10개</strong> 전문 에이전트<br/>
+                          - <strong style={{ color:"var(--ta-text)" }}>Bull vs Bear 디베이트</strong><br/>
+                          - <strong style={{ color:"var(--ta-text)" }}>레짐 가중 점수</strong> 의사결정<br/>
+                          - <strong style={{ color:"var(--ta-text)" }}>3인 리스크 위원회</strong>
                         </div>
                       </div>
                     </div>
@@ -743,7 +748,7 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                   <Spinner color={AGENTS[activeStep].color} />
                   <div>
                     <div style={{ fontSize:11, color:AGENTS[activeStep].color, letterSpacing:2 }}>{AGENTS[activeStep].icon}  {AGENTS[activeStep].name.toUpperCase()} — PROCESSING</div>
-                    <div style={{ fontSize:9, color:"#334155", marginTop:2 }}>신호 파싱 후 가중 점수에 반영됩니다</div>
+                    <div style={{ fontSize:9, color:"var(--ta-dim)", marginTop:2 }}>신호 파싱 후 가중 점수에 반영됩니다</div>
                   </div>
                 </div>
               )}
