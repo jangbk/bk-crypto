@@ -70,14 +70,6 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "Stock",
-    href: "/stock",
-    children: [
-      { label: "Stock Daily", href: "/stock/daily" },
-      { label: "News Guide", href: "/stock/news-guide" },
-    ],
-  },
-  {
     label: "Content",
     href: "/content",
     children: [
