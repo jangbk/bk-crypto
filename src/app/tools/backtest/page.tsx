@@ -473,39 +473,59 @@ function runTrendFollowing(
 ): BacktestResult {
   const closes = prices.map((p) => p.close);
   let capital = initialCapital;
-  const equityCurve: number[] = [100];
-  const drawdownCurve: number[] = [0];
+  const equityCurve: number[] = [];
+  const drawdownCurve: number[] = [];
   const trades: { pnl: number; holdDays: number }[] = [];
   let peak = capital, maxDD = 0;
   let position = false, entryPrice = 0, entryIdx = 0;
+  const investRatio = 0.9; // 90% 투자
 
-  for (let i = longMA; i < prices.length; i++) {
-    const smaShort = closes.slice(i - shortMA, i).reduce((a, b) => a + b) / shortMA;
-    const smaLong = closes.slice(i - longMA, i).reduce((a, b) => a + b) / longMA;
-    const prevShort = closes.slice(i - shortMA - 1, i - 1).reduce((a, b) => a + b) / shortMA;
-    const prevLong = closes.slice(i - longMA - 1, i - 1).reduce((a, b) => a + b) / longMA;
+  for (let i = 0; i < prices.length; i++) {
+    if (i >= longMA + 1) {
+      const smaShort = closes.slice(i - shortMA, i).reduce((a, b) => a + b) / shortMA;
+      const smaLong = closes.slice(i - longMA, i).reduce((a, b) => a + b) / longMA;
+      const prevShort = closes.slice(i - shortMA - 1, i - 1).reduce((a, b) => a + b) / shortMA;
+      const prevLong = closes.slice(i - longMA - 1, i - 1).reduce((a, b) => a + b) / longMA;
 
-    if (!position && prevShort <= prevLong && smaShort > smaLong) {
-      position = true; entryPrice = closes[i]; entryIdx = i;
-    } else if (position && prevShort >= prevLong && smaShort < smaLong) {
-      const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
-      capital *= (1 + pnlPct / 100);
-      trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
-      position = false;
+      // 골든크로스 매수
+      if (!position && prevShort <= prevLong && smaShort > smaLong) {
+        position = true; entryPrice = closes[i]; entryIdx = i;
+      }
+      // 데드크로스 매도
+      else if (position && prevShort >= prevLong && smaShort < smaLong) {
+        const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = false;
+      }
+      // 손절 -10%
+      else if (position && closes[i] < entryPrice * 0.9) {
+        const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = false;
+      }
     }
-    peak = Math.max(peak, capital);
-    const dd = ((capital - peak) / peak) * 100;
+
+    // 포지션 보유 중 에퀴티 반영
+    let equity = capital;
+    if (position) {
+      const unrealized = ((closes[i] - entryPrice) / entryPrice) * 100;
+      equity = capital + capital * investRatio * (unrealized / 100);
+    }
+    peak = Math.max(peak, equity);
+    const dd = ((equity - peak) / peak) * 100;
     maxDD = Math.min(maxDD, dd);
-    equityCurve.push((capital / initialCapital) * 100);
+    equityCurve.push((equity / initialCapital) * 100);
     drawdownCurve.push(dd);
   }
   if (position) {
     const pnl = ((closes[closes.length - 1] - entryPrice) / entryPrice) * 100;
-    capital *= (1 + pnl / 100);
+    capital += capital * investRatio * (pnl / 100);
     trades.push({ pnl, holdDays: closes.length - entryIdx });
   }
   return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
-    "추세추종 (이동평균 크로스)", prices[0] ? "Crypto" : "N/A", "CryptoCompare (실제 데이터)");
+    "추세추종 (이동평균 크로스)", "Crypto", "CryptoCompare (실제 데이터)");
 }
 
 // --- 평균회귀 (볼린저 밴드) ---
@@ -514,41 +534,54 @@ function runMeanReversion(
 ): BacktestResult {
   const closes = prices.map((p) => p.close);
   let capital = initialCapital;
-  const equityCurve: number[] = [100];
-  const drawdownCurve: number[] = [0];
+  const equityCurve: number[] = [];
+  const drawdownCurve: number[] = [];
   const trades: { pnl: number; holdDays: number }[] = [];
   let peak = capital, maxDD = 0;
   let position = false, entryPrice = 0, entryIdx = 0;
+  const investRatio = 0.8;
 
-  for (let i = period; i < prices.length; i++) {
-    const slice = closes.slice(i - period, i);
-    const mean = slice.reduce((a, b) => a + b) / period;
-    const std = Math.sqrt(slice.reduce((s, v) => s + (v - mean) ** 2, 0) / period);
-    const upper = mean + std * stdMult;
-    const lower = mean - std * stdMult;
+  for (let i = 0; i < prices.length; i++) {
+    if (i >= period) {
+      const slice = closes.slice(i - period, i);
+      const mean = slice.reduce((a, b) => a + b) / period;
+      const std = Math.sqrt(slice.reduce((s, v) => s + (v - mean) ** 2, 0) / period);
+      const lower = mean - std * stdMult;
 
-    if (!position && closes[i] < lower) {
-      position = true; entryPrice = closes[i]; entryIdx = i;
-    } else if (position && closes[i] >= mean) {
-      const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
-      capital *= (1 + pnlPct / 100);
-      trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
-      position = false;
-    } else if (position && closes[i] > upper) {
-      const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
-      capital *= (1 + pnlPct / 100);
-      trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
-      position = false;
+      // 하단 터치 매수
+      if (!position && closes[i] < lower) {
+        position = true; entryPrice = closes[i]; entryIdx = i;
+      }
+      // 중심선 복귀 매도
+      else if (position && closes[i] >= mean) {
+        const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = false;
+      }
+      // 손절 -8%
+      else if (position && closes[i] < entryPrice * 0.92) {
+        const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = false;
+      }
     }
-    peak = Math.max(peak, capital);
-    const dd = ((capital - peak) / peak) * 100;
+
+    let equity = capital;
+    if (position) {
+      const unrealized = ((closes[i] - entryPrice) / entryPrice) * 100;
+      equity = capital + capital * investRatio * (unrealized / 100);
+    }
+    peak = Math.max(peak, equity);
+    const dd = ((equity - peak) / peak) * 100;
     maxDD = Math.min(maxDD, dd);
-    equityCurve.push((capital / initialCapital) * 100);
+    equityCurve.push((equity / initialCapital) * 100);
     drawdownCurve.push(dd);
   }
   if (position) {
     const pnl = ((closes[closes.length - 1] - entryPrice) / entryPrice) * 100;
-    capital *= (1 + pnl / 100);
+    capital += capital * investRatio * (pnl / 100);
     trades.push({ pnl, holdDays: closes.length - entryIdx });
   }
   return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
@@ -638,35 +671,57 @@ function runDCADynamic(
 }
 
 // --- 그리드 트레이딩 ---
+// 동적 그리드: 30일 고가/저가를 기준으로 범위 자동 조정
 function runGridTrading(
-  prices: PriceBar[], numGrids: number, upperPrice: number, lowerPrice: number, initialCapital: number,
+  prices: PriceBar[], numGrids: number, _upperPrice: number, _lowerPrice: number, initialCapital: number,
 ): BacktestResult {
   let capital = initialCapital;
-  const equityCurve: number[] = [100];
-  const drawdownCurve: number[] = [0];
+  const equityCurve: number[] = [];
+  const drawdownCurve: number[] = [];
   const trades: { pnl: number; holdDays: number }[] = [];
   let peak = capital, maxDD = 0;
-  const gridSpacing = (upperPrice - lowerPrice) / numGrids;
-  const qtyPerGrid = (initialCapital * 0.5 / numGrids) / ((upperPrice + lowerPrice) / 2);
-  const filledBuys = new Set<number>();
+  const investPct = 0.5; // 자본의 50% 그리드에 배분
 
-  for (let i = 1; i < prices.length; i++) {
+  // 보유 포지션 추적
+  const holdings: { price: number; qty: number; day: number }[] = [];
+
+  for (let i = 0; i < prices.length; i++) {
     const price = prices[i].close;
-    const prevPrice = prices[i - 1].close;
 
-    for (let g = 0; g <= numGrids; g++) {
-      const level = lowerPrice + g * gridSpacing;
-      if (prevPrice > level && price <= level && !filledBuys.has(g)) {
-        capital -= qtyPerGrid * price;
-        filledBuys.add(g);
-      } else if (prevPrice < level && price >= level && filledBuys.has(g)) {
-        const profit = qtyPerGrid * (price - (level - gridSpacing));
-        capital += qtyPerGrid * price;
-        trades.push({ pnl: (profit / initialCapital) * 100, holdDays: 1 });
-        filledBuys.delete(g);
+    if (i >= 30) {
+      // 동적 범위: 최근 30일 고저
+      const recent = prices.slice(i - 30, i);
+      const high30 = Math.max(...recent.map((p) => p.high));
+      const low30 = Math.min(...recent.map((p) => p.low));
+      const range = high30 - low30;
+      const gridSpacing = range / numGrids;
+      const qtyPerGrid = (capital * investPct / numGrids) / price;
+
+      if (gridSpacing > 0) {
+        // 가격이 그리드 레벨 아래로 → 매수
+        for (let g = 1; g <= numGrids; g++) {
+          const buyLevel = low30 + (g - 1) * gridSpacing;
+          const sellLevel = buyLevel + gridSpacing;
+          if (price <= buyLevel && holdings.length < numGrids) {
+            holdings.push({ price, qty: qtyPerGrid, day: i });
+            capital -= qtyPerGrid * price;
+            break;
+          }
+        }
+
+        // 보유 중인 포지션 매도 체크 (그리드 간격만큼 상승 시)
+        for (let h = holdings.length - 1; h >= 0; h--) {
+          if (price >= holdings[h].price + gridSpacing) {
+            const pnl = (price - holdings[h].price) * holdings[h].qty;
+            capital += holdings[h].qty * price;
+            trades.push({ pnl: (pnl / initialCapital) * 100, holdDays: i - holdings[h].day });
+            holdings.splice(h, 1);
+          }
+        }
       }
     }
-    const holdingsValue = filledBuys.size * qtyPerGrid * price;
+
+    const holdingsValue = holdings.reduce((s, h) => s + h.qty * price, 0);
     const totalValue = capital + holdingsValue;
     peak = Math.max(peak, totalValue);
     const dd = ((totalValue - peak) / peak) * 100;
@@ -674,9 +729,16 @@ function runGridTrading(
     equityCurve.push((totalValue / initialCapital) * 100);
     drawdownCurve.push(dd);
   }
-  const holdingsValue = filledBuys.size * qtyPerGrid * prices[prices.length - 1].close;
-  const finalValue = capital + holdingsValue;
-  return computeStats(prices, equityCurve, drawdownCurve, trades, finalValue, initialCapital, maxDD,
+
+  // 최종 청산
+  const lastPrice = prices[prices.length - 1].close;
+  for (const h of holdings) {
+    const pnl = (lastPrice - h.price) * h.qty;
+    capital += h.qty * lastPrice;
+    trades.push({ pnl: (pnl / initialCapital) * 100, holdDays: prices.length - h.day });
+  }
+
+  return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
     "그리드 트레이딩", "Crypto", "CryptoCompare (실제 데이터)");
 }
 
