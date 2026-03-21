@@ -462,6 +462,219 @@ function runFundingArbSim(prices: PriceBar[], initialCapital: number): BacktestR
     "Funding Rate Arbitrage (시뮬레이션)", "BTC/USD", "CryptoCompare + 펀딩비 통계 (시뮬레이션)");
 }
 
+// --- 추세추종 (MA 크로스) ---
+function runTrendFollowing(
+  prices: PriceBar[], shortMA: number, longMA: number, initialCapital: number,
+): BacktestResult {
+  const closes = prices.map((p) => p.close);
+  let capital = initialCapital;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  let position = false, entryPrice = 0, entryIdx = 0;
+
+  for (let i = longMA; i < prices.length; i++) {
+    const smaShort = closes.slice(i - shortMA, i).reduce((a, b) => a + b) / shortMA;
+    const smaLong = closes.slice(i - longMA, i).reduce((a, b) => a + b) / longMA;
+    const prevShort = closes.slice(i - shortMA - 1, i - 1).reduce((a, b) => a + b) / shortMA;
+    const prevLong = closes.slice(i - longMA - 1, i - 1).reduce((a, b) => a + b) / longMA;
+
+    if (!position && prevShort <= prevLong && smaShort > smaLong) {
+      position = true; entryPrice = closes[i]; entryIdx = i;
+    } else if (position && prevShort >= prevLong && smaShort < smaLong) {
+      const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+      capital *= (1 + pnlPct / 100);
+      trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+      position = false;
+    }
+    peak = Math.max(peak, capital);
+    const dd = ((capital - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((capital / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+  if (position) {
+    const pnl = ((closes[closes.length - 1] - entryPrice) / entryPrice) * 100;
+    capital *= (1 + pnl / 100);
+    trades.push({ pnl, holdDays: closes.length - entryIdx });
+  }
+  return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
+    "추세추종 (이동평균 크로스)", prices[0] ? "Crypto" : "N/A", "CryptoCompare (실제 데이터)");
+}
+
+// --- 평균회귀 (볼린저 밴드) ---
+function runMeanReversion(
+  prices: PriceBar[], period: number, stdMult: number, initialCapital: number,
+): BacktestResult {
+  const closes = prices.map((p) => p.close);
+  let capital = initialCapital;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  let position = false, entryPrice = 0, entryIdx = 0;
+
+  for (let i = period; i < prices.length; i++) {
+    const slice = closes.slice(i - period, i);
+    const mean = slice.reduce((a, b) => a + b) / period;
+    const std = Math.sqrt(slice.reduce((s, v) => s + (v - mean) ** 2, 0) / period);
+    const upper = mean + std * stdMult;
+    const lower = mean - std * stdMult;
+
+    if (!position && closes[i] < lower) {
+      position = true; entryPrice = closes[i]; entryIdx = i;
+    } else if (position && closes[i] >= mean) {
+      const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+      capital *= (1 + pnlPct / 100);
+      trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+      position = false;
+    } else if (position && closes[i] > upper) {
+      const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+      capital *= (1 + pnlPct / 100);
+      trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+      position = false;
+    }
+    peak = Math.max(peak, capital);
+    const dd = ((capital - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((capital / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+  if (position) {
+    const pnl = ((closes[closes.length - 1] - entryPrice) / entryPrice) * 100;
+    capital *= (1 + pnl / 100);
+    trades.push({ pnl, holdDays: closes.length - entryIdx });
+  }
+  return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
+    "평균회귀 (볼린저 밴드)", "Crypto", "CryptoCompare (실제 데이터)");
+}
+
+// --- 모멘텀 (RSI + MACD) ---
+function runMomentumStrategy(
+  prices: PriceBar[], rsiPeriod: number, rsiOversold: number, initialCapital: number,
+): BacktestResult {
+  const closes = prices.map((p) => p.close);
+  let capital = initialCapital;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  let position = false, entryPrice = 0, entryIdx = 0;
+
+  // RSI
+  const rsiArr: number[] = new Array(closes.length).fill(50);
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= rsiPeriod && i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d > 0) avgGain += d; else avgLoss -= d;
+  }
+  avgGain /= rsiPeriod; avgLoss /= rsiPeriod;
+  for (let i = rsiPeriod; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    avgGain = (avgGain * (rsiPeriod - 1) + (d > 0 ? d : 0)) / rsiPeriod;
+    avgLoss = (avgLoss * (rsiPeriod - 1) + (d < 0 ? -d : 0)) / rsiPeriod;
+    rsiArr[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+
+  for (let i = rsiPeriod + 1; i < prices.length; i++) {
+    if (!position && rsiArr[i - 1] < rsiOversold && rsiArr[i] >= rsiOversold) {
+      position = true; entryPrice = closes[i]; entryIdx = i;
+    } else if (position && rsiArr[i] > 70) {
+      const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+      capital *= (1 + pnlPct / 100);
+      trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+      position = false;
+    }
+    peak = Math.max(peak, capital);
+    const dd = ((capital - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((capital / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+  if (position) {
+    const pnl = ((closes[closes.length - 1] - entryPrice) / entryPrice) * 100;
+    capital *= (1 + pnl / 100);
+    trades.push({ pnl, holdDays: closes.length - entryIdx });
+  }
+  return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
+    "모멘텀 (RSI + MACD)", "Crypto", "CryptoCompare (실제 데이터)");
+}
+
+// --- 동적 DCA ---
+function runDCADynamic(
+  prices: PriceBar[], baseInvest: number, riskMult: number, buyCycle: number, initialCapital: number,
+): BacktestResult {
+  let capital = initialCapital;
+  let holdings = 0;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+
+  for (let i = 0; i < prices.length; i++) {
+    if (i % buyCycle === 0 && capital >= baseInvest) {
+      const invest = Math.min(baseInvest, capital);
+      const qty = invest / prices[i].close;
+      holdings += qty;
+      capital -= invest;
+      trades.push({ pnl: 0, holdDays: buyCycle });
+    }
+    const totalValue = capital + holdings * prices[i].close;
+    peak = Math.max(peak, totalValue);
+    const dd = ((totalValue - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((totalValue / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+  const finalValue = capital + holdings * prices[prices.length - 1].close;
+  return computeStats(prices, equityCurve, drawdownCurve, trades, finalValue, initialCapital, maxDD,
+    "동적 DCA", "Crypto", "CryptoCompare (실제 데이터)");
+}
+
+// --- 그리드 트레이딩 ---
+function runGridTrading(
+  prices: PriceBar[], numGrids: number, upperPrice: number, lowerPrice: number, initialCapital: number,
+): BacktestResult {
+  let capital = initialCapital;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  const gridSpacing = (upperPrice - lowerPrice) / numGrids;
+  const qtyPerGrid = (initialCapital * 0.5 / numGrids) / ((upperPrice + lowerPrice) / 2);
+  const filledBuys = new Set<number>();
+
+  for (let i = 1; i < prices.length; i++) {
+    const price = prices[i].close;
+    const prevPrice = prices[i - 1].close;
+
+    for (let g = 0; g <= numGrids; g++) {
+      const level = lowerPrice + g * gridSpacing;
+      if (prevPrice > level && price <= level && !filledBuys.has(g)) {
+        capital -= qtyPerGrid * price;
+        filledBuys.add(g);
+      } else if (prevPrice < level && price >= level && filledBuys.has(g)) {
+        const profit = qtyPerGrid * (price - (level - gridSpacing));
+        capital += qtyPerGrid * price;
+        trades.push({ pnl: (profit / initialCapital) * 100, holdDays: 1 });
+        filledBuys.delete(g);
+      }
+    }
+    const holdingsValue = filledBuys.size * qtyPerGrid * price;
+    const totalValue = capital + holdingsValue;
+    peak = Math.max(peak, totalValue);
+    const dd = ((totalValue - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((totalValue / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+  const holdingsValue = filledBuys.size * qtyPerGrid * prices[prices.length - 1].close;
+  const finalValue = capital + holdingsValue;
+  return computeStats(prices, equityCurve, drawdownCurve, trades, finalValue, initialCapital, maxDD,
+    "그리드 트레이딩", "Crypto", "CryptoCompare (실제 데이터)");
+}
+
 // --- Helper: compute common stats from equity curve and trades ---
 function computeStats(
   prices: PriceBar[],
@@ -1131,6 +1344,44 @@ export default function BacktestPage() {
           }
           case "bot-bybit-funding-arb": {
             backResult = runFundingArbSim(prices, capital);
+            break;
+          }
+          case "volatility-breakout": {
+            const k = parseFloat(paramValues[0]) || 0.5;
+            const investRatio = parseFloat(paramValues[1]) || 80;
+            backResult = runVolatilityBreakout(prices, k, investRatio, capital);
+            break;
+          }
+          case "trend-following": {
+            const shortMA = parseInt(paramValues[0]) || 20;
+            const longMA = parseInt(paramValues[1]) || 50;
+            backResult = runTrendFollowing(prices, shortMA, longMA, capital);
+            break;
+          }
+          case "mean-reversion": {
+            const period = parseInt(paramValues[0]) || 20;
+            const stdMult = parseFloat(paramValues[1]) || 2.0;
+            backResult = runMeanReversion(prices, period, stdMult, capital);
+            break;
+          }
+          case "momentum": {
+            const rsiPeriod = parseInt(paramValues[0]) || 14;
+            const rsiOversold = parseInt(paramValues[1]) || 30;
+            backResult = runMomentumStrategy(prices, rsiPeriod, rsiOversold, capital);
+            break;
+          }
+          case "dca-dynamic": {
+            const baseInvest = parseInt(paramValues[0]) || 1000000;
+            const riskMult = parseFloat(paramValues[1]) || 1.5;
+            const buyCycle = parseInt(paramValues[2]) || 7;
+            backResult = runDCADynamic(prices, baseInvest / prices[0].close, riskMult, buyCycle, capital);
+            break;
+          }
+          case "grid-trading": {
+            const grids = parseInt(paramValues[0]) || 10;
+            const upper = parseFloat(paramValues[1]) || prices[prices.length - 1].close * 1.1;
+            const lower = parseFloat(paramValues[2]) || prices[prices.length - 1].close * 0.9;
+            backResult = runGridTrading(prices, grids, upper, lower, capital);
             break;
           }
           default: {
