@@ -606,7 +606,15 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                     <div style={{ fontSize:48, marginBottom:12 }}>⚖️</div>
                     <div style={{ fontSize:20, color:"#F1F5F9", fontWeight:700, letterSpacing:3, marginBottom:8 }}>TRADINGAGENTS v4</div>
                     <div style={{ fontSize:14, color:"#94A3B8", letterSpacing:2, marginBottom:16 }}>월스트리트 AI 트레이딩팀 · 멀티에이전트 가중 점수 엔진</div>
-                    {regime && <div style={{ fontSize:11, color:REGIMES[regime]?.color, fontWeight:600 }}>{REGIMES[regime]?.icon} 현재 시장 국면: {REGIMES[regime]?.label}</div>}
+                    {regime && (
+                      <div style={{ display:"inline-flex", alignItems:"center", gap:10, background:REGIMES[regime]?.bg, border:`2px solid ${REGIMES[regime]?.color}60`, borderRadius:12, padding:"10px 24px", marginTop:8 }}>
+                        <span style={{ fontSize:28 }}>{REGIMES[regime]?.icon}</span>
+                        <div>
+                          <div style={{ fontSize:10, color:"var(--ta-muted)", letterSpacing:2 }}>현재 시장 국면</div>
+                          <div style={{ fontSize:22, color:REGIMES[regime]?.color, fontWeight:800, letterSpacing:3 }}>{REGIMES[regime]?.label}</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* 시스템 소개 */}
