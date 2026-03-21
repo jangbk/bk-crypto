@@ -127,6 +127,56 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     monthlyReturns: [],
     recentTrades: [],
   },
+  {
+    id: "bybit-v6-hybrid",
+    name: "Bybit v6-hybrid Bot",
+    description: "Confidence Score ≥ 0.6 필터 + 추세추종/MeanRev + CHOPPY 자동감지",
+    asset: "BTC/USDT",
+    exchange: "Bybit (Demo)",
+    status: "active",
+    startDate: "2026-03-21",
+    initialCapital: 50000 * 1450,
+    currentValue: 50000 * 1450,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
+  {
+    id: "bybit-funding-arb",
+    name: "Funding Rate Arb Bot",
+    description: "Delta Neutral 펀딩비 아비트라지 (멀티코인 로테이션)",
+    asset: "BTC, ETH, SOL 등 10코인",
+    exchange: "Bybit (Demo)",
+    status: "active",
+    startDate: "2026-03-21",
+    initialCapital: 50000 * 1450,
+    currentValue: 50000 * 1450,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
 ];
 
 /** 금액을 한국식으로 포맷 (억/만원 단위) */
@@ -271,8 +321,9 @@ export default function BotPerformancePage() {
 
   // Calculate aggregated stats — 실투자 vs 모의투자 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const realBots = strategies.filter((b) => b.id !== "kis-rsi-macd");
-  const simBots = strategies.filter((b) => b.id === "kis-rsi-macd");
+  const simBotIds = ["kis-rsi-macd", "bybit-v6-hybrid", "bybit-funding-arb"];
+  const realBots = strategies.filter((b) => !simBotIds.includes(b.id));
+  const simBots = strategies.filter((b) => simBotIds.includes(b.id));
 
   const realInvested = realBots.reduce((sum, b) => sum + getCapital(b), 0);
   const realTradedPnL = realBots.reduce((sum, b) => b.totalTrades > 0 ? sum + (b.currentValue - getCapital(b)) : sum, 0);
