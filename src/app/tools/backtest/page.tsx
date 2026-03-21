@@ -135,6 +135,30 @@ const STRATEGIES: Strategy[] = [
     ],
     isBotStrategy: true,
   },
+  {
+    id: "bot-bybit-v6-hybrid",
+    name: "🤖 Bybit v6-hybrid Bot",
+    description: "Confidence Score ≥ 0.6 필터 + 추세추종/MeanRev + CHOPPY 자동감지 — Demo 가동 중",
+    params: ["Score 임계치", "SL (ATR배수)", "TP (ATR배수)"],
+    paramHints: [
+      "Confidence Score 최소값. ADX+MA정렬+크로스빈도+거래량+DI 가중 합산. 0.6이 기본",
+      "스탑로스 ATR 배수. 1.5가 기본. 높을수록 넓은 스탑",
+      "테이크프로핏 ATR 배수. 2.5가 기본. 높을수록 큰 수익 타겟",
+    ],
+    isBotStrategy: true,
+  },
+  {
+    id: "bot-bybit-funding-arb",
+    name: "🤖 Funding Rate Arb Bot",
+    description: "Delta Neutral 펀딩비 아비트라지 (멀티코인 로테이션) — Demo 가동 중",
+    params: ["최소 펀딩비 (%)", "양수 비율 (%)", "포지션 비율 (%)"],
+    paramHints: [
+      "진입 최소 펀딩비율. 0.03%가 기본 (연환산 ~33%)",
+      "최근 30건 중 양수 비율 최소값. 70%가 기본",
+      "포지션당 자본 배분 비율. 15%가 기본. 최대 3포지션",
+    ],
+    isBotStrategy: true,
+  },
 ];
 
 const KR_STOCK_ASSETS: { label: string; value: string; symbol: string }[] = [
