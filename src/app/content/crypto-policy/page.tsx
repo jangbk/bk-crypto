@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Shield,
   Landmark,
@@ -20,6 +20,7 @@ import {
   Lightbulb,
   ArrowRight,
   Info,
+  Loader2,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -602,24 +603,49 @@ function ImpactAssessmentCard({ card }: { card: ImpactCard }) {
 
 export default function CryptoPolicyPage() {
   const [implicationsOpen, setImplicationsOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<PolicyStatus | "전체">(
-    "전체",
-  );
+  const [statusFilter, setStatusFilter] = useState<PolicyStatus | "전체">("전체");
+  const [liveData, setLiveData] = useState<{
+    usPolicies?: USPolicyItem[];
+    globalRegulations?: CountryRegulation[];
+    impactCards?: ImpactCard[];
+    recentNews?: { title: string; date: string; source: string; impact: string; summary: string }[];
+    lastUpdated?: string;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchLiveData() {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/content/crypto-policy", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && !data.error) {
+            setLiveData(data);
+            setLastRefresh(data.lastUpdated || new Date().toISOString().split("T")[0]);
+          }
+        }
+      } catch { /* fallback to hardcoded */ }
+      finally { setIsLoading(false); }
+    }
+    fetchLiveData();
+  }, []);
+
+  // 라이브 데이터 있으면 사용, 없으면 하드코딩 폴백
+  const activePolicies = liveData?.usPolicies || usPolicyItems;
+  const activeRegulations = liveData?.globalRegulations || globalRegulations;
+  const activeImpactCards = liveData?.impactCards || impactCards;
+  const recentNews = liveData?.recentNews || [];
 
   const filteredPolicies =
     statusFilter === "전체"
-      ? usPolicyItems
-      : usPolicyItems.filter((p) => p.status === statusFilter);
+      ? activePolicies
+      : activePolicies.filter((p) => p.status === statusFilter);
 
-  const completedCount = usPolicyItems.filter(
-    (p) => p.status === "완료",
-  ).length;
-  const inProgressCount = usPolicyItems.filter(
-    (p) => p.status === "진행 중",
-  ).length;
-  const reviewCount = usPolicyItems.filter(
-    (p) => p.status === "검토 중",
-  ).length;
+  const completedCount = activePolicies.filter((p) => p.status === "완료").length;
+  const inProgressCount = activePolicies.filter((p) => p.status === "진행 중").length;
+  const reviewCount = activePolicies.filter((p) => p.status === "검토 중").length;
 
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
@@ -634,10 +660,24 @@ export default function CryptoPolicyPage() {
               크립토 규제 & 정책 동향
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            주요국 암호화폐 규제 현황과 정책 변화를 추적합니다. 미국 정책을
-            중심으로 글로벌 규제 트렌드와 시장 영향을 분석합니다.
-          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              주요국 암호화폐 규제 현황과 정책 변화를 추적합니다. 미국 정책을
+              중심으로 글로벌 규제 트렌드와 시장 영향을 분석합니다.
+            </p>
+            {isLoading && (
+              <span className="flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                최신 정책 로딩 중...
+              </span>
+            )}
+            {lastRefresh && !isLoading && (
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-3 w-3" />
+                최신 업데이트: {lastRefresh}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Summary Stats */}
@@ -726,7 +766,7 @@ export default function CryptoPolicyPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {globalRegulations.map((reg) => (
+            {activeRegulations.map((reg) => (
               <CountryCard key={reg.country} reg={reg} />
             ))}
           </div>
@@ -742,7 +782,7 @@ export default function CryptoPolicyPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {impactCards.map((card) => (
+            {activeImpactCards.map((card) => (
               <ImpactAssessmentCard key={card.title} card={card} />
             ))}
           </div>
@@ -794,6 +834,35 @@ export default function CryptoPolicyPage() {
           )}
         </section>
 
+        {/* Recent News */}
+        {recentNews.length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
+              <FileText className="h-5 w-5 text-primary" />
+              최근 규제 뉴스
+            </h2>
+            <div className="space-y-2">
+              {recentNews.map((news, i) => (
+                <div key={i} className="rounded-lg border border-border bg-card p-3 flex items-start gap-3">
+                  <span className={`mt-0.5 text-sm ${news.impact === "positive" ? "text-emerald-500" : news.impact === "negative" ? "text-red-500" : "text-amber-500"}`}>
+                    {news.impact === "positive" ? "🟢" : news.impact === "negative" ? "🔴" : "🟡"}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-semibold text-foreground">{news.title}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{news.summary}</p>
+                    <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                      <span>{news.date}</span>
+                      <span>{news.source}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Disclaimer */}
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
           <div className="flex items-start gap-2">
@@ -801,8 +870,8 @@ export default function CryptoPolicyPage() {
             <p className="text-xs leading-relaxed text-muted-foreground">
               본 페이지의 정보는 교육 및 참고 목적으로 제공되며, 투자 조언이
               아닙니다. 규제 환경은 빠르게 변화할 수 있으므로 최신 정보는 각국
-              규제기관의 공식 발표를 확인하시기 바랍니다. 마지막 업데이트: 2025년
-              10월
+              규제기관의 공식 발표를 확인하시기 바랍니다.
+              {lastRefresh && <> 마지막 업데이트: {lastRefresh}</>}
             </p>
           </div>
         </div>
