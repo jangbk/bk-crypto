@@ -547,9 +547,11 @@ function runMeanReversion(
       const mean = slice.reduce((a, b) => a + b) / period;
       const std = Math.sqrt(slice.reduce((s, v) => s + (v - mean) ** 2, 0) / period);
       const lower = mean - std * stdMult;
+      const upper = mean + std * stdMult;
 
-      // 하단 터치 매수
-      if (!position && closes[i] < lower) {
+      // 하단 밴드 근접 매수 (하단 + 밴드폭의 20% 이내)
+      const buyZone = lower + (mean - lower) * 0.2;
+      if (!position && closes[i] < buyZone) {
         position = true; entryPrice = closes[i]; entryIdx = i;
       }
       // 중심선 복귀 매도
@@ -640,24 +642,41 @@ function runMomentumStrategy(
 }
 
 // --- 동적 DCA ---
+// baseInvest: 매수 주기마다 투자할 금액 (USD)
 function runDCADynamic(
   prices: PriceBar[], baseInvest: number, riskMult: number, buyCycle: number, initialCapital: number,
 ): BacktestResult {
   let capital = initialCapital;
   let holdings = 0;
-  const equityCurve: number[] = [100];
-  const drawdownCurve: number[] = [0];
+  let totalInvested = 0;
+  const equityCurve: number[] = [];
+  const drawdownCurve: number[] = [];
   const trades: { pnl: number; holdDays: number }[] = [];
-  let peak = capital, maxDD = 0;
+  let peak = initialCapital, maxDD = 0;
+
+  // baseInvest를 자본 대비 비율로 조정
+  const investPerCycle = initialCapital * 0.05; // 매 주기 자본의 5% 투자
 
   for (let i = 0; i < prices.length; i++) {
-    if (i % buyCycle === 0 && capital >= baseInvest) {
-      const invest = Math.min(baseInvest, capital);
-      const qty = invest / prices[i].close;
+    // 매수 주기
+    if (i % buyCycle === 0 && i > 0 && capital > investPerCycle * 0.5) {
+      // 리스크 기반 투자금 조정: 가격이 MA 아래면 더 많이, 위면 적게
+      let investAmount = investPerCycle;
+      if (i >= 50) {
+        const ma50 = prices.slice(i - 50, i).reduce((s, p) => s + p.close, 0) / 50;
+        const ratio = prices[i].close / ma50;
+        if (ratio < 0.9) investAmount *= riskMult; // 저가 구간 → 많이 투자
+        else if (ratio > 1.1) investAmount *= (1 / riskMult); // 고가 구간 → 적게
+      }
+      investAmount = Math.min(investAmount, capital);
+
+      const qty = investAmount / prices[i].close;
       holdings += qty;
-      capital -= invest;
+      capital -= investAmount;
+      totalInvested += investAmount;
       trades.push({ pnl: 0, holdDays: buyCycle });
     }
+
     const totalValue = capital + holdings * prices[i].close;
     peak = Math.max(peak, totalValue);
     const dd = ((totalValue - peak) / peak) * 100;
@@ -665,7 +684,15 @@ function runDCADynamic(
     equityCurve.push((totalValue / initialCapital) * 100);
     drawdownCurve.push(dd);
   }
+
   const finalValue = capital + holdings * prices[prices.length - 1].close;
+  // 최종 거래 기록 (전체 DCA 결과)
+  if (totalInvested > 0) {
+    const holdingsValue = holdings * prices[prices.length - 1].close;
+    const dcaPnl = ((holdingsValue - totalInvested) / totalInvested) * 100;
+    trades.push({ pnl: dcaPnl, holdDays: prices.length });
+  }
+
   return computeStats(prices, equityCurve, drawdownCurve, trades, finalValue, initialCapital, maxDD,
     "동적 DCA", "Crypto", "CryptoCompare (실제 데이터)");
 }
@@ -1441,7 +1468,7 @@ export default function BacktestPage() {
             const baseInvest = parseInt(paramValues[0]) || 1000000;
             const riskMult = parseFloat(paramValues[1]) || 1.5;
             const buyCycle = parseInt(paramValues[2]) || 7;
-            backResult = runDCADynamic(prices, baseInvest / prices[0].close, riskMult, buyCycle, capital);
+            backResult = runDCADynamic(prices, baseInvest, riskMult, buyCycle, capital);
             break;
           }
           case "grid-trading": {
