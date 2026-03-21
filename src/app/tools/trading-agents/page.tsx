@@ -221,8 +221,8 @@ function RegimePanel({ regime, weights }: { regime: string; weights: Record<stri
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
         <span style={{ fontSize:16 }}>{r.icon}</span>
         <div>
-          <div style={{ fontSize:10, color:r.color, fontWeight:700, letterSpacing:2 }}>{r.label}</div>
-          <div style={{ fontSize:8, color:"#475569" }}>{r.desc}</div>
+          <div style={{ fontSize:13, color:r.color, fontWeight:700, letterSpacing:2 }}>{r.label}</div>
+          <div style={{ fontSize:10, color:"var(--ta-muted)" }}>{r.desc}</div>
         </div>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
@@ -230,11 +230,11 @@ function RegimePanel({ regime, weights }: { regime: string; weights: Record<stri
           const w = weights?.[key] || 0;
           return (
             <div key={key} style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <div style={{ fontSize:8, color:"#334155", width:70, flexShrink:0, letterSpacing:1 }}>{lbl}</div>
+              <div style={{ fontSize:10, color:"var(--ta-muted)", width:75, flexShrink:0, letterSpacing:1 }}>{lbl}</div>
               <div style={{ flex:1, height:3, background:"#0F172A", borderRadius:2, overflow:"hidden" }}>
                 <div style={{ height:"100%", width:`${w}%`, background:r.color, borderRadius:2, transition:"width 0.8s ease" }} />
               </div>
-              <div style={{ fontSize:8, color:"#334155", width:24, textAlign:"right", flexShrink:0 }}>{w}%</div>
+              <div style={{ fontSize:10, color:"var(--ta-muted)", width:28, textAlign:"right", flexShrink:0, fontWeight:600 }}>{w}%</div>
             </div>
           );
         })}
@@ -250,8 +250,8 @@ function PipelineStep({ stepKey, status, signals }: { stepKey: string; status: s
   const sigCol = sig===1?"#22C55E":sig===-1?"#EF4444":"#F59E0B";
   return (
     <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:6, background:isActive?`${a.color}10`:"transparent", border:`1px solid ${isActive?a.color+"28":"transparent"}`, transition:"all 0.3s" }}>
-      <div style={{ width:6, height:6, borderRadius:"50%", flexShrink:0, background:isDone||isActive?a.color:"#1E293B", border:`1px solid ${isDone||isActive?a.color:"#334155"}`, boxShadow:isActive?`0 0 7px ${a.color}`:"none" }} />
-      <span style={{ fontSize:10, color:isDone?a.color:isActive?a.color:"#1E3A5F", flex:1 }}>{isDone?"✓ ":"  "}{a.name}</span>
+      <div style={{ width:7, height:7, borderRadius:"50%", flexShrink:0, background:isDone||isActive?a.color:"var(--ta-border)", border:`1px solid ${isDone||isActive?a.color:"var(--ta-dim)"}`, boxShadow:isActive?`0 0 7px ${a.color}`:"none" }} />
+      <span style={{ fontSize:12, color:isDone?a.color:isActive?a.color:"var(--ta-muted)", flex:1 }}>{isDone?"✓ ":"  "}{a.name}</span>
       {isDone && sig!=null && SCORE_KEYS.includes(stepKey) && (
         <div style={{ fontSize:7, color:sigCol, background:`${sigCol}15`, border:`1px solid ${sigCol}25`, borderRadius:3, padding:"1px 5px", letterSpacing:1 }}>{sig===1?"▲":sig===-1?"▼":"—"}</div>
       )}
@@ -523,9 +523,16 @@ Respond ONLY with valid JSON (no markdown, no backticks):
         @keyframes slideIn        { from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)} }
         @keyframes decisionReveal { from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)} }
         @keyframes spin           { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
+        .ta-page { --ta-bg:#070B14; --ta-card:rgba(255,255,255,0.02); --ta-border:#1E293B; --ta-text:#CBD5E1; --ta-muted:#94A3B8; --ta-dim:#475569; --ta-dark:#0F172A; }
+        @media(prefers-color-scheme:light) {
+          .ta-page { --ta-bg:#F8FAFC; --ta-card:rgba(0,0,0,0.02); --ta-border:#E2E8F0; --ta-text:#1E293B; --ta-muted:#475569; --ta-dim:#64748B; --ta-dark:#F1F5F9; }
+        }
+        :root[class*="light"] .ta-page, :root[data-theme="light"] .ta-page {
+          --ta-bg:#F8FAFC; --ta-card:rgba(0,0,0,0.02); --ta-border:#E2E8F0; --ta-text:#1E293B; --ta-muted:#475569; --ta-dim:#64748B; --ta-dark:#F1F5F9;
+        }
       `}</style>
 
-      <div style={{ background:"#070B14", minHeight:"100vh", padding:20, fontFamily:"monospace", color:"#94A3B8" }}>
+      <div className="ta-page" style={{ background:"var(--ta-bg)", minHeight:"100vh", padding:20, fontFamily:"monospace", color:"var(--ta-text)" }}>
         <div style={{ position:"relative", zIndex:1, maxWidth:1200, margin:"0 auto" }}>
 
           {/* HEADER */}
@@ -576,7 +583,7 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                 { label:"EXECUTION TEAM",  keys:["trader","riskTeam","manager"] },
               ].map(g=>(
                 <div key={g.label} style={{ marginBottom:14 }}>
-                  <div style={{ fontSize:7, color:"#1E3A5F", letterSpacing:3, paddingLeft:10, marginBottom:4 }}>── {g.label}</div>
+                  <div style={{ fontSize:10, color:"var(--ta-dim)", letterSpacing:3, paddingLeft:10, marginBottom:4, fontWeight:600 }}>── {g.label}</div>
                   {g.keys.map(k=><PipelineStep key={k} stepKey={k} status={stepStatus(k)} signals={signals} />)}
                 </div>
               ))}

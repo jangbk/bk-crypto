@@ -65,6 +65,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Metric Analyzer", href: "/tools/metric-analyzer" },
       { label: "Bot Performance", href: "/tools/bot-performance" },
       { label: "Backtest", href: "/tools/backtest" },
+      { label: "Trading Agents", href: "/tools/trading-agents" },
       { label: "Investment Guide", href: "/tools/investment-guide" },
     ],
   },
