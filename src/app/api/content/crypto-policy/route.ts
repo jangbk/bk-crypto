@@ -65,10 +65,31 @@ async function fetchLatestPolicies() {
       "impact": "positive|neutral|negative",
       "summary": "한글 요약 1문장"
     }
+  ],
+  "bills": [
+    {
+      "id": "법안 번호 (예: H.R.4763)",
+      "name": "법안 공식명 (영문)",
+      "nameKo": "한글 법안명",
+      "country": "미국|한국|유럽연합|일본|영국|싱가포르",
+      "flag": "이모지",
+      "chamber": "하원|상원|국회|의회",
+      "status": "상정|위원회 심사|본회의 통과|양원 통과|서명 완료|보류|폐기",
+      "progress": 0-100,
+      "introducedDate": "YYYY.MM.DD",
+      "lastActionDate": "YYYY.MM.DD",
+      "lastAction": "최근 진행 상황 1문장",
+      "sponsor": "발의자",
+      "summary": "법안 핵심 내용 2-3문장",
+      "marketImpact": "positive|neutral|negative",
+      "keyProvisions": ["주요 조항1", "주요 조항2", "주요 조항3"]
+    }
   ]
 }
 
 미국 정책 8개 이상, 글로벌 규제 8개국 이상, 영향도 카드 4개, 최근 뉴스 10개 이상 포함.
+법안(bills)은 미국, 한국, EU 등 주요국에서 상정/진행 중인 암호화폐 관련 법안 10개 이상 포함.
+각 법안의 진행 단계(상정→위원회→본회의→양원→서명)를 progress 0-100으로 표시.
 가장 최신 정보를 반영하되, 확인되지 않은 루머는 제외하라.`
       }],
     }),

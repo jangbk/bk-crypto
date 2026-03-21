@@ -609,6 +609,7 @@ export default function CryptoPolicyPage() {
     globalRegulations?: CountryRegulation[];
     impactCards?: ImpactCard[];
     recentNews?: { title: string; date: string; source: string; impact: string; summary: string }[];
+    bills?: { id: string; name: string; nameKo: string; country: string; flag: string; chamber: string; status: string; progress: number; introducedDate: string; lastActionDate: string; lastAction: string; sponsor: string; summary: string; marketImpact: string; keyProvisions: string[] }[];
     lastUpdated?: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -833,6 +834,74 @@ export default function CryptoPolicyPage() {
             </div>
           )}
         </section>
+
+        {/* Bills Tracker */}
+        {(liveData?.bills || []).length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
+              <Scale className="h-5 w-5 text-primary" />
+              암호화폐 법안 추적
+            </h2>
+            <div className="space-y-3">
+              {(liveData?.bills || []).map((bill: { id: string; name: string; nameKo: string; country: string; flag: string; chamber: string; status: string; progress: number; introducedDate: string; lastActionDate: string; lastAction: string; sponsor: string; summary: string; marketImpact: string; keyProvisions: string[] }, i: number) => {
+                const impactColor = bill.marketImpact === "positive" ? "emerald" : bill.marketImpact === "negative" ? "red" : "amber";
+                const progressColor = bill.progress >= 80 ? "bg-emerald-500" : bill.progress >= 50 ? "bg-blue-500" : bill.progress >= 25 ? "bg-amber-500" : "bg-muted-foreground";
+                return (
+                  <div key={i} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-lg">{bill.flag}</span>
+                          <span className="text-sm font-bold text-foreground">{bill.nameKo}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{bill.id}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded bg-${impactColor}-500/10 text-${impactColor}-600 dark:text-${impactColor}-400 font-medium`}>
+                            {bill.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">{bill.name}</p>
+                        <p className="text-sm text-foreground/80">{bill.summary}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-2xl font-bold text-foreground">{bill.progress}%</div>
+                        <div className="text-[10px] text-muted-foreground">{bill.chamber}</div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mb-3">
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${progressColor} transition-all duration-500`} style={{ width: `${bill.progress}%` }} />
+                      </div>
+                      <div className="flex justify-between mt-1 text-[9px] text-muted-foreground">
+                        <span>상정</span>
+                        <span>위원회</span>
+                        <span>본회의</span>
+                        <span>양원통과</span>
+                        <span>서명</span>
+                      </div>
+                    </div>
+
+                    {/* Key Provisions */}
+                    {bill.keyProvisions && bill.keyProvisions.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {bill.keyProvisions.map((p: string, j: number) => (
+                          <span key={j} className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground">{p}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex items-center gap-4 text-[10px] text-muted-foreground border-t border-border pt-2">
+                      <span>발의: {bill.sponsor}</span>
+                      <span>상정일: {bill.introducedDate}</span>
+                      <span>최근: {bill.lastAction}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Recent News */}
         {recentNews.length > 0 && (
