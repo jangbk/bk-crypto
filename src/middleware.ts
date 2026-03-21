@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { COOKIE_NAME, verifyToken } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/_next", "/favicon.ico", "/bitcoin-coin.png"];
+const PUBLIC_PATHS = ["/login", "/api/", "/_next", "/favicon.ico", "/bitcoin-coin.png"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
