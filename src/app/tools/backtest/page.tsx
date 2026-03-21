@@ -394,9 +394,10 @@ function runV6Hybrid(
 }
 
 // --- Funding Rate Arbitrage simulation ---
+// Delta Neutral: 현물 매수 + 선물 숏 → 가격 변동 상쇄, 펀딩비만 수취
+// 실제 펀딩비 데이터가 없으므로 통계 기반 시뮬레이션
+// BTC 역사적 평균: 양수 78%, 평균 0.005%/8h, 연환산 ~5.5%
 function runFundingArbSim(prices: PriceBar[], initialCapital: number): BacktestResult {
-  // 펀딩비는 가격 데이터에 없으므로 통계적 시뮬레이션
-  // BTC 평균 펀딩비: 양수 78%, 평균 0.004%/8h → 연환산 ~4.3%
   let capital = initialCapital;
   const equityCurve: number[] = [100];
   const drawdownCurve: number[] = [0];
@@ -404,62 +405,66 @@ function runFundingArbSim(prices: PriceBar[], initialCapital: number): BacktestR
   let peak = capital;
   let maxDD = 0;
 
-  const DAILY_FUNDING = 0.00004 * 3; // 0.004% × 3회/일
-  const ENTRY_FEE = 0.0002 * 2; // maker 양쪽
+  // 파라미터
+  const AVG_FUNDING_RATE = 0.00005; // 0.005% per 8h
+  const FUNDING_PER_DAY = AVG_FUNDING_RATE * 3; // 3회/일
+  const POSITIVE_PROBABILITY = 0.78; // 78% 양수
+  const ENTRY_EXIT_FEE = 0.0004; // 진입+청산 수수료 합산 (maker 0.02% × 2 × 양쪽)
   const POSITION_PCT = 0.5; // 자본의 50% 배분
+  const REBALANCE_COST = 0.0002; // 리밸런싱 비용
 
-  let inPosition = false;
-  let entryIdx = 0;
-  let positionCapital = 0;
+  // 시드 기반 의사 난수 (재현 가능)
+  let seed = 12345;
+  function pseudoRandom(): number {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  }
+
+  const allocated = initialCapital * POSITION_PCT;
+  // 진입 수수료 차감
+  capital -= allocated * ENTRY_EXIT_FEE;
 
   for (let i = 1; i < prices.length; i++) {
-    // 간단한 진입/청산: 20일 MA 위에서 양수 펀딩비 가정
-    const ma20 = i >= 20 ? prices.slice(i - 20, i).reduce((s, p) => s + p.close, 0) / 20 : prices[i].close;
-    const aboveMA = prices[i].close > ma20;
+    // 매일 펀딩비 수취/지불 시뮬레이션
+    const isFundingPositive = pseudoRandom() < POSITIVE_PROBABILITY;
 
-    if (!inPosition && aboveMA && i > 20) {
-      // 진입 (양수 펀딩비 구간)
-      positionCapital = capital * POSITION_PCT;
-      capital -= positionCapital * ENTRY_FEE; // 진입 수수료
-      inPosition = true;
-      entryIdx = i;
-    } else if (inPosition && !aboveMA) {
-      // 청산 (펀딩비 방향 전환)
-      const holdDays = i - entryIdx;
-      const fundingEarned = positionCapital * DAILY_FUNDING * holdDays;
-      // 가격 변동은 delta neutral이므로 0 (이상적)
-      // 실제로는 약간의 슬리피지 발생
-      const slippage = positionCapital * 0.001; // 0.1% 슬리피지
-      const netPnl = fundingEarned - slippage;
-      capital += positionCapital + netPnl - positionCapital * ENTRY_FEE;
-      trades.push({ pnl: (netPnl / initialCapital) * 100, holdDays });
-      inPosition = false;
-    } else if (inPosition) {
-      // 보유 중: 일일 펀딩비 수취
-      // (최종 정산 시 반영)
+    if (isFundingPositive) {
+      // 양수 펀딩비 → 숏이 수취
+      const rate = AVG_FUNDING_RATE * (0.5 + pseudoRandom()); // 변동 추가
+      const earned = allocated * rate * 3; // 3회/일
+      capital += earned;
+    } else {
+      // 음수 펀딩비 → 숏이 지불
+      const rate = AVG_FUNDING_RATE * (0.3 + pseudoRandom() * 0.5);
+      const paid = allocated * rate * 3;
+      capital -= paid;
     }
 
-    const equity = inPosition
-      ? capital + positionCapital + positionCapital * DAILY_FUNDING * (i - entryIdx)
-      : capital;
-    peak = Math.max(peak, equity);
-    const dd = ((equity - peak) / peak) * 100;
+    // 30일마다 리밸런싱 비용
+    if (i % 30 === 0) {
+      capital -= allocated * REBALANCE_COST;
+    }
+
+    // 에퀴티 기록
+    peak = Math.max(peak, capital);
+    const dd = ((capital - peak) / peak) * 100;
     maxDD = Math.min(maxDD, dd);
-    equityCurve.push((equity / initialCapital) * 100);
+    equityCurve.push((capital / initialCapital) * 100);
     drawdownCurve.push(dd);
+
+    // 월 단위 거래 기록
+    if (i % 30 === 0) {
+      const monthlyPnl = ((capital / initialCapital) * 100 - (equityCurve[Math.max(0, i - 30)] || 100));
+      trades.push({ pnl: monthlyPnl, holdDays: 30 });
+    }
   }
 
-  // 최종 청산
-  if (inPosition) {
-    const holdDays = prices.length - 1 - entryIdx;
-    const fundingEarned = positionCapital * DAILY_FUNDING * holdDays;
-    const netPnl = fundingEarned - positionCapital * 0.001;
-    capital += positionCapital + netPnl;
-    trades.push({ pnl: (netPnl / initialCapital) * 100, holdDays });
-  }
+  // 청산 수수료
+  capital -= allocated * ENTRY_EXIT_FEE;
 
   return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
-    "Funding Rate Arbitrage (시뮬레이션)", "BTC/USD", "CryptoCompare + 펀딩비 통계 (시뮬레이션)");
+    "Funding Rate Arbitrage (Delta Neutral 시뮬레이션)", "BTC/USD",
+    "CryptoCompare + 펀딩비 통계 시뮬레이션 (양수78%, 평균0.005%/8h)");
 }
 
 // --- 추세추종 (MA 크로스) ---
