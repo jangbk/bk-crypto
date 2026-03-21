@@ -141,15 +141,16 @@ async function callClaude(system: string, user: string) {
 async function fetchMarketData() {
   let usd: { price: number; change: number; mcap: number; vol: number } | null = null;
   let krw: { price: number; change: number } | null = null;
+  const ts = Date.now(); // 캐시 방지
   // USD: CoinGecko
   try {
-    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true",{cache:"no-cache"});
+    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true&_t=${ts}`,{cache:"no-store"});
     const d = await r.json();
     usd = { price:d.bitcoin.usd, change:d.bitcoin.usd_24h_change, mcap:d.bitcoin.usd_market_cap, vol:d.bitcoin.usd_24h_vol };
   } catch{}
-  // KRW: 항상 Upbit 실시간 (CoinGecko KRW는 환율 추정이라 부정확)
+  // KRW: 항상 Upbit 실시간
   try {
-    const r = await fetch("https://api.upbit.com/v1/ticker?markets=KRW-BTC");
+    const r = await fetch(`https://api.upbit.com/v1/ticker?markets=KRW-BTC&_t=${ts}`,{cache:"no-store"});
     const [d] = await r.json();
     krw = { price:d.trade_price, change:d.signed_change_rate*100 };
   } catch{}
@@ -373,8 +374,8 @@ function DecisionCard({ decision, krwPrice, regime, score, lang="ko" }: { decisi
         )}
       </div>
       {r && (
-        <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:r.bg, border:`1px solid ${r.color}40`, borderRadius:20, padding:"4px 12px", marginBottom:14, fontSize:9, color:r.color, letterSpacing:2 }}>
-          {r.icon} {r.label} 기준 · 가중점수 {score!=null?(score>=0?"+":"")+score.toFixed(3):"—"}
+        <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:r.bg, border:`2px solid ${r.color}50`, borderRadius:24, padding:"8px 18px", marginBottom:16, fontSize:15, color:r.color, letterSpacing:2, fontWeight:700 }}>
+          <span style={{ fontSize:20 }}>{r.icon}</span> {r.label} 기준 · 가중점수 {score!=null?(score>=0?"+":"")+score.toFixed(3):"—"}
         </div>
       )}
       <div style={{ display:"flex", alignItems:"center", gap:28, marginBottom:18, flexWrap:"wrap" }}>
