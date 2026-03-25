@@ -30,7 +30,6 @@ const UI_LABELS = {
     timeframe: "투자기간", reasoning: "판단 근거", scoreMatch: "스코어 일치",
     scoreMismatch: "스코어와 상이", weightedScore: "가중 점수", codeSignal: "코드 시그널",
     contribution: "에이전트별 기여도", processing: "분석 중", signalNote: "신호 파싱 후 가중 점수에 반영됩니다",
-    currentKRW: "현재가 (KRW)",
   },
   en: {
     bullRebuttal: "🐂 BULL REBUTTAL", bearCounter: "🐻 BEAR COUNTER",
@@ -42,7 +41,6 @@ const UI_LABELS = {
     timeframe: "TIMEFRAME", reasoning: "REASONING", scoreMatch: "✓ Score Match",
     scoreMismatch: "⚠ Score Mismatch", weightedScore: "WEIGHTED SCORE", codeSignal: "CODE SIGNAL",
     contribution: "Agent Contribution", processing: "PROCESSING", signalNote: "Signal parsed and reflected in weighted score",
-    currentKRW: "Current (KRW)",
   },
 };
 const STEPS = ["technical","sentiment","news","fundamentals","bullish","bearish","debate","trader","riskTeam","manager"];
@@ -357,7 +355,7 @@ function ReportCard({ stepKey, content, weights, signals, lang="ko" }: { stepKey
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DecisionCard({ decision, krwPrice, regime, score, lang="ko" }: { decision: any; krwPrice: number; regime: string; score: number | null; lang?: string }) {
+function DecisionCard({ decision, regime, score, lang="ko" }: { decision: any; regime: string; score: number | null; lang?: string }) {
   const col  = { BUY:"#22C55E", SELL:"#EF4444", HOLD:"#F59E0B" }[decision.action as string] || "var(--ta-muted)";
   const r    = regime ? REGIMES[regime] : null;
   const codeAction = score != null ? scoreToAction(score) : null;
@@ -393,7 +391,7 @@ function DecisionCard({ decision, krwPrice, regime, score, lang="ko" }: { decisi
         </div>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:8, marginBottom:16 }}>
-        {([[lang==="ko"?"포지션 크기":"POSITION SIZE",decision.positionSize],[lang==="ko"?"진입가 (USD)":"ENTRY (USD)",decision.entry||decision.entryPrice],[lang==="ko"?"손절가":"STOP LOSS",decision.stopLoss],[lang==="ko"?"익절가":"TAKE PROFIT",decision.takeProfit],[lang==="ko"?"투자기간":"TIMEFRAME",decision.timeframe],krwPrice?[lang==="ko"?"현재가 (KRW)":"Current (KRW)",fmtKRW(krwPrice)]:null] as (string[] | null)[]).filter((x): x is string[] => x !== null).map((item) => item[1] ? (
+        {([[lang==="ko"?"포지션 크기":"POSITION SIZE",decision.positionSize],[lang==="ko"?"진입가 (USD)":"ENTRY (USD)",decision.entry||decision.entryPrice],[lang==="ko"?"손절가":"STOP LOSS",decision.stopLoss],[lang==="ko"?"익절가":"TAKE PROFIT",decision.takeProfit],[lang==="ko"?"투자기간":"TIMEFRAME",decision.timeframe]] as (string[])[]).map((item) => item[1] ? (
           <div key={item[0]} style={{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:6, padding:"9px 12px" }}>
             <div style={{ fontSize:10, color:"var(--ta-dim)", letterSpacing:2, marginBottom:4 }}>{item[0]}</div>
             <div style={{ fontSize:13, color:"var(--ta-text)", fontWeight:600 }}>{item[1]}</div>
@@ -582,11 +580,9 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                   <div style={{ fontSize:38, fontWeight:700, color:"var(--ta-text)", lineHeight:1 }}>{usd ? fmtUSD(usd.price) : "LOADING…"}</div>
                   <span style={{ fontSize:14, color:chgClr(usd?.change ?? null), fontWeight:600 }}>{fmtPct(usd?.change ?? null)}</span>
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                  <div style={{ fontSize:8, color:"#F59E0B", letterSpacing:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:4, padding:"2px 7px" }}>UPBIT</div>
-                  <div style={{ fontSize:20, color:"var(--ta-text)", fontWeight:600 }}>{krw ? fmtKRW(krw.price) : "—"}</div>
-                  <span style={{ fontSize:12, color:chgClr(krw?.change ?? null), fontWeight:600 }}>{fmtPct(krw?.change ?? null)}</span>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
                   <span style={{ fontSize:8, color:live?"#4ADE80":"#F59E0B", letterSpacing:2 }}>{live?"● LIVE":"○ MOCK"}</span>
+                  <span style={{ fontSize:11, color:"var(--ta-muted)" }}>MCap {usd ? fmtB(usd.mcap) : "—"} · Vol {usd ? fmtB(usd.vol) : "—"}</span>
                 </div>
               </div>
               {/* 언어 선택 */}
@@ -598,11 +594,24 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                 ))}
               </div>
 
-              <button onClick={runAnalysis} disabled={isRunning} style={{ alignSelf:"flex-start", background:isRunning?"rgba(99,102,241,0.08)":"linear-gradient(135deg,#0EA5E9,#6366F1,#8B5CF6)", color:"var(--ta-text)", border:isRunning?"1px solid rgba(99,102,241,0.25)":"none", borderRadius:8, padding:"12px 24px", fontSize:11, fontFamily:"monospace", letterSpacing:3, cursor:isRunning?"not-allowed":"pointer", opacity:isRunning?0.55:1, boxShadow:isRunning?"none":"0 0 28px rgba(99,102,241,0.45)", display:"flex", alignItems:"center", gap:8 }}>
-                {isRunning ? <><Spinner color="#6366F1" /> ANALYZING…</> : "▶  RUN ANALYSIS"}
+              <button onClick={runAnalysis} disabled={isRunning} style={{ alignSelf:"flex-start", background:isRunning?"rgba(99,102,241,0.08)":"linear-gradient(135deg,#0EA5E9,#6366F1,#8B5CF6)", color:"#FFFFFF", border:isRunning?"1px solid rgba(99,102,241,0.25)":"2px solid rgba(99,102,241,0.5)", borderRadius:12, padding:"16px 36px", fontSize:15, fontFamily:"monospace", letterSpacing:3, cursor:isRunning?"not-allowed":"pointer", opacity:isRunning?0.55:1, boxShadow:isRunning?"none":"0 0 32px rgba(99,102,241,0.5), 0 4px 16px rgba(0,0,0,0.3)", display:"flex", alignItems:"center", gap:10, fontWeight:700, transition:"all 0.2s ease" }}>
+                {isRunning ? <><Spinner color="#6366F1" /> 분석 진행 중…</> : "🚀 AI 분석 시작"}
               </button>
             </div>
           </div>
+
+          {/* 활용법 안내 배너 */}
+          {!isRunning && doneCount===0 && (
+            <div style={{ background:"linear-gradient(135deg,rgba(14,165,233,0.08),rgba(99,102,241,0.08))", border:"1px solid rgba(56,189,248,0.25)", borderRadius:10, padding:"14px 20px", marginBottom:18, display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
+              <div style={{ fontSize:22 }}>💡</div>
+              <div style={{ flex:1, minWidth:200 }}>
+                <div style={{ fontSize:13, color:"#38BDF8", fontWeight:700, letterSpacing:1, marginBottom:4 }}>사용 방법</div>
+                <div style={{ fontSize:12, color:"var(--ta-text)", lineHeight:1.8 }}>
+                  우측 상단의 <strong style={{ color:"#A78BFA" }}>🚀 AI 분석 시작</strong> 버튼을 클릭하세요. 10개의 AI 에이전트가 비트코인 시장을 순차 분석하여 BUY/SELL/HOLD 결정을 내립니다. (약 60~90초 소요)
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && <div style={{ background:"rgba(239,68,68,0.07)", border:"1px solid rgba(239,68,68,0.28)", borderRadius:8, padding:12, marginBottom:16, color:"#FCA5A5", fontSize:11 }}>⚠ ERROR: {error}</div>}
 
@@ -788,7 +797,7 @@ Respond ONLY with valid JSON (no markdown, no backticks):
                   <ReportCard key={k} stepKey={k} content={reports[k]} weights={weights} signals={signals} lang={language} />
                 ))}
                 {weightedScore != null && <ScoreGauge signals={signals} weights={weights} score={weightedScore} regime={regime || "RANGE"} />}
-                {finalDecision && <DecisionCard decision={finalDecision} krwPrice={krw?.price || 0} regime={regime || "RANGE"} score={weightedScore} lang={language} />}
+                {finalDecision && <DecisionCard decision={finalDecision} regime={regime || "RANGE"} score={weightedScore} lang={language} />}
               </div>
               <div ref={bottomRef} style={{ height:1 }} />
             </div>
