@@ -348,8 +348,9 @@ function runV6Adaptive(
   const MAKER_FEE = 0.0002;
   const TAKER_FEE = 0.00055;
   const SLIPPAGE = 0.0002;
-  const COOLDOWN_LOSS = 8; // bars (daily data = days)
-  const COOLDOWN_WIN = 3;
+  // 일봉 기준 쿨다운 (60분봉의 8시간 = 일봉의 1일)
+  const COOLDOWN_LOSS = 1; // 1일
+  const COOLDOWN_WIN = 0;  // 즉시 가능
   let lastTradeIdx = -999;
   let lastTradeWasLoss = false;
   let consecutiveLosses = 0;
@@ -490,21 +491,22 @@ function runV6Adaptive(
         continue;
       }
 
-      // ADX filter
-      if (curADX >= 22) {
-        let risk = 0.02 * confidence;
+      // ADX filter (일봉은 18 이상 — 일봉 ADX는 60분봉보다 낮게 나옴)
+      if (curADX >= 18) {
+        // 일봉 기준 리스크 — ATR이 크므로 리스크 비율 3%로 상향
+        let risk = 0.03 * confidence;
         if (consecutiveLosses >= 5) risk *= 0.5;
         else if (consecutiveLosses >= 3) risk *= 0.7;
 
-        if (regime === "BEAR") risk *= 0.75; // 하락장 보수적
+        if (regime === "BEAR") risk *= 0.8; // 하락장 보수적
 
-        if (regime === "BULL" && price > ma20[i] && curRSI >= 48 && curRSI <= 75 && curDIPlus > curDIMinus + 3) {
+        if (regime === "BULL" && price > ma20[i] && curRSI >= 45 && curRSI <= 78 && curDIPlus > curDIMinus + 2) {
           const qty = (capital * risk) / (curATR * slMult);
           const ep = price * (1 + SLIPPAGE);
           const fee = qty * ep * MAKER_FEE;
           capital -= fee;
           pos = { side: "Buy", entry: ep, qty, sl: ep - curATR * slMult, tp: ep + curATR * tpMult, entryIdx: i, highest: ep, lowest: ep };
-        } else if (regime === "BEAR" && price < ma20[i] && curRSI >= 25 && curRSI <= 52 && curDIMinus > curDIPlus + 3) {
+        } else if (regime === "BEAR" && price < ma20[i] && curRSI >= 22 && curRSI <= 55 && curDIMinus > curDIPlus + 2) {
           const qty = (capital * risk) / (curATR * slMult);
           const ep = price * (1 - SLIPPAGE);
           const fee = qty * ep * MAKER_FEE;
@@ -1511,8 +1513,10 @@ export default function BacktestPage() {
         warmupBars = (parseInt(paramValues[0]) || 200) + 10;
       } else if (selectedStrategy === "bot-seykota-ema") {
         warmupBars = (parseInt(paramValues[0]) || 100) + 10;
-      } else if (selectedStrategy === "bot-bybit-v6-hybrid" || selectedStrategy === "bot-bybit-funding-arb") {
-        warmupBars = 110; // MA100 + buffer
+      } else if (selectedStrategy === "bot-bybit-v6-hybrid") {
+        warmupBars = 250; // MA200 + ROC30 + buffer
+      } else if (selectedStrategy === "bot-bybit-funding-arb") {
+        warmupBars = 110;
       }
       const totalBarsNeeded = daysDiff + warmupBars;
       const toTs = Math.floor(end.getTime() / 1000);
