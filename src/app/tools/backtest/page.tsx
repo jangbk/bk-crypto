@@ -101,7 +101,7 @@ const STRATEGIES: Strategy[] = [
   // --- 가동 중인 봇 ---
   {
     id: "bot-seykota-ema",
-    name: "🤖 Seykota EMA Bot (빗썸)",
+    name: "🤖 Seykota EMA v1 Bot (빗썸)",
     description: "EMA100 + ATR 동적밴드 추세추종 — 실제 가동 중",
     params: ["EMA 기간", "ATR 배수", "ATR 기간"],
     paramHints: [
@@ -113,7 +113,7 @@ const STRATEGIES: Strategy[] = [
   },
   {
     id: "bot-ptj-200ma",
-    name: "🤖 PTJ 200MA Bot (코인원)",
+    name: "🤖 PTJ 200MA v1 Bot (코인원)",
     description: "EMA200 + ATR 동적밴드 추세추종 — 실제 가동 중",
     params: ["EMA 기간", "ATR 배수", "ATR 기간"],
     paramHints: [
@@ -125,7 +125,7 @@ const STRATEGIES: Strategy[] = [
   },
   {
     id: "bot-kis-rsi-macd",
-    name: "🤖 KIS RSI/MACD Bot (한투)",
+    name: "🤖 KIS RSI/MACD v1 Bot (한투)",
     description: "MACD 크로스 + EMA 트렌드 필터 — 실제 가동 중",
     params: ["MACD 단기/장기/시그널", "EMA 필터", "손절 (%)"],
     paramHints: [
@@ -161,7 +161,7 @@ const STRATEGIES: Strategy[] = [
   },
   {
     id: "bot-bybit-funding-arb",
-    name: "🤖 Funding Rate Arb Bot",
+    name: "🤖 Funding Rate Arb v1 Bot",
     description: "Delta Neutral 펀딩비 아비트라지 (멀티코인 로테이션) — Demo 가동 중",
     params: ["최소 펀딩비 (%)", "양수 비율 (%)", "포지션 비율 (%)"],
     paramHints: [
