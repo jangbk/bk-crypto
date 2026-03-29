@@ -307,7 +307,10 @@ function runV6AdaptiveMultiTF(
   let pos: { side: string; entry: number; qty: number; sl: number; tp: number; entryIdx: number; highest: number; lowest: number } | null = null;
   const MAKER_FEE = 0.0002, TAKER_FEE = 0.00055, SLIPPAGE = 0.0002;
   const COOLDOWN_LOSS = 8, COOLDOWN_WIN = 3; // hourly bars — Python 백테스트와 동일
+  const MIN_HOLD = 6; // 최소 보유 6시간 — Python 동일
+  const DAILY_MAX_LOSS_PCT = 0.03; // 일일 최대 손실 3% — Python 동일
   let lastTradeIdx = -999, lastTradeWasLoss = false, consecutiveLosses = 0;
+  let dailyPnl = 0, lastDay = "";
 
   const startIdx = 50; // 60분봉 지표 워밍업 (MA20+ADX14+buffer)
 
@@ -315,6 +318,10 @@ function runV6AdaptiveMultiTF(
     const price = closes[i], high = highs[i], low = lows[i];
     const curATR = atrArr[i], curRSI = rsiArr[i], curADX = adxArr[i];
     const curDIPlus = diPlusArr[i], curDIMinus = diMinusArr[i];
+
+    // 일일 PnL 리셋
+    const curDay = hourlyPrices[i].date.slice(0, 10);
+    if (curDay !== lastDay) { dailyPnl = 0; lastDay = curDay; }
 
     // 현재 시각의 날짜 → 레짐 조회
     const dateKey = hourlyPrices[i].date.slice(0, 10);
@@ -336,26 +343,34 @@ function runV6AdaptiveMultiTF(
       }
     }
 
-    // SL/TP check
+    // SL/TP check (슬리피지 적용 — Python 동일)
     if (pos) {
       if (pos.side === "Buy" && low <= pos.sl) {
-        const pnl = (pos.sl - pos.entry) * pos.qty;
-        capital += pnl - Math.abs(pos.qty * pos.sl) * TAKER_FEE;
+        const xp = pos.sl * (1 - SLIPPAGE); // SL 슬리피지
+        const pnl = (xp - pos.entry) * pos.qty;
+        const fee = pos.qty * xp * TAKER_FEE;
+        capital += pnl - fee; dailyPnl += pnl - fee;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
         consecutiveLosses++; lastTradeWasLoss = true; lastTradeIdx = i; pos = null;
       } else if (pos.side === "Buy" && high >= pos.tp) {
-        const pnl = (pos.tp - pos.entry) * pos.qty;
-        capital += pnl - Math.abs(pos.qty * pos.tp) * MAKER_FEE;
+        const xp = pos.tp * (1 - SLIPPAGE);
+        const pnl = (xp - pos.entry) * pos.qty;
+        const fee = pos.qty * xp * MAKER_FEE;
+        capital += pnl - fee; dailyPnl += pnl - fee;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
         consecutiveLosses = 0; lastTradeWasLoss = false; lastTradeIdx = i; pos = null;
       } else if (pos.side === "Sell" && high >= pos.sl) {
-        const pnl = (pos.entry - pos.sl) * pos.qty;
-        capital += pnl - Math.abs(pos.qty * pos.sl) * TAKER_FEE;
+        const xp = pos.sl * (1 + SLIPPAGE);
+        const pnl = (pos.entry - xp) * pos.qty;
+        const fee = pos.qty * xp * TAKER_FEE;
+        capital += pnl - fee; dailyPnl += pnl - fee;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
         consecutiveLosses++; lastTradeWasLoss = true; lastTradeIdx = i; pos = null;
       } else if (pos.side === "Sell" && low <= pos.tp) {
-        const pnl = (pos.entry - pos.tp) * pos.qty;
-        capital += pnl - Math.abs(pos.qty * pos.tp) * MAKER_FEE;
+        const xp = pos.tp * (1 + SLIPPAGE);
+        const pnl = (pos.entry - xp) * pos.qty;
+        const fee = pos.qty * xp * MAKER_FEE;
+        capital += pnl - fee; dailyPnl += pnl - fee;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
         consecutiveLosses = 0; lastTradeWasLoss = false; lastTradeIdx = i; pos = null;
       }
@@ -382,8 +397,8 @@ function runV6AdaptiveMultiTF(
       continue;
     }
 
-    // Regime change → close opposite
-    if (pos) {
+    // Regime change → close opposite (최소 보유 시간 후에만)
+    if (pos && (i - pos.entryIdx) >= MIN_HOLD) {
       const posIsLong = pos.side === "Buy";
       if ((regime === "BULL" && !posIsLong) || (regime === "BEAR" && posIsLong)) {
         const pnl = posIsLong ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty;
@@ -394,7 +409,15 @@ function runV6AdaptiveMultiTF(
       }
     }
 
-    // Entry signal
+    // 일일 최대 손실 한도 체크 — Python 동일
+    if (dailyPnl < -(capital * DAILY_MAX_LOSS_PCT)) {
+      peak = Math.max(peak, capital);
+      const dd = ((capital - peak) / peak) * 100; maxDD = Math.min(maxDD, dd);
+      equityCurve.push((capital / initialCapital) * 100); drawdownCurve.push(dd);
+      continue;
+    }
+
+    // Entry signal (최소 보유 시간 + 쿨다운 — Python 동일)
     if (!pos) {
       const cooldown = lastTradeWasLoss ? COOLDOWN_LOSS : COOLDOWN_WIN;
       if (i - lastTradeIdx >= cooldown && curADX >= 22) {
