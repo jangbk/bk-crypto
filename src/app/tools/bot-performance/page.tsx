@@ -219,7 +219,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   },
   {
     id: "kis-rsi-macd",
-    name: "KIS RSI/MACD Bot",
+    name: "KIS RSI/MACD v1 Bot",
     description: "MACD 크로스 + EMA 트렌드 필터 — 한국 주식",
     strategyDetail: {
       summary: "한국투자증권 API를 통해 국내 주식을 자동 매매하는 봇. MACD 골든크로스/데드크로스로 진입/청산하고, EMA 트렌드 필터로 상승장에서만 매수합니다.",
@@ -366,7 +366,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   },
   {
     id: "bybit-funding-arb",
-    name: "Funding Rate Arb Bot",
+    name: "Funding Rate Arb v1 Bot",
     description: "Delta Neutral 펀딩비 아비트라지 — 가격 중립 수익 전략",
     strategyDetail: {
       summary: "선물 시장의 펀딩비를 수취하는 Delta Neutral 전략. 현물 매수 + 선물 숏으로 가격 변동 리스크를 상쇄하고, 8시간마다 지급되는 펀딩비만 수익으로 가져갑니다.",

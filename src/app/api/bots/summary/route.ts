@@ -33,7 +33,7 @@ const BYBIT_BOTS = [
   },
   {
     id: "bybit-funding-arb",
-    name: "Funding Rate Arb Bot",
+    name: "Funding Rate Arb v1 Bot",
     description: "Delta Neutral 펀딩비 아비트라지 (멀티코인 로테이션)",
     asset: "BTC, ETH, SOL 등 10코인",
     exchange: "Bybit (Demo)",
@@ -112,7 +112,7 @@ const FALLBACK_STRATEGIES = [
   },
   {
     id: "kis-rsi-macd",
-    name: "KIS RSI/MACD Bot",
+    name: "KIS RSI/MACD v1 Bot",
     description: "RSI 14 + MACD 12/26/9 전략",
     asset: "삼성전자, SK하이닉스, NAVER, 카카오, LG화학",
     exchange: "한국투자증권",
