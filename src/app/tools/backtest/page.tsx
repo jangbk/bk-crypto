@@ -138,12 +138,12 @@ const STRATEGIES: Strategy[] = [
   {
     id: "bot-bybit-v6-hybrid",
     name: "🤖 Bybit v6 Adaptive Bot",
-    description: "일봉 레짐(BULL/BEAR/DANGER) + 추세추종. MA50/200+ROC30 레짐판단, 트레일링스탑 — Demo 가동 중",
+    description: "일봉 레짐(BULL/BEAR/DANGER) + 60분봉 추세추종. 실전봇과 동일 멀티타임프레임 — Demo 가동 중",
     params: ["ROC 임계 (%)", "SL (ATR배수)", "TP (ATR배수)"],
     paramHints: [
       "30일 수익률 임계값. BULL>5%, BEAR<-3%. 기본 5",
-      "스탑로스 ATR 배수. 일봉 기준 1.0 기본. 실전봇(60분봉)은 2.0 사용",
-      "테이크프로핏 ATR 배수. 일봉 기준 2.0 기본. 실전봇(60분봉)은 4.0 사용",
+      "스탑로스 ATR 배수. 2.0 기본 (60분봉 ATR 기준, 최적화 결과)",
+      "테이크프로핏 ATR 배수. 4.0 기본 (60분봉 ATR 기준, 최적화 결과)",
     ],
     isBotStrategy: true,
   },
@@ -214,10 +214,256 @@ const ASSET_TO_COINGECKO: Record<string, string> = {
   "BTC/USD": "bitcoin",
 };
 
-// --- v6 Adaptive backtest (Daily regime + Hourly trend follow) ---
-// 일봉 레짐: MA50/MA200 + ROC30 → BULL/BEAR/DANGER
+// --- v6 Adaptive Multi-Timeframe backtest ---
+// 일봉: MA50/MA200 + ROC30 → BULL/BEAR/DANGER 레짐 판단
+// 60분봉: ADX>=22 + RSI + DI로 진입/청산 (실전봇과 동일)
 // SIDEWAYS 없음 (Option B): 가격 vs MA50로 항상 방향 결정
-// 60분봉(일봉 프록시): ADX>=22 + RSI + DI로 진입
+function runV6AdaptiveMultiTF(
+  dailyPrices: PriceBar[],
+  hourlyPrices: PriceBar[],
+  rocThreshold: number,
+  slMult: number,
+  tpMult: number,
+  initialCapital: number,
+): BacktestResult {
+  // --- 일봉 지표 (레짐 판단용) ---
+  const dCloses = dailyPrices.map((p) => p.close);
+  function dSma(period: number, idx: number): number {
+    if (idx < period - 1) return dCloses[idx];
+    let s = 0; for (let i = idx - period + 1; i <= idx; i++) s += dCloses[i]; return s / period;
+  }
+  const dMa50 = dCloses.map((_, i) => dSma(50, i));
+  const dMa200 = dCloses.map((_, i) => dSma(200, i));
+  const dAtr14: number[] = [];
+  { const h = dailyPrices.map(p=>p.high), l = dailyPrices.map(p=>p.low), c = dCloses;
+    const tr = [h[0]-l[0]]; for (let i=1;i<c.length;i++) tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));
+    dAtr14.push(tr[0]); for (let i=1;i<tr.length;i++) { if(i<14) dAtr14.push(tr.slice(0,i+1).reduce((a,b)=>a+b)/(i+1)); else dAtr14.push((dAtr14[i-1]*13+tr[i])/14); }
+  }
+
+  // 일별 레짐 맵 생성
+  const regimeMap = new Map<string, { regime: string; confidence: number }>();
+  for (let i = 200; i < dailyPrices.length; i++) {
+    const p = dCloses[i], m50 = dMa50[i], m200 = dMa200[i];
+    const roc30 = i >= 30 ? ((dCloses[i] - dCloses[i-30]) / dCloses[i-30]) * 100 : 0;
+    // ATR z-score
+    let atrZ = 0;
+    if (i >= 60) {
+      const atrPct = (dAtr14[i] / dCloses[i]) * 100;
+      const sl = []; for (let j=i-60;j<i;j++) sl.push((dAtr14[j]/dCloses[j])*100);
+      const mean = sl.reduce((a,b)=>a+b)/sl.length;
+      const std = Math.sqrt(sl.reduce((s,v)=>s+(v-mean)**2,0)/sl.length);
+      atrZ = std > 0 ? (atrPct - mean) / std : 0;
+    }
+    let regime = "BULL", confidence = 0.25;
+    if (atrZ > 2.0) { regime = "DANGER"; confidence = 0.8; }
+    else if (p > m50 && m50 > m200 && roc30 > rocThreshold) { regime = "BULL"; confidence = Math.min(1, roc30/20*0.5+0.3); }
+    else if (p < m50 && m50 < m200 && roc30 < -3) { regime = "BEAR"; confidence = Math.min(1, Math.abs(roc30)/20*0.5+0.3); }
+    else if (p > m50 && p > m200 && roc30 > 8) { regime = "BULL"; confidence = 0.4; }
+    else if (p < m50 && p < m200 && roc30 < -8) { regime = "BEAR"; confidence = 0.4; }
+    else if (p > m50) { regime = "BULL"; confidence = 0.25; }
+    else { regime = "BEAR"; confidence = 0.25; }
+    regimeMap.set(dailyPrices[i].date.slice(0,10), { regime, confidence });
+  }
+
+  // --- 60분봉 지표 (거래용) ---
+  const closes = hourlyPrices.map(p => p.close);
+  const highs = hourlyPrices.map(p => p.high);
+  const lows = hourlyPrices.map(p => p.low);
+  function sma(arr: number[], period: number, idx: number): number {
+    if (idx < period - 1) return arr[idx];
+    let s = 0; for (let i = idx - period + 1; i <= idx; i++) s += arr[i]; return s / period;
+  }
+  const ma20 = closes.map((_, i) => sma(closes, 20, i));
+
+  // ATR 14
+  const atrArr: number[] = [];
+  { const tr = [highs[0]-lows[0]]; for (let i=1;i<closes.length;i++) tr.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
+    atrArr.push(tr[0]); for (let i=1;i<tr.length;i++) { if(i<14) atrArr.push(tr.slice(0,i+1).reduce((a,b)=>a+b)/(i+1)); else atrArr.push((atrArr[i-1]*13+tr[i])/14); }
+  }
+  // RSI 14
+  const rsiArr: number[] = new Array(closes.length).fill(50);
+  { let aG=0,aL=0; for(let i=1;i<=14&&i<closes.length;i++){const d=closes[i]-closes[i-1];if(d>0)aG+=d;else aL-=d;} aG/=14;aL/=14;
+    for(let i=14;i<closes.length;i++){const d=closes[i]-closes[i-1];aG=(aG*13+(d>0?d:0))/14;aL=(aL*13+(d<0?-d:0))/14;rsiArr[i]=aL===0?100:100-100/(1+aG/aL);}
+  }
+  // ADX + DI
+  const adxArr: number[] = new Array(closes.length).fill(20);
+  const diPlusArr: number[] = new Array(closes.length).fill(0);
+  const diMinusArr: number[] = new Array(closes.length).fill(0);
+  { const dmP=[0],dmM=[0],trA=[highs[0]-lows[0]];
+    for(let i=1;i<closes.length;i++){const u=highs[i]-highs[i-1],d=lows[i-1]-lows[i];dmP.push(u>d&&u>0?u:0);dmM.push(d>u&&d>0?d:0);trA.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));}
+    let sTR=0,sDMP=0,sDMM=0;for(let i=0;i<14;i++){sTR+=trA[i];sDMP+=dmP[i];sDMM+=dmM[i];}
+    let pDX=0;for(let i=14;i<closes.length;i++){sTR=sTR-sTR/14+trA[i];sDMP=sDMP-sDMP/14+dmP[i];sDMM=sDMM-sDMM/14+dmM[i];
+      const dp=sTR>0?(sDMP/sTR)*100:0,dm=sTR>0?(sDMM/sTR)*100:0;diPlusArr[i]=dp;diMinusArr[i]=dm;
+      const ds=dp+dm,dx=ds>0?Math.abs(dp-dm)/ds*100:0;if(i===14){adxArr[i]=dx;pDX=dx;}else{adxArr[i]=(pDX*13+dx)/14;pDX=adxArr[i];}
+    }
+  }
+
+  // --- Trading loop (60분봉) ---
+  let capital = initialCapital;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  let pos: { side: string; entry: number; qty: number; sl: number; tp: number; entryIdx: number; highest: number; lowest: number } | null = null;
+  const MAKER_FEE = 0.0002, TAKER_FEE = 0.00055, SLIPPAGE = 0.0002;
+  const COOLDOWN_LOSS = 8, COOLDOWN_WIN = 3; // hourly bars
+  let lastTradeIdx = -999, lastTradeWasLoss = false, consecutiveLosses = 0;
+
+  const startIdx = 50; // 60분봉 지표 워밍업 (MA20+ADX14+buffer)
+
+  for (let i = startIdx; i < hourlyPrices.length; i++) {
+    const price = closes[i], high = highs[i], low = lows[i];
+    const curATR = atrArr[i], curRSI = rsiArr[i], curADX = adxArr[i];
+    const curDIPlus = diPlusArr[i], curDIMinus = diMinusArr[i];
+
+    // 현재 시각의 날짜 → 레짐 조회
+    const dateKey = hourlyPrices[i].date.slice(0, 10);
+    const regimeInfo = regimeMap.get(dateKey) || { regime: "BULL", confidence: 0.25 };
+    // 당일 레짐이 없으면 가장 가까운 이전 날짜 탐색
+    let regime = regimeInfo.regime;
+    let confidence = regimeInfo.confidence;
+    if (!regimeMap.has(dateKey)) {
+      // 이전 날짜들 역순 탐색
+      const d = new Date(dateKey);
+      for (let back = 1; back <= 5; back++) {
+        d.setDate(d.getDate() - 1);
+        const prevKey = d.toISOString().slice(0, 10);
+        if (regimeMap.has(prevKey)) {
+          const prev = regimeMap.get(prevKey)!;
+          regime = prev.regime; confidence = prev.confidence;
+          break;
+        }
+      }
+    }
+
+    // SL/TP check
+    if (pos) {
+      if (pos.side === "Buy" && low <= pos.sl) {
+        const pnl = (pos.sl - pos.entry) * pos.qty;
+        capital += pnl - Math.abs(pos.qty * pos.sl) * TAKER_FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        consecutiveLosses++; lastTradeWasLoss = true; lastTradeIdx = i; pos = null;
+      } else if (pos.side === "Buy" && high >= pos.tp) {
+        const pnl = (pos.tp - pos.entry) * pos.qty;
+        capital += pnl - Math.abs(pos.qty * pos.tp) * MAKER_FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        consecutiveLosses = 0; lastTradeWasLoss = false; lastTradeIdx = i; pos = null;
+      } else if (pos.side === "Sell" && high >= pos.sl) {
+        const pnl = (pos.entry - pos.sl) * pos.qty;
+        capital += pnl - Math.abs(pos.qty * pos.sl) * TAKER_FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        consecutiveLosses++; lastTradeWasLoss = true; lastTradeIdx = i; pos = null;
+      } else if (pos.side === "Sell" && low <= pos.tp) {
+        const pnl = (pos.entry - pos.tp) * pos.qty;
+        capital += pnl - Math.abs(pos.qty * pos.tp) * MAKER_FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        consecutiveLosses = 0; lastTradeWasLoss = false; lastTradeIdx = i; pos = null;
+      }
+    }
+
+    // Trailing stop
+    if (pos) {
+      const trailDist = curATR * slMult * 1.2;
+      if (pos.side === "Buy") { if (price > pos.highest) pos.highest = price; const ns = pos.highest - trailDist; if (ns > pos.sl) pos.sl = ns; }
+      else { if (price < pos.lowest) pos.lowest = price; const ns = pos.lowest + trailDist; if (ns < pos.sl) pos.sl = ns; }
+    }
+
+    // DANGER → force close + skip
+    if (regime === "DANGER") {
+      if (pos) {
+        const pnl = pos.side === "Buy" ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty;
+        capital += pnl - Math.abs(pnl) * TAKER_FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        lastTradeIdx = i; pos = null;
+      }
+      peak = Math.max(peak, capital);
+      const dd = ((capital - peak) / peak) * 100; maxDD = Math.min(maxDD, dd);
+      equityCurve.push((capital / initialCapital) * 100); drawdownCurve.push(dd);
+      continue;
+    }
+
+    // Regime change → close opposite
+    if (pos) {
+      const posIsLong = pos.side === "Buy";
+      if ((regime === "BULL" && !posIsLong) || (regime === "BEAR" && posIsLong)) {
+        const pnl = posIsLong ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty;
+        capital += pnl - Math.abs(pnl) * MAKER_FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        if (pnl > 0) { consecutiveLosses = 0; lastTradeWasLoss = false; } else { consecutiveLosses++; lastTradeWasLoss = true; }
+        lastTradeIdx = i; pos = null;
+      }
+    }
+
+    // Entry signal
+    if (!pos) {
+      const cooldown = lastTradeWasLoss ? COOLDOWN_LOSS : COOLDOWN_WIN;
+      if (i - lastTradeIdx >= cooldown && curADX >= 22) {
+        let risk = 0.02 * Math.max(0.5, confidence);
+        if (consecutiveLosses >= 5) risk *= 0.5;
+        else if (consecutiveLosses >= 3) risk *= 0.7;
+        if (regime === "BEAR") risk *= 0.75;
+
+        if (regime === "BULL" && price > ma20[i] && curRSI >= 48 && curRSI <= 75 && curDIPlus > curDIMinus + 3) {
+          const qty = (capital * risk) / (curATR * slMult);
+          const ep = price * (1 + SLIPPAGE);
+          capital -= qty * ep * MAKER_FEE;
+          pos = { side: "Buy", entry: ep, qty, sl: ep - curATR * slMult, tp: ep + curATR * tpMult, entryIdx: i, highest: ep, lowest: ep };
+        } else if (regime === "BEAR" && price < ma20[i] && curRSI >= 25 && curRSI <= 52 && curDIMinus > curDIPlus + 3) {
+          const qty = (capital * risk) / (curATR * slMult);
+          const ep = price * (1 - SLIPPAGE);
+          capital -= qty * ep * MAKER_FEE;
+          pos = { side: "Sell", entry: ep, qty, sl: ep + curATR * slMult, tp: ep - curATR * tpMult, entryIdx: i, highest: ep, lowest: ep };
+        }
+      }
+    }
+
+    peak = Math.max(peak, capital);
+    const dd = ((capital - peak) / peak) * 100; maxDD = Math.min(maxDD, dd);
+    equityCurve.push((capital / initialCapital) * 100); drawdownCurve.push(dd);
+  }
+
+  if (pos) {
+    const price = closes[closes.length - 1];
+    const pnl = pos.side === "Buy" ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty;
+    capital += pnl;
+    trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((closes.length - pos.entryIdx) / 24) });
+  }
+
+  // equityCurve를 일봉 기준으로 리샘플링 (차트용)
+  const dailyEquity: number[] = [];
+  const dailyDD: number[] = [];
+  const dailyDates: string[] = [];
+  let lastDate = "";
+  for (let i = 0; i < equityCurve.length; i++) {
+    const hIdx = Math.min(startIdx + i, hourlyPrices.length - 1);
+    const d = hourlyPrices[hIdx]?.date.slice(0, 10) || lastDate;
+    if (d !== lastDate) {
+      dailyEquity.push(equityCurve[i]);
+      dailyDD.push(drawdownCurve[i]);
+      dailyDates.push(d);
+      lastDate = d;
+    } else {
+      dailyEquity[dailyEquity.length - 1] = equityCurve[i];
+      dailyDD[dailyDD.length - 1] = drawdownCurve[i];
+    }
+  }
+
+  // dailyPrices를 사용하되 거래 기간에 맞게 필터
+  const chartPrices = dailyPrices.filter(p => {
+    const d = p.date.slice(0, 10);
+    return dailyDates.length > 0 && d >= dailyDates[0] && d <= dailyDates[dailyDates.length - 1];
+  });
+  // chartPrices 길이에 equityCurve 맞추기
+  const finalEquity = dailyEquity.slice(0, chartPrices.length);
+  const finalDD = dailyDD.slice(0, chartPrices.length);
+  // 길이가 부족하면 마지막 값으로 채우기
+  while (finalEquity.length < chartPrices.length) { finalEquity.push(finalEquity[finalEquity.length - 1] || 100); finalDD.push(finalDD[finalDD.length - 1] || 0); }
+
+  return computeStats(chartPrices, finalEquity, finalDD, trades, capital, initialCapital, maxDD,
+    "Bybit v6 Adaptive (멀티타임프레임)", "BTC/USD", "CryptoCompare 60분봉+일봉 (실제 데이터)");
+}
+
+// --- Legacy single-timeframe v6 (kept for reference) ---
 function runV6Adaptive(
   prices: PriceBar[],
   rocThreshold: number,
@@ -1402,7 +1648,7 @@ function getBotDefaults(strategyId: string): string[] {
     case "bot-seykota-ema": return ["100", "1.5", "14"];
     case "bot-ptj-200ma": return ["200", "1.5", "14"];
     case "bot-kis-rsi-macd": return ["12/26/9", "20", "7"];
-    case "bot-bybit-v6-hybrid": return ["5", "1.0", "2.0"];
+    case "bot-bybit-v6-hybrid": return ["5", "2.0", "4.0"];
     case "bot-bybit-funding-arb": return ["0.03", "70", "15"];
     default: return ["0.5", "80", "5"];
   }
@@ -1574,9 +1820,27 @@ export default function BacktestPage() {
           }
           case "bot-bybit-v6-hybrid": {
             const rocThreshold = parseFloat(paramValues[0]) || 5;
-            const slMult = parseFloat(paramValues[1]) || 1.0;
-            const tpMult = parseFloat(paramValues[2]) || 2.0;
-            backResult = runV6Adaptive(prices, rocThreshold, slMult, tpMult, capital);
+            const slMult = parseFloat(paramValues[1]) || 2.0;
+            const tpMult = parseFloat(paramValues[2]) || 4.0;
+            // 멀티타임프레임: 60분봉 추가 fetch (일봉=prices는 이미 있음)
+            const hourlyBarsNeeded = daysDiff * 24 + 200 * 24; // 거래기간 + 워밍업
+            const hourlyMap = new Map<number, { time: number; open: number; high: number; low: number; close: number }>();
+            // CryptoCompare histohour limit=2000 → 분할 fetch
+            const numRequests = Math.ceil(hourlyBarsNeeded / 2000);
+            for (let r = 0; r < numRequests; r++) {
+              const reqToTs = toTs - r * 2000 * 3600;
+              const hUrl = `https://min-api.cryptocompare.com/data/v2/histohour?fsym=${fsym}&tsym=USD&limit=2000&toTs=${reqToTs}`;
+              const hRes = await fetch(hUrl);
+              const hJson = await hRes.json();
+              if (hJson.Data?.Data) for (const d of hJson.Data.Data) if (d.open > 0) hourlyMap.set(d.time, d);
+            }
+            const hourlySorted = Array.from(hourlyMap.values()).sort((a, b) => a.time - b.time);
+            const hourlyPrices: PriceBar[] = hourlySorted.map((d) => ({
+              date: new Date(d.time * 1000).toISOString().replace("T", " ").slice(0, 16),
+              open: d.open, high: d.high, low: d.low, close: d.close,
+            }));
+            // prices = 일봉 (레짐용), hourlyPrices = 60분봉 (거래용)
+            backResult = runV6AdaptiveMultiTF(prices, hourlyPrices, rocThreshold, slMult, tpMult, capital);
             break;
           }
           case "bot-bybit-funding-arb": {
