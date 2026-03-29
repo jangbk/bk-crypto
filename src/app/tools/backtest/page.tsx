@@ -138,7 +138,7 @@ const STRATEGIES: Strategy[] = [
   {
     id: "bot-bybit-v6-hybrid",
     name: "🤖 Bybit v6 Adaptive Bot",
-    description: "일봉 레짐 + 60분봉 추세추종. Bybit 실제 데이터 사용, 실전봇과 동일 로직 — Demo 가동 중",
+    description: "일봉 레짐 + 60분봉 추세추종. Bybit 실제 데이터 사용, 실전봇과 동일 로직 — 백테스트 가능 기간: 2020-10월~현재",
     params: ["ROC 임계 (%)", "SL (ATR배수)", "TP (ATR배수)"],
     paramHints: [
       "30일 수익률 임계값. BULL>5%, BEAR<-3%. 기본 5",
@@ -1706,7 +1706,10 @@ export default function BacktestPage() {
     if (strategyId === "bot-seykota-ema" || strategyId === "bot-ptj-200ma") {
       setAsset("BTC/USD");
       setStartDate("2017-01-01");
-    } else if (strategyId === "bot-bybit-v6-hybrid" || strategyId === "bot-bybit-funding-arb") {
+    } else if (strategyId === "bot-bybit-v6-hybrid") {
+      setAsset("BTC/USD");
+      setStartDate("2020-10-01"); // Bybit 60분봉 2020-03 + MA200 워밍업 = 2020-10부터
+    } else if (strategyId === "bot-bybit-funding-arb") {
       setAsset("BTC/USD");
       setStartDate("2020-04-01");
     } else if (strategyId === "bot-kis-rsi-macd") {
