@@ -175,8 +175,8 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
         { label: "슬리피지", value: "0.02% — 진입 + 청산 양쪽" },
       ],
       backtestResults: [
-        { period: "2025.1 ~ 2025.8", returnPct: "+5~12%", winRate: "42~46%", sharpe: "0.28~0.68", mdd: "-6~-16%" },
-        { period: "2025.9 ~ 2026.3", returnPct: "+25~61%", winRate: "46~50%", sharpe: "2.5~3.0", mdd: "-4~-18%" },
+        { period: "2025.1 ~ 2025.8", returnPct: "+5.3%", winRate: "42.1%", sharpe: "0.28", mdd: "-5.9%" },
+        { period: "2025.9 ~ 2026.3", returnPct: "+24.8%", winRate: "46.5%", sharpe: "3.02", mdd: "-4.1%" },
       ],
       files: [
         { name: "bot_v6.py", desc: "실전 봇 (Demo 가동 중)" },
