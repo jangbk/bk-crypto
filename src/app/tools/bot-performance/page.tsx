@@ -487,7 +487,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     },
     asset: "BTC, ETH, 알트코인",
     exchange: "Binance (Paper)",
-    status: "paused" as const,
+    status: "stopped" as const,
     startDate: "2026-03-01",
     initialCapital: 10000,
     currentValue: 10000,
