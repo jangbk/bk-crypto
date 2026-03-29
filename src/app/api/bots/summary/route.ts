@@ -7,8 +7,8 @@ import { getKisBotData } from "../kis/route";
 const BYBIT_BOTS = [
   {
     id: "bybit-v6-hybrid",
-    name: "Bybit v6-hybrid Bot",
-    description: "Confidence Score ≥ 0.6 필터 + 추세추종/MeanRev + CHOPPY 자동감지",
+    name: "Bybit v6 Adaptive Bot",
+    description: "일봉 레짐(BULL/BEAR/DANGER) + 60분봉 추세추종 — 멀티타임프레임 적응형",
     asset: "BTC/USDT",
     exchange: "Bybit (Demo)",
     status: "active" as const,
