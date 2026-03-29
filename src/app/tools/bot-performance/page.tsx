@@ -347,7 +347,12 @@ export default function BotPerformancePage() {
 
         const live = data.strategies as BotStrategy[];
         if (live && live.length > 0) {
-          setStrategies(live);
+          // FALLBACK의 strategyDetail을 merge (API에는 없으므로)
+          const merged = live.map((s) => {
+            const fallback = FALLBACK_STRATEGIES.find((f) => f.id === s.id);
+            return fallback?.strategyDetail ? { ...s, strategyDetail: fallback.strategyDetail } : s;
+          });
+          setStrategies(merged);
           setIsLive(true);
           setLastUpdated(data.timestamp);
           if (!live.find((s: BotStrategy) => s.id === selectedBot)) {
@@ -857,7 +862,7 @@ export default function BotPerformancePage() {
 }
 
 function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <button
