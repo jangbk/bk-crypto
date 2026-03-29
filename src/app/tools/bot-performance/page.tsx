@@ -72,7 +72,7 @@ interface StrategyDetail {
 const FALLBACK_STRATEGIES: BotStrategy[] = [
   {
     id: "seykota-ema",
-    name: "Seykota EMA Bot",
+    name: "Seykota EMA v1 Bot",
     description: "EMA 100 + ATR 동적밴드 추세추종 전략",
     strategyDetail: {
       summary: "전설적 트레이더 Ed Seykota의 추세추종 철학을 구현한 봇. EMA 100을 추세 중심선으로, ATR(평균변동폭)을 밴드로 사용하여 강한 추세에서만 진입하고, 추세가 꺾이면 즉시 청산합니다. 롱(매수)만 가능한 현물 전략.",
@@ -148,7 +148,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   },
   {
     id: "ptj-200ma",
-    name: "PTJ 200MA Bot",
+    name: "PTJ 200MA v1 Bot",
     description: "EMA 200 + ATR 동적밴드 추세추종 전략",
     strategyDetail: {
       summary: "전설적 투자자 Paul Tudor Jones의 200일 이동평균 전략을 구현한 봇. EMA 200을 장기 추세 기준선으로, ATR 밴드로 진입/청산 타이밍을 잡습니다. Seykota Bot보다 더 장기적이고 보수적인 전략.",

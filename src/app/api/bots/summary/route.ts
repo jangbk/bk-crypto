@@ -62,7 +62,7 @@ const BYBIT_BOTS = [
 const FALLBACK_STRATEGIES = [
   {
     id: "seykota-ema",
-    name: "Seykota EMA Bot",
+    name: "Seykota EMA v1 Bot",
     description: "EMA 100 + ATR 동적밴드 추세추종 전략",
     asset: "BTC/KRW",
     exchange: "Bithumb",
@@ -87,7 +87,7 @@ const FALLBACK_STRATEGIES = [
   },
   {
     id: "ptj-200ma",
-    name: "PTJ 200MA Bot",
+    name: "PTJ 200MA v1 Bot",
     description: "200MA + 50MA 모멘텀 전략",
     asset: "BTC/KRW",
     exchange: "Coinone",
