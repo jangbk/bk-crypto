@@ -733,7 +733,7 @@ export default function BotPerformancePage() {
       </div>
 
       {/* Bot Selection Tabs */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
         {strategies.map((b) => {
           const cap = getCapital(b);
           const pnl = b.totalTrades > 0 ? b.currentValue - cap : 0;
