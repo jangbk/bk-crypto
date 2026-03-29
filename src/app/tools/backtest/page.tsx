@@ -196,6 +196,7 @@ interface BacktestResult {
   calmarRatio: number;
   winRate: number;
   profitFactor: number;
+  expectancy: number;
   totalTrades: number;
   profitTrades: number;
   lossTrades: number;
@@ -1478,6 +1479,11 @@ function computeStats(
   const profitFactor = (lossTrades.length > 0 && avgLoss !== 0)
     ? Math.abs(profitTrades.reduce((s, t) => s + t.pnl, 0) / lossTrades.reduce((s, t) => s + t.pnl, 0))
     : 0;
+  // 양의 기대값: (1 + avgWin/|avgLoss|) × winRate - 1 → 0 이상이면 장기적 수익 전략
+  const winRateDecimal = trades.length > 0 ? profitTrades.length / trades.length : 0;
+  const expectancy = (avgLoss !== 0 && trades.length > 0)
+    ? Math.round(((1 + Math.abs(avgWin / avgLoss)) * winRateDecimal - 1) * 100) / 100
+    : 0;
   const avgHoldingDays = trades.length > 0 ? Math.round(trades.reduce((s, t) => s + t.holdDays, 0) / trades.length) : 0;
 
   return {
@@ -1494,6 +1500,7 @@ function computeStats(
     calmarRatio: Math.round(calmar * 100) / 100,
     winRate: trades.length > 0 ? Math.round((profitTrades.length / trades.length) * 1000) / 10 : 0,
     profitFactor: Math.round(profitFactor * 100) / 100,
+    expectancy,
     totalTrades: trades.length,
     profitTrades: profitTrades.length,
     lossTrades: lossTrades.length,
@@ -2253,6 +2260,7 @@ export default function BacktestPage() {
     lines.push(`칼마비율,${result.calmarRatio}`);
     lines.push(`승률,${result.winRate}%`);
     lines.push(`Profit Factor,${result.profitFactor}`);
+    lines.push(`Expectancy,${result.expectancy}`);
     lines.push(`총거래수,${result.totalTrades}`);
     lines.push(`수익거래,${result.profitTrades}`);
     lines.push(`손실거래,${result.lossTrades}`);
@@ -2507,6 +2515,12 @@ export default function BacktestPage() {
                 color: "",
               },
               {
+                label: "기대값",
+                value: r.expectancy >= 0 ? `+${r.expectancy}` : `${r.expectancy}`,
+                icon: <TrendingUp className="h-4 w-4" />,
+                color: r.expectancy >= 0 ? "text-positive" : "text-negative",
+              },
+              {
                 label: "Alpha",
                 value: `${r.alpha >= 0 ? "+" : ""}${r.alpha}%`,
                 icon: <Activity className="h-4 w-4" />,
@@ -2755,6 +2769,7 @@ export default function BacktestPage() {
                     ["소르티노 비율", r.sortinoRatio.toFixed(2), "하방 위험만 고려한 샤프 비율. 하락 변동성 대비 수익 측정"],
                     ["칼마 비율", r.calmarRatio.toFixed(2), "연환산 수익률 ÷ MDD. 낙폭 대비 수익 효율 측정"],
                     ["Profit Factor", r.profitFactor.toFixed(2), "총 수익 ÷ 총 손실. 1 이상이면 수익이 손실보다 큰 전략"],
+                    ["기대값 (Expectancy)", r.expectancy >= 0 ? `+${r.expectancy}` : `${r.expectancy}`, "(1+평균수익/평균손실)×승률-1. 0 이상이면 장기적으로 수익나는 전략"],
                     ["평균 보유 기간", `${r.avgHoldingDays}일`, "한 포지션의 평균 유지 기간 (진입~청산)"],
                   ].map(([label, value, desc]) => (
                     <div key={label} className="flex justify-between text-sm">
