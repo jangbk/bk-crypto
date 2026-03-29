@@ -435,9 +435,9 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   {
     id: "22b-strategy-engine",
     name: "22B Strategy Engine v1.3",
-    description: "Opportunity-Driven 멀티전략 — Binance Futures, 7개 레짐, 10개 전략",
+    description: "Opportunity-Driven 멀티전략 — Bitget Futures, 7개 레짐, 10개 전략",
     strategyDetail: {
-      summary: "Binance Futures에서 7개 시장 레짐을 자동 판정하고, 10개 전략 중 적합한 것만 실행하는 Opportunity-Driven 자동매매 엔진. AI(OpenClaw)가 시장 해석과 전략 추천을 하되, 실행은 rule-based 봇이 담당합니다.",
+      summary: "Bitget Futures에서 7개 시장 레짐을 자동 판정하고, 10개 전략 중 적합한 것만 실행하는 Opportunity-Driven 자동매매 엔진. AI(OpenClaw)가 시장 해석과 전략 추천을 하되, 실행은 rule-based 봇이 담당합니다.",
       regimes: [
         { name: "🟢 BTC_BULLISH", condition: "BTC 4H EMA50 상방 + 24H 수익률 > 0% + 펀딩 < 0.05%", action: "추세추종, 돌파, 멀티전략 허용" },
         { name: "🔴 BTC_BEARISH", condition: "BTC 4H EMA50 하방 + 24H 수익률 < -1%", action: "평균회귀, 헤지만 허용 (롱 차단)" },
@@ -461,8 +461,8 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
         { label: "포지션 제한", value: "최대 동시 3포지션" },
       ],
       feeStructure: [
-        { label: "Binance Maker", value: "0.02%" },
-        { label: "Binance Taker", value: "0.04%" },
+        { label: "Bitget Maker", value: "0.02%" },
+        { label: "Bitget Taker", value: "0.04%" },
       ],
       backtestResults: [
         { period: "Paper Trading", returnPct: "검증 중", winRate: "-", sharpe: "-", mdd: "-" },
@@ -479,14 +479,14 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
         ],
         caveats: [
           "아직 Paper Trading 단계 — 실전 검증 전",
-          "Binance Futures 레버리지 리스크",
+          "Bitget Futures 레버리지 리스크",
           "10개 전략 관리 복잡도 높음",
           "AI 추천이 정확하지 않을 수 있음 (참고용)",
         ],
       },
     },
     asset: "BTC, ETH, 알트코인",
-    exchange: "Binance (Paper)",
+    exchange: "Bitget (Paper)",
     status: "stopped" as const,
     startDate: "2026-03-01",
     initialCapital: 10000,
