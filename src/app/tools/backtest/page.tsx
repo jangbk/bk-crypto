@@ -306,7 +306,7 @@ function runV6AdaptiveMultiTF(
   let peak = capital, maxDD = 0;
   let pos: { side: string; entry: number; qty: number; sl: number; tp: number; entryIdx: number; highest: number; lowest: number } | null = null;
   const MAKER_FEE = 0.0002, TAKER_FEE = 0.00055, SLIPPAGE = 0.0002;
-  const COOLDOWN_LOSS = 8, COOLDOWN_WIN = 3; // hourly bars
+  const COOLDOWN_LOSS = 48, COOLDOWN_WIN = 24; // hourly bars (2일/1일 — 거래빈도 Python 수준으로 조정)
   let lastTradeIdx = -999, lastTradeWasLoss = false, consecutiveLosses = 0;
 
   const startIdx = 50; // 60분봉 지표 워밍업 (MA20+ADX14+buffer)
