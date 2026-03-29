@@ -137,13 +137,13 @@ const STRATEGIES: Strategy[] = [
   },
   {
     id: "bot-bybit-v6-hybrid",
-    name: "🤖 Bybit v6-hybrid Bot",
-    description: "Confidence Score ≥ 0.6 필터 + 추세추종/MeanRev + CHOPPY 자동감지 — Demo 가동 중",
-    params: ["Score 임계치", "SL (ATR배수)", "TP (ATR배수)"],
+    name: "🤖 Bybit v6 Adaptive Bot",
+    description: "일봉 레짐(BULL/BEAR/DANGER) + 60분봉 추세추종. SL=2.0ATR, TP=4.0ATR — Demo 가동 중",
+    params: ["ROC 임계 (%)", "SL (ATR배수)", "TP (ATR배수)"],
     paramHints: [
-      "Confidence Score 최소값. ADX+MA정렬+크로스빈도+거래량+DI 가중 합산. 0.6이 기본",
-      "스탑로스 ATR 배수. 1.5가 기본. 높을수록 넓은 스탑",
-      "테이크프로핏 ATR 배수. 2.5가 기본. 높을수록 큰 수익 타겟",
+      "30일 수익률 임계값. BULL>5%, BEAR<-3%. 기본 5",
+      "스탑로스 ATR 배수. 2.0이 기본 (최적화 결과). 높을수록 넓은 스탑",
+      "테이크프로핏 ATR 배수. 4.0이 기본 (최적화 결과). 높을수록 큰 수익 타겟",
     ],
     isBotStrategy: true,
   },
@@ -214,10 +214,13 @@ const ASSET_TO_COINGECKO: Record<string, string> = {
   "BTC/USD": "bitcoin",
 };
 
-// --- v6-hybrid backtest (Confidence Score filter + trend/meanrev) ---
-function runV6Hybrid(
+// --- v6 Adaptive backtest (Daily regime + Hourly trend follow) ---
+// 일봉 레짐: MA50/MA200 + ROC30 → BULL/BEAR/DANGER
+// SIDEWAYS 없음 (Option B): 가격 vs MA50로 항상 방향 결정
+// 60분봉(일봉 프록시): ADX>=22 + RSI + DI로 진입
+function runV6Adaptive(
   prices: PriceBar[],
-  scoreThreshold: number,
+  rocThreshold: number,
   slMult: number,
   tpMult: number,
   initialCapital: number,
@@ -229,24 +232,18 @@ function runV6Hybrid(
   let peak = capital;
   let maxDD = 0;
 
-  // Simple indicators inline
   const closes = prices.map((p) => p.close);
   const highs = prices.map((p) => p.high);
   const lows = prices.map((p) => p.low);
 
+  // --- Indicators ---
   function sma(arr: number[], period: number, idx: number): number {
     if (idx < period - 1) return arr[idx];
     let sum = 0;
     for (let i = idx - period + 1; i <= idx; i++) sum += arr[i];
     return sum / period;
   }
-  function ema(arr: number[], period: number): number[] {
-    const result: number[] = [arr[0]];
-    const k = 2 / (period + 1);
-    for (let i = 1; i < arr.length; i++) result.push(arr[i] * k + result[i - 1] * (1 - k));
-    return result;
-  }
-  function atr(h: number[], l: number[], c: number[], period: number): number[] {
+  function atrCalc(h: number[], l: number[], c: number[], period: number): number[] {
     const tr: number[] = [h[0] - l[0]];
     for (let i = 1; i < h.length; i++) {
       tr.push(Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])));
@@ -258,7 +255,7 @@ function runV6Hybrid(
     }
     return result;
   }
-  function rsi(arr: number[], period: number): number[] {
+  function rsiCalc(arr: number[], period: number): number[] {
     const result: number[] = new Array(arr.length).fill(50);
     let avgGain = 0, avgLoss = 0;
     for (let i = 1; i <= period && i < arr.length; i++) {
@@ -274,104 +271,246 @@ function runV6Hybrid(
     }
     return result;
   }
+  // ADX + DI+/DI- (Wilder's method)
+  function calcADXandDI(): { adx: number[]; diPlus: number[]; diMinus: number[] } {
+    const period = 14;
+    const adx: number[] = new Array(closes.length).fill(20);
+    const diPlus: number[] = new Array(closes.length).fill(0);
+    const diMinus: number[] = new Array(closes.length).fill(0);
+
+    const dmPlus: number[] = [0];
+    const dmMinus: number[] = [0];
+    const trArr: number[] = [highs[0] - lows[0]];
+
+    for (let i = 1; i < closes.length; i++) {
+      const upMove = highs[i] - highs[i - 1];
+      const downMove = lows[i - 1] - lows[i];
+      dmPlus.push(upMove > downMove && upMove > 0 ? upMove : 0);
+      dmMinus.push(downMove > upMove && downMove > 0 ? downMove : 0);
+      trArr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])));
+    }
+
+    let smoothTR = 0, smoothDMPlus = 0, smoothDMMinus = 0;
+    for (let i = 0; i < period; i++) {
+      smoothTR += trArr[i]; smoothDMPlus += dmPlus[i]; smoothDMMinus += dmMinus[i];
+    }
+
+    let prevDX = 0;
+    for (let i = period; i < closes.length; i++) {
+      smoothTR = smoothTR - smoothTR / period + trArr[i];
+      smoothDMPlus = smoothDMPlus - smoothDMPlus / period + dmPlus[i];
+      smoothDMMinus = smoothDMMinus - smoothDMMinus / period + dmMinus[i];
+
+      const dp = smoothTR > 0 ? (smoothDMPlus / smoothTR) * 100 : 0;
+      const dm = smoothTR > 0 ? (smoothDMMinus / smoothTR) * 100 : 0;
+      diPlus[i] = dp;
+      diMinus[i] = dm;
+
+      const diSum = dp + dm;
+      const dx = diSum > 0 ? Math.abs(dp - dm) / diSum * 100 : 0;
+
+      if (i === period) {
+        adx[i] = dx;
+        prevDX = dx;
+      } else {
+        adx[i] = (prevDX * (period - 1) + dx) / period;
+        prevDX = adx[i];
+      }
+    }
+    return { adx, diPlus, diMinus };
+  }
 
   const ma20 = closes.map((_, i) => sma(closes, 20, i));
   const ma50 = closes.map((_, i) => sma(closes, 50, i));
-  const ma100 = closes.map((_, i) => sma(closes, 100, i));
-  const atrArr = atr(highs, lows, closes, 14);
-  const rsiArr = rsi(closes, 14);
+  const ma200 = closes.map((_, i) => sma(closes, 200, i));
+  const atrArr = atrCalc(highs, lows, closes, 14);
+  const rsiArr = rsiCalc(closes, 14);
+  const { adx: adxArr, diPlus: diPlusArr, diMinus: diMinusArr } = calcADXandDI();
 
-  // ADX approximation (simplified)
-  function calcADX(): number[] {
-    const adx: number[] = new Array(closes.length).fill(20);
-    for (let i = 14; i < closes.length; i++) {
-      const slice = closes.slice(i - 14, i + 1);
-      const range = Math.max(...slice) - Math.min(...slice);
-      const avgPrice = slice.reduce((a, b) => a + b) / slice.length;
-      adx[i] = Math.min(50, (range / avgPrice) * 100 * 8);
-    }
-    return adx;
+  // ATR z-score for DANGER detection
+  function atrZScore(idx: number): number {
+    if (idx < 60) return 0;
+    const atrPct = (atrArr[idx] / closes[idx]) * 100;
+    const slice = [];
+    for (let j = idx - 60; j < idx; j++) slice.push((atrArr[j] / closes[j]) * 100);
+    const mean = slice.reduce((a, b) => a + b) / slice.length;
+    const std = Math.sqrt(slice.reduce((s, v) => s + (v - mean) ** 2, 0) / slice.length);
+    return std > 0 ? (atrPct - mean) / std : 0;
   }
-  const adxArr = calcADX();
 
-  let pos: { side: string; entry: number; qty: number; sl: number; tp: number; entryIdx: number } | null = null;
-  const FEE = 0.00055; // taker
+  // ROC (Rate of Change)
+  function roc(idx: number, period: number): number {
+    if (idx < period) return 0;
+    return ((closes[idx] - closes[idx - period]) / closes[idx - period]) * 100;
+  }
 
-  for (let i = 100; i < prices.length; i++) {
+  let pos: { side: string; entry: number; qty: number; sl: number; tp: number; entryIdx: number; highest: number; lowest: number } | null = null;
+  const MAKER_FEE = 0.0002;
+  const TAKER_FEE = 0.00055;
+  const SLIPPAGE = 0.0002;
+  const COOLDOWN_LOSS = 8; // bars (daily data = days)
+  const COOLDOWN_WIN = 3;
+  let lastTradeIdx = -999;
+  let lastTradeWasLoss = false;
+  let consecutiveLosses = 0;
+
+  for (let i = 200; i < prices.length; i++) {
     const price = closes[i];
     const high = highs[i];
     const low = lows[i];
     const curATR = atrArr[i];
     const curRSI = rsiArr[i];
     const curADX = adxArr[i];
+    const curDIPlus = diPlusArr[i];
+    const curDIMinus = diMinusArr[i];
 
-    // SL/TP check
+    // --- Regime Detection (daily-level) ---
+    const curROC30 = roc(i, 30);
+    const curMA50 = ma50[i];
+    const curMA200 = ma200[i];
+    const curATRz = atrZScore(i);
+
+    let regime: "BULL" | "BEAR" | "DANGER";
+
+    if (curATRz > 2.0) {
+      regime = "DANGER";
+    } else if (price > curMA50 && curMA50 > curMA200 && curROC30 > rocThreshold) {
+      regime = "BULL";
+    } else if (price < curMA50 && curMA50 < curMA200 && curROC30 < -3) {
+      regime = "BEAR";
+    } else if (price > curMA50 && price > curMA200 && curROC30 > 8) {
+      regime = "BULL"; // MILD_BULL
+    } else if (price < curMA50 && price < curMA200 && curROC30 < -8) {
+      regime = "BEAR"; // MILD_BEAR
+    } else if (price > curMA50) {
+      regime = "BULL"; // WEAK_BULL (Option B)
+    } else {
+      regime = "BEAR"; // WEAK_BEAR (Option B)
+    }
+
+    // Confidence for position sizing
+    let confidence = 0.25; // WEAK default
+    if (regime === "BULL" && price > curMA50 && curMA50 > curMA200 && curROC30 > rocThreshold) {
+      confidence = Math.min(1.0, (curROC30 / 20) * 0.5 + (curADX / 40) * 0.5);
+    } else if (regime === "BEAR" && price < curMA50 && curMA50 < curMA200 && curROC30 < -3) {
+      confidence = Math.min(1.0, (Math.abs(curROC30) / 20) * 0.5 + (curADX / 40) * 0.5);
+    } else if ((regime === "BULL" && curROC30 > 8) || (regime === "BEAR" && curROC30 < -8)) {
+      confidence = 0.4; // MILD
+    }
+    confidence = Math.max(0.25, confidence);
+
+    // --- SL/TP check ---
     if (pos) {
       if (pos.side === "Buy" && low <= pos.sl) {
         const pnl = (pos.sl - pos.entry) * pos.qty;
-        capital += pnl - Math.abs(pnl) * FEE;
+        const fee = Math.abs(pos.qty * pos.sl) * TAKER_FEE;
+        capital += pnl - fee;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        consecutiveLosses++; lastTradeWasLoss = true; lastTradeIdx = i;
         pos = null;
       } else if (pos.side === "Buy" && high >= pos.tp) {
         const pnl = (pos.tp - pos.entry) * pos.qty;
-        capital += pnl - Math.abs(pnl) * FEE;
+        const fee = Math.abs(pos.qty * pos.tp) * MAKER_FEE;
+        capital += pnl - fee;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        consecutiveLosses = 0; lastTradeWasLoss = false; lastTradeIdx = i;
         pos = null;
       } else if (pos.side === "Sell" && high >= pos.sl) {
         const pnl = (pos.entry - pos.sl) * pos.qty;
-        capital += pnl - Math.abs(pnl) * FEE;
+        const fee = Math.abs(pos.qty * pos.sl) * TAKER_FEE;
+        capital += pnl - fee;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        consecutiveLosses++; lastTradeWasLoss = true; lastTradeIdx = i;
         pos = null;
       } else if (pos.side === "Sell" && low <= pos.tp) {
         const pnl = (pos.entry - pos.tp) * pos.qty;
-        capital += pnl - Math.abs(pnl) * FEE;
+        const fee = Math.abs(pos.qty * pos.tp) * MAKER_FEE;
+        capital += pnl - fee;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        consecutiveLosses = 0; lastTradeWasLoss = false; lastTradeIdx = i;
         pos = null;
       }
     }
 
-    // Confidence Score
-    let score = 0, wt = 0;
-    const adxV = curADX > 40 ? 1 : curADX > 30 ? 0.8 : curADX > 25 ? 0.6 : curADX > 20 ? 0.3 : 0;
-    score += adxV * 3; wt += 3;
-    const aligned = (price > ma20[i] && ma20[i] > ma50[i] && ma50[i] > ma100[i]) ||
-                    (price < ma20[i] && ma20[i] < ma50[i] && ma50[i] < ma100[i]);
-    const partial = (price > ma20[i] && ma20[i] > ma50[i]) || (price < ma20[i] && ma20[i] < ma50[i]);
-    score += (aligned ? 1 : partial ? 0.5 : 0) * 3; wt += 3;
-    score += 0.5 * 2; wt += 2; // cross placeholder
-    score += 0.5 * 1; wt += 1; // volume placeholder
-    const diDiff = Math.abs(ma20[i] - ma50[i]) / price * 1000;
-    score += (diDiff > 15 ? 1 : diDiff > 10 ? 0.6 : diDiff > 5 ? 0.3 : 0) * 1; wt += 1;
-    const finalScore = score / wt;
-
-    // Signal generation
-    if (!pos && finalScore >= scoreThreshold) {
-      const isBull = price > ma20[i] && ma20[i] > ma50[i];
-      const isBear = price < ma20[i] && ma20[i] < ma50[i];
-
-      if (isBull && curRSI > 55) {
-        const qty = (capital * 0.02) / (curATR * slMult);
-        pos = { side: "Buy", entry: price, qty, sl: price - curATR * slMult, tp: price + curATR * tpMult, entryIdx: i };
-        capital -= qty * price * 0.0002;
-      } else if (isBear && curRSI < 45) {
-        const qty = (capital * 0.02) / (curATR * slMult);
-        pos = { side: "Sell", entry: price, qty, sl: price + curATR * slMult, tp: price - curATR * tpMult, entryIdx: i };
-        capital -= qty * price * 0.0002;
-      }
-    }
-
-    // Exit signals
+    // --- Trailing stop update ---
     if (pos) {
-      if (pos.side === "Buy" && (curRSI < 45 || price < ma20[i])) {
-        const pnl = (price - pos.entry) * pos.qty;
-        capital += pnl - Math.abs(pnl) * FEE;
+      const trailDist = curATR * slMult * 1.2;
+      if (pos.side === "Buy") {
+        if (price > pos.highest) pos.highest = price;
+        const newSL = pos.highest - trailDist;
+        if (newSL > pos.sl) pos.sl = newSL;
+      } else {
+        if (price < pos.lowest) pos.lowest = price;
+        const newSL = pos.lowest + trailDist;
+        if (newSL < pos.sl) pos.sl = newSL;
+      }
+    }
+
+    // --- DANGER: force close + skip ---
+    if (regime === "DANGER") {
+      if (pos) {
+        const pnl = pos.side === "Buy" ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty;
+        capital += pnl - Math.abs(pnl) * TAKER_FEE;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        lastTradeIdx = i;
         pos = null;
-      } else if (pos.side === "Sell" && (curRSI > 55 || price > ma20[i])) {
-        const pnl = (pos.entry - price) * pos.qty;
-        capital += pnl - Math.abs(pnl) * FEE;
+      }
+      peak = Math.max(peak, capital);
+      const dd = ((capital - peak) / peak) * 100;
+      maxDD = Math.min(maxDD, dd);
+      equityCurve.push((capital / initialCapital) * 100);
+      drawdownCurve.push(dd);
+      continue;
+    }
+
+    // --- Regime change: close opposite position ---
+    if (pos) {
+      const posIsLong = pos.side === "Buy";
+      if ((regime === "BULL" && !posIsLong) || (regime === "BEAR" && posIsLong)) {
+        const pnl = posIsLong ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty;
+        capital += pnl - Math.abs(pnl) * MAKER_FEE;
         trades.push({ pnl: (pnl / capital) * 100, holdDays: i - pos.entryIdx });
+        if (pnl > 0) { consecutiveLosses = 0; lastTradeWasLoss = false; }
+        else { consecutiveLosses++; lastTradeWasLoss = true; }
+        lastTradeIdx = i;
         pos = null;
+      }
+    }
+
+    // --- Entry signal ---
+    if (!pos) {
+      // Cooldown check
+      const cooldown = lastTradeWasLoss ? COOLDOWN_LOSS : COOLDOWN_WIN;
+      if (i - lastTradeIdx < cooldown) {
+        peak = Math.max(peak, capital);
+        const dd = ((capital - peak) / peak) * 100;
+        maxDD = Math.min(maxDD, dd);
+        equityCurve.push((capital / initialCapital) * 100);
+        drawdownCurve.push(dd);
+        continue;
+      }
+
+      // ADX filter
+      if (curADX >= 22) {
+        let risk = 0.02 * confidence;
+        if (consecutiveLosses >= 5) risk *= 0.5;
+        else if (consecutiveLosses >= 3) risk *= 0.7;
+
+        if (regime === "BEAR") risk *= 0.75; // 하락장 보수적
+
+        if (regime === "BULL" && price > ma20[i] && curRSI >= 48 && curRSI <= 75 && curDIPlus > curDIMinus + 3) {
+          const qty = (capital * risk) / (curATR * slMult);
+          const ep = price * (1 + SLIPPAGE);
+          const fee = qty * ep * MAKER_FEE;
+          capital -= fee;
+          pos = { side: "Buy", entry: ep, qty, sl: ep - curATR * slMult, tp: ep + curATR * tpMult, entryIdx: i, highest: ep, lowest: ep };
+        } else if (regime === "BEAR" && price < ma20[i] && curRSI >= 25 && curRSI <= 52 && curDIMinus > curDIPlus + 3) {
+          const qty = (capital * risk) / (curATR * slMult);
+          const ep = price * (1 - SLIPPAGE);
+          const fee = qty * ep * MAKER_FEE;
+          capital -= fee;
+          pos = { side: "Sell", entry: ep, qty, sl: ep + curATR * slMult, tp: ep - curATR * tpMult, entryIdx: i, highest: ep, lowest: ep };
+        }
       }
     }
 
@@ -390,7 +529,7 @@ function runV6Hybrid(
   }
 
   return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
-    "Bybit v6-hybrid (Confidence Score)", "BTC/USD", "CryptoCompare (실제 데이터)");
+    "Bybit v6 Adaptive (일봉 레짐 + 추세추종)", "BTC/USD", "CryptoCompare (실제 데이터)");
 }
 
 // --- Funding Rate Arbitrage simulation ---
@@ -1261,7 +1400,7 @@ function getBotDefaults(strategyId: string): string[] {
     case "bot-seykota-ema": return ["100", "1.5", "14"];
     case "bot-ptj-200ma": return ["200", "1.5", "14"];
     case "bot-kis-rsi-macd": return ["12/26/9", "20", "7"];
-    case "bot-bybit-v6-hybrid": return ["0.6", "1.5", "2.5"];
+    case "bot-bybit-v6-hybrid": return ["5", "2.0", "4.0"];
     case "bot-bybit-funding-arb": return ["0.03", "70", "15"];
     default: return ["0.5", "80", "5"];
   }
@@ -1430,10 +1569,10 @@ export default function BacktestPage() {
             break;
           }
           case "bot-bybit-v6-hybrid": {
-            const scoreThreshold = parseFloat(paramValues[0]) || 0.6;
-            const slMult = parseFloat(paramValues[1]) || 1.5;
-            const tpMult = parseFloat(paramValues[2]) || 2.5;
-            backResult = runV6Hybrid(prices, scoreThreshold, slMult, tpMult, capital);
+            const rocThreshold = parseFloat(paramValues[0]) || 5;
+            const slMult = parseFloat(paramValues[1]) || 2.0;
+            const tpMult = parseFloat(paramValues[2]) || 4.0;
+            backResult = runV6Adaptive(prices, rocThreshold, slMult, tpMult, capital);
             break;
           }
           case "bot-bybit-funding-arb": {
