@@ -59,6 +59,13 @@ interface StrategyDetail {
   riskManagement?: { label: string; value: string }[];
   feeStructure?: { label: string; value: string }[];
   backtestResults?: { period: string; returnPct: string; winRate: string; sharpe: string; mdd: string }[];
+  liveExpectation?: {
+    pythonReturn: string;
+    websiteReturn: string;
+    expectedReturn: string;
+    reasons: string[];
+    caveats: string[];
+  };
   files?: { name: string; desc: string }[];
 }
 
@@ -178,6 +185,22 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
         { period: "2025.1 ~ 2025.8", returnPct: "+5.3%", winRate: "42.1%", sharpe: "0.28", mdd: "-5.9%" },
         { period: "2025.9 ~ 2026.3", returnPct: "+24.8%", winRate: "46.5%", sharpe: "3.02", mdd: "-4.1%" },
       ],
+      liveExpectation: {
+        pythonReturn: "P1: +11.6% / P2: +61.0%",
+        websiteReturn: "P1: +5.3% / P2: +24.8%",
+        expectedReturn: "웹사이트 대비 +50~100% 높음 (Python 수준)",
+        reasons: [
+          "실전봇은 Python 백테스트와 동일 코드 (bot_v6.py + regime_detector.py)",
+          "동일한 Bybit pybit API, 60분봉, 지표 계산 라이브러리 (ta-lib)",
+          "웹사이트는 TypeScript 재구현으로 부동소수점·데이터 fetch 미세 차이 발생",
+        ],
+        caveats: [
+          "슬리피지: 백테스트 0.02% 고정 → 실전은 시장 상황에 따라 변동",
+          "체결: 백테스트 100% 체결 가정 → 실전 미체결 가능",
+          "지연: 백테스트 즉시 → 실전 API 응답 시간 존재",
+          "일반적으로 실전 수익률은 백테스트 대비 5~15% 낮게 나옴",
+        ],
+      },
       files: [
         { name: "bot_v6.py", desc: "실전 봇 (Demo 가동 중)" },
         { name: "regime_detector.py", desc: "일봉 레짐 감지 (BULL/BEAR/DANGER)" },
@@ -980,6 +1003,51 @@ function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* 실전 예상 수익률 */}
+          {detail.liveExpectation && (
+            <div>
+              <h4 className="font-semibold mb-2">실전봇 예상 수익률</h4>
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="py-1.5 px-2 rounded bg-card">
+                    <div className="text-xs text-muted-foreground">Python 백테스트</div>
+                    <div className="font-bold text-sm">{detail.liveExpectation.pythonReturn}</div>
+                  </div>
+                  <div className="py-1.5 px-2 rounded bg-card">
+                    <div className="text-xs text-muted-foreground">웹사이트 백테스트</div>
+                    <div className="font-bold text-sm">{detail.liveExpectation.websiteReturn}</div>
+                  </div>
+                  <div className="py-1.5 px-2 rounded bg-card">
+                    <div className="text-xs text-muted-foreground">실전봇 예상</div>
+                    <div className="font-bold text-sm text-primary">{detail.liveExpectation.expectedReturn}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-medium mb-1">실전봇이 웹사이트보다 높은 이유:</div>
+                  <ul className="space-y-0.5">
+                    {detail.liveExpectation.reasons.map((r, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
+                        <span className="text-primary shrink-0">✓</span>{r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <div className="text-xs font-medium mb-1">실전 거래 시 유의사항:</div>
+                  <ul className="space-y-0.5">
+                    {detail.liveExpectation.caveats.map((c, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
+                        <span className="text-amber-500 shrink-0">⚠</span>{c}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
           )}
