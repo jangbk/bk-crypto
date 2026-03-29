@@ -923,47 +923,90 @@ export default function BotPerformancePage() {
         </div>
       </div>
 
-      {/* Bot Selection Tabs */}
-      <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {strategies.map((b) => {
-          const cap = getCapital(b);
-          const pnl = b.totalTrades > 0 ? b.currentValue - cap : 0;
-          const ret = b.totalTrades > 0 && cap > 0 ? ((pnl / cap) * 100).toFixed(1) : "0.0";
-          return (
-            <button
-              key={b.id}
-              onClick={() => setSelectedBot(b.id)}
-              className={`shrink-0 rounded-lg border px-4 py-3 text-left transition-colors ${
-                selectedBot === b.id
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border hover:bg-muted"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm">{b.name}</span>
-                {getStatusBadge(b.status)}
-                {(b as BotStrategy & { _live?: boolean })._live && (
-                  <Wifi className="h-3 w-3 text-emerald-500" />
-                )}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {b.exchange} · {b.asset}
-              </div>
-              <div className="mt-1.5 flex items-center gap-3 text-xs">
-                <span className="text-muted-foreground">
-                  {formatKRW(cap)}
-                </span>
-                <span className="text-muted-foreground">→</span>
-                <span className="font-semibold">
-                  {formatKRW(b.currentValue)}
-                </span>
-                <span className={`font-bold ${Number(ret) >= 0 ? "text-positive" : "text-negative"}`}>
-                  {Number(ret) >= 0 ? "+" : ""}{ret}%
-                </span>
-              </div>
-            </button>
-          );
-        })}
+      {/* Bot Selection — 실투자 / 데모 분리 */}
+      <div className="mb-2">
+        <h3 className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          실투자
+        </h3>
+        <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {realBots.map((b) => {
+            const cap = getCapital(b);
+            const pnl = b.totalTrades > 0 ? b.currentValue - cap : 0;
+            const ret = b.totalTrades > 0 && cap > 0 ? ((pnl / cap) * 100).toFixed(1) : "0.0";
+            return (
+              <button
+                key={b.id}
+                onClick={() => setSelectedBot(b.id)}
+                className={`shrink-0 rounded-lg border px-4 py-3 text-left transition-colors ${
+                  selectedBot === b.id
+                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">{b.name}</span>
+                  {getStatusBadge(b.status)}
+                  {(b as BotStrategy & { _live?: boolean })._live && (
+                    <Wifi className="h-3 w-3 text-emerald-500" />
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {b.exchange} · {b.asset}
+                </div>
+                <div className="mt-1.5 flex items-center gap-3 text-xs">
+                  <span className="text-muted-foreground">{formatKRW(cap)}</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className="font-semibold">{formatKRW(b.currentValue)}</span>
+                  <span className={`font-bold ${Number(ret) >= 0 ? "text-positive" : "text-negative"}`}>
+                    {Number(ret) >= 0 ? "+" : ""}{ret}%
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mb-2">
+        <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-blue-500" />
+          데모 / 모의투자
+        </h3>
+        <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {simBots.map((b) => {
+            const cap = getCapital(b);
+            const pnl = b.totalTrades > 0 ? b.currentValue - cap : 0;
+            const ret = b.totalTrades > 0 && cap > 0 ? ((pnl / cap) * 100).toFixed(1) : "0.0";
+            return (
+              <button
+                key={b.id}
+                onClick={() => setSelectedBot(b.id)}
+                className={`shrink-0 rounded-lg border px-4 py-3 text-left transition-colors ${
+                  selectedBot === b.id
+                    ? "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">{b.name}</span>
+                  {getStatusBadge(b.status)}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {b.exchange} · {b.asset}
+                </div>
+                <div className="mt-1.5 flex items-center gap-3 text-xs">
+                  <span className="text-muted-foreground">{formatKRW(cap)}</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className="font-semibold">{formatKRW(b.currentValue)}</span>
+                  <span className={`font-bold ${Number(ret) >= 0 ? "text-positive" : "text-negative"}`}>
+                    {Number(ret) >= 0 ? "+" : ""}{ret}%
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Selected Bot Stats */}
