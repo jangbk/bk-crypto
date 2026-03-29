@@ -155,7 +155,7 @@ const STRATEGIES: Strategy[] = [
     paramHints: [
       "테이크프로핏 %. 3.0이 기본 (EMA Cross 기준)",
       "스탑로스 %. 1.5가 기본",
-      "Opportunity Score 임계값. 8이 기본 (20점 만점)",
+      "Opportunity Score 임계값. 12가 기본 (20점 만점, 높을수록 엄격)",
     ],
     isBotStrategy: true,
   },
@@ -340,7 +340,7 @@ function run22BEngine(
     const riskMult = curRegime === "HIGH_VOL" ? 0.5 : 1.0;
 
     // Signal scoring + entry
-    if (!pos && i - lastTradeIdx >= 6) {
+    if (!pos && i - lastTradeIdx >= 48) { // 48시간 쿨다운 — 실전 승인 과정 시뮬레이션
       let bestSignal: { side: string; score: number; strategy: string } | null = null as { side: string; score: number; strategy: string } | null;
 
       // Strategy 1: EMA Cross — Golden cross (BTC_BULLISH, BTC_SIDEWAYS, LOW_VOL)
@@ -1891,7 +1891,7 @@ function getBotDefaults(strategyId: string): string[] {
     case "bot-ptj-200ma": return ["200", "1.5", "14"];
     case "bot-kis-rsi-macd": return ["12/26/9", "20", "7"];
     case "bot-bybit-v6-hybrid": return ["5", "2.0", "4.0"];
-    case "bot-22b-engine": return ["3.0", "1.5", "8"];
+    case "bot-22b-engine": return ["3.0", "1.5", "12"];
     case "bot-bybit-funding-arb": return ["0.03", "70", "15"];
     default: return ["0.5", "80", "5"];
   }
