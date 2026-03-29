@@ -149,7 +149,53 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   {
     id: "ptj-200ma",
     name: "PTJ 200MA Bot",
-    description: "200MA + 50MA 모멘텀 전략",
+    description: "EMA 200 + ATR 동적밴드 추세추종 전략",
+    strategyDetail: {
+      summary: "전설적 투자자 Paul Tudor Jones의 200일 이동평균 전략을 구현한 봇. EMA 200을 장기 추세 기준선으로, ATR 밴드로 진입/청산 타이밍을 잡습니다. Seykota Bot보다 더 장기적이고 보수적인 전략.",
+      regimes: [
+        { name: "📈 매수 신호", condition: "가격 > EMA200 + ATR × 1.5", action: "전액 매수 (장기 상승 추세 확인)" },
+        { name: "📉 매도 신호", condition: "가격 < EMA200 - ATR × 1.5", action: "전량 매도 (장기 추세 이탈)" },
+        { name: "⏸️ 대기", condition: "EMA200 ± ATR×1.5 밴드 내", action: "현재 포지션 유지" },
+      ],
+      entryConditions: [
+        { label: "추세 중심선", value: "EMA 200일 (약 10개월 장기 추세)" },
+        { label: "돌파 밴드", value: "ATR × 1.5 (변동성 기반)" },
+        { label: "ATR 기간", value: "14일" },
+        { label: "포지션 크기", value: "전액 투입 (현물, 레버리지 없음)" },
+      ],
+      riskManagement: [
+        { label: "방향", value: "롱(매수)만 — 현물 전략" },
+        { label: "손절", value: "EMA200 - ATR×1.5 하향 이탈 시 청산" },
+        { label: "수수료", value: "0.2% (코인원 기본 수수료)" },
+        { label: "거래 빈도", value: "연 2~4회 (초장기 추세 전략)" },
+        { label: "평균 보유", value: "약 120~200일" },
+      ],
+      feeStructure: [
+        { label: "코인원 거래 수수료", value: "0.2% (매수+매도 각각)" },
+      ],
+      backtestResults: [
+        { period: "2020.1 ~ 2022.12", returnPct: "+219.5%", winRate: "100%", sharpe: "1.23", mdd: "-52.3%" },
+        { period: "2023.1 ~ 2024.12", returnPct: "+101.6%", winRate: "50.0%", sharpe: "1.26", mdd: "-40.9%" },
+        { period: "2025.1 ~ 2026.3", returnPct: "-13.7%", winRate: "0%", sharpe: "-0.81", mdd: "-18.7%" },
+        { period: "전체 (6년)", returnPct: "+568.9%", winRate: "75.0%", sharpe: "0.98", mdd: "-52.3%" },
+      ],
+      liveExpectation: {
+        pythonReturn: "6년 누적 +568.9% (BTC B&H +895% 대비 낮음)",
+        websiteReturn: "백테스트 도구에서 기간별 확인 가능",
+        expectedReturn: "Seykota(EMA100)보다 보수적, 진입 늦지만 노이즈 적음",
+        reasons: [
+          "EMA200은 장기 추세만 포착 → 가짜 신호 최소화",
+          "6년간 8건 거래, 평균 166일 보유 — 극도의 인내 전략",
+          "상승장 초기에 진입이 늦어 Seykota보다 수익 낮음",
+        ],
+        caveats: [
+          "MDD -52.3% — Seykota(-40.9%)보다 큰 낙폭 (EMA200이 느려 청산 지연)",
+          "2025년 구간 -13.7% 손실 — 하락장에서 청산 타이밍 늦음",
+          "롱(매수)만 가능, 전액 투입",
+          "초장기 전략 — 최소 6개월 이상 관찰 필요",
+        ],
+      },
+    },
     asset: "BTC/KRW",
     exchange: "Coinone",
     status: "active",
@@ -174,7 +220,51 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   {
     id: "kis-rsi-macd",
     name: "KIS RSI/MACD Bot",
-    description: "RSI 14 + MACD 12/26/9 전략",
+    description: "MACD 크로스 + EMA 트렌드 필터 — 한국 주식",
+    strategyDetail: {
+      summary: "한국투자증권 API를 통해 국내 주식을 자동 매매하는 봇. MACD 골든크로스/데드크로스로 진입/청산하고, EMA 트렌드 필터로 상승장에서만 매수합니다.",
+      regimes: [
+        { name: "📈 매수", condition: "MACD 골든크로스 + 가격 > EMA20", action: "해당 종목 매수" },
+        { name: "📉 매도", condition: "MACD 데드크로스 또는 손절 -7%", action: "전량 매도" },
+        { name: "⏸️ 대기", condition: "시그널 없음", action: "현금 보유" },
+      ],
+      entryConditions: [
+        { label: "MACD", value: "12/26/9 (단기/장기/시그널 EMA)" },
+        { label: "트렌드 필터", value: "EMA 20일 — 가격이 위에 있을 때만 매수" },
+        { label: "손절", value: "-7% 하락 시 강제 매도" },
+        { label: "대상 종목", value: "삼성전자, SK하이닉스, NAVER, 카카오, LG화학" },
+        { label: "포지션", value: "종목당 균등 배분" },
+      ],
+      riskManagement: [
+        { label: "방향", value: "롱(매수)만 — 현물 주식" },
+        { label: "손절", value: "-7% 고정 손절" },
+        { label: "수수료", value: "0.015% (한투 온라인)" },
+        { label: "거래 빈도", value: "종목당 월 2~5회" },
+      ],
+      feeStructure: [
+        { label: "한국투자증권 수수료", value: "0.015% (온라인)" },
+        { label: "세금 (매도)", value: "0.18% (증권거래세)" },
+      ],
+      backtestResults: [
+        { period: "한국 주식", returnPct: "종목별 상이", winRate: "-", sharpe: "-", mdd: "-" },
+      ],
+      liveExpectation: {
+        pythonReturn: "종목/기간별 상이",
+        websiteReturn: "백테스트 도구에서 종목별 확인 가능",
+        expectedReturn: "개별 종목 추세에 따라 변동",
+        reasons: [
+          "MACD는 모멘텀 지표로 추세 전환 포착에 강점",
+          "EMA 필터로 하락장에서 매수 방지",
+          "5개 종목 분산으로 개별 종목 리스크 완화",
+        ],
+        caveats: [
+          "한국 주식 시장은 횡보가 많아 MACD 가짜 신호 빈번",
+          "손절 -7%가 잦으면 누적 손실 가능",
+          "장 마감 후 다음날 시가 매매 → 갭 리스크",
+          "증권거래세 0.18%가 수수료 대비 높음",
+        ],
+      },
+    },
     asset: "삼성전자, SK하이닉스, NAVER, 카카오, LG화학",
     exchange: "한국투자증권",
     status: "active",
@@ -277,7 +367,50 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   {
     id: "bybit-funding-arb",
     name: "Funding Rate Arb Bot",
-    description: "Delta Neutral 펀딩비 아비트라지 (멀티코인 로테이션)",
+    description: "Delta Neutral 펀딩비 아비트라지 — 가격 중립 수익 전략",
+    strategyDetail: {
+      summary: "선물 시장의 펀딩비를 수취하는 Delta Neutral 전략. 현물 매수 + 선물 숏으로 가격 변동 리스크를 상쇄하고, 8시간마다 지급되는 펀딩비만 수익으로 가져갑니다.",
+      regimes: [
+        { name: "📥 진입", condition: "펀딩비 > 0.03% + 최근 3회 연속 양수", action: "현물 롱 + 선물 숏 (Delta Neutral)" },
+        { name: "📤 청산", condition: "펀딩비 방향 반전 또는 미미", action: "양쪽 포지션 청산" },
+        { name: "⏸️ 대기", condition: "펀딩비 < 임계값 또는 불안정", action: "현금 보유" },
+      ],
+      entryConditions: [
+        { label: "최소 펀딩비", value: "0.03% (연환산 ~33%)" },
+        { label: "방향 안정성", value: "최근 3회 연속 동일 방향" },
+        { label: "포지션 배분", value: "자본의 15% per 코인" },
+        { label: "펀딩비 결제", value: "8시간마다 (00:00, 08:00, 16:00 UTC)" },
+      ],
+      riskManagement: [
+        { label: "가격 리스크", value: "Delta Neutral — 가격 변동 상쇄" },
+        { label: "최대 손실", value: "예상 펀딩비의 5배 초과 시 청산" },
+        { label: "수수료", value: "Maker 0.02% × 진입/청산 × 양쪽" },
+      ],
+      feeStructure: [
+        { label: "Maker 수수료", value: "0.02% (현물+선물 각각)" },
+        { label: "펀딩비 수취", value: "양수 시 숏이 수취, 음수 시 롱이 수취" },
+      ],
+      backtestResults: [
+        { period: "2025.1 ~ 2025.8", returnPct: "-0.05%", winRate: "0%", sharpe: "-1.23", mdd: "-0.05%" },
+        { period: "2025.9 ~ 2026.3", returnPct: "0.00%", winRate: "-", sharpe: "0.00", mdd: "0.00%" },
+      ],
+      liveExpectation: {
+        pythonReturn: "BTC 펀딩비 연환산 3~5% (현재 시장)",
+        websiteReturn: "백테스트 결과 거의 0% (진입 조건 미충족)",
+        expectedReturn: "현재 시장에서 Bybit Earn(5~8%)보다 매력 없음",
+        reasons: [
+          "BTC 펀딩비가 0.003~0.005%로 역사적 저점",
+          "수수료 공제 후 순수익 마이너스 (수수료 > 펀딩비)",
+          "알트코인(DOGE, PEPE 등) 펀딩비가 더 높을 수 있으나 유동성 리스크",
+        ],
+        caveats: [
+          "현재 BTC 시장에서는 Earn 대비 비효율적",
+          "펀딩비는 시장 상황에 따라 급변 가능",
+          "Delta Neutral이지만 급격한 가격 변동 시 레버리지 리스크",
+          "멀티코인 운영 시 관리 복잡도 증가",
+        ],
+      },
+    },
     asset: "BTC, ETH, SOL 등 10코인",
     exchange: "Bybit (Demo)",
     status: "active",
