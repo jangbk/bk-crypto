@@ -851,12 +851,15 @@ export default function BotPerformancePage() {
             </div>
           </section>
 
-          {/* Strategy Detail — 전략 상세 설명 */}
-          {bot.strategyDetail && (
-            <StrategyDetailSection detail={bot.strategyDetail} />
-          )}
         </div>
       </div>
+
+      {/* Strategy Detail — 전략 상세 설명 (전체 너비) */}
+      {bot.strategyDetail && (
+        <div className="mt-6">
+          <StrategyDetailSection detail={bot.strategyDetail} />
+        </div>
+      )}
     </div>
   );
 }
