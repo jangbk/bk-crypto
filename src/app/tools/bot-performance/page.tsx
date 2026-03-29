@@ -723,6 +723,19 @@ function formatKRW(value: number): string {
   return `${sign}${Math.round(abs).toLocaleString()}원`;
 }
 
+function formatUSD(value: number): string {
+  return `$${Math.round(value).toLocaleString()}`;
+}
+
+function isUSDBot(id: string): boolean {
+  const usdBots = ["bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "rsi-meanrev", "seykota-bybit", "capital-manager"];
+  return usdBots.includes(id);
+}
+
+function formatBotValue(id: string, value: number): string {
+  return isUSDBot(id) ? formatUSD(value) : formatKRW(value);
+}
+
 function getStatusBadge(status: string) {
   if (status === "active")
     return (
@@ -996,9 +1009,9 @@ export default function BotPerformancePage() {
                   {b.exchange} · {b.asset}
                 </div>
                 <div className="mt-1.5 flex items-center gap-3 text-xs">
-                  <span className="text-muted-foreground">{formatKRW(cap)}</span>
+                  <span className="text-muted-foreground">{formatBotValue(b.id, cap)}</span>
                   <span className="text-muted-foreground">→</span>
-                  <span className="font-semibold">{formatKRW(b.currentValue)}</span>
+                  <span className="font-semibold">{formatBotValue(b.id, b.currentValue)}</span>
                   <span className={`font-bold ${Number(ret) >= 0 ? "text-positive" : "text-negative"}`}>
                     {Number(ret) >= 0 ? "+" : ""}{ret}%
                   </span>
@@ -1051,7 +1064,7 @@ export default function BotPerformancePage() {
               onClick={() => startEditing(bot.id)}
               title="클릭하여 수정"
             >
-              {formatKRW(effectiveCapital)}
+              {formatBotValue(bot.id, effectiveCapital)}
             </p>
           )}
         </div>
@@ -1060,7 +1073,7 @@ export default function BotPerformancePage() {
             <BarChart3 className="h-3.5 w-3.5" />
             현재 평가금
           </div>
-          <p className="mt-1 text-lg font-bold">{formatKRW(bot.currentValue)}</p>
+          <p className="mt-1 text-lg font-bold">{formatBotValue(bot.id, bot.currentValue)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -1068,7 +1081,7 @@ export default function BotPerformancePage() {
             수익
           </div>
           <p className={`mt-1 text-lg font-bold ${botPnL >= 0 ? "text-positive" : "text-negative"}`}>
-            {botPnL >= 0 ? "+" : ""}{formatKRW(botPnL)}
+            {botPnL >= 0 ? "+" : ""}{formatBotValue(bot.id, botPnL)}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
@@ -1350,7 +1363,7 @@ export default function BotPerformancePage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">투자금</span>
                 <span className="font-medium">
-                  {formatKRW(effectiveCapital)}
+                  {formatBotValue(bot.id, effectiveCapital)}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -1358,7 +1371,7 @@ export default function BotPerformancePage() {
                 <span
                   className={`font-bold ${bot.currentValue >= effectiveCapital ? "text-positive" : "text-negative"}`}
                 >
-                  {formatKRW(bot.currentValue)}
+                  {formatBotValue(bot.id, bot.currentValue)}
                 </span>
               </div>
             </div>
