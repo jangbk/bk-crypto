@@ -138,7 +138,7 @@ const STRATEGIES: Strategy[] = [
   {
     id: "bot-bybit-v6-hybrid",
     name: "🤖 Bybit v6 Adaptive Bot",
-    description: "일봉 레짐(BULL/BEAR/DANGER) + 60분봉 추세추종. SL=2.0ATR, TP=4.0ATR — Demo 가동 중",
+    description: "일봉 레짐(BULL/BEAR/DANGER) + 추세추종. MA50/200+ROC30 레짐판단, 트레일링스탑 — Demo 가동 중",
     params: ["ROC 임계 (%)", "SL (ATR배수)", "TP (ATR배수)"],
     paramHints: [
       "30일 수익률 임계값. BULL>5%, BEAR<-3%. 기본 5",
