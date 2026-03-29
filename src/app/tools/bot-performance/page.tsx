@@ -506,6 +506,150 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     monthlyReturns: [],
     recentTrades: [],
   },
+  {
+    id: "rsi-meanrev",
+    name: "RSI MeanRev v1 Bot",
+    description: "RSI 역추세 (횡보장 전용) — v6 약점 보완, 과매도 매수/과매수 매도",
+    strategyDetail: {
+      summary: "횡보장에서 RSI 극단값과 볼린저 밴드 이탈을 포착해 평균회귀 매매하는 봇. v6 Adaptive가 약한 횡보 구간에서 수익을 내는 보완 전략. 추세장(ADX>25)에서는 자동으로 거래를 중단합니다.",
+      regimes: [
+        { name: "📥 매수", condition: "RSI < 25 + 가격 < BB 하단 + ADX < 25", action: "롱 진입" },
+        { name: "📤 매도", condition: "RSI > 75 + 가격 > BB 상단 + ADX < 25", action: "숏 진입" },
+        { name: "🎯 청산", condition: "가격이 BB 중간선 도달", action: "포지션 청산 (평균 회귀)" },
+        { name: "⏸️ 관망", condition: "ADX > 25 (추세장)", action: "거래 중단 — 추세 역행 방지" },
+        { name: "⚠️ DANGER", condition: "ATR z-score > 2.0", action: "거래 중단" },
+      ],
+      entryConditions: [
+        { label: "RSI 과매도", value: "< 25 (극단값만)" },
+        { label: "RSI 과매수", value: "> 75 (극단값만)" },
+        { label: "BB 이탈", value: "가격이 볼린저 밴드 상/하단 돌파" },
+        { label: "ADX 제한", value: "< 25 (추세장에서 거래 안 함)" },
+        { label: "쿨다운", value: "12시간 (역추세는 보수적)" },
+        { label: "TP", value: "BB 중간선 (동적 — 평균으로 회귀)" },
+      ],
+      riskManagement: [
+        { label: "SL", value: "1.5 × ATR" },
+        { label: "포지션 크기", value: "자본의 1% (소액)" },
+        { label: "추세장 차단", value: "ADX > 25 → 자동 거래 중단" },
+        { label: "연속 3손실", value: "리스크 × 0.5" },
+        { label: "자금 배분", value: "전체의 20% (소액 운영)" },
+      ],
+      feeStructure: [
+        { label: "Maker", value: "0.02%" },
+        { label: "Taker", value: "0.055%" },
+      ],
+      backtestResults: [
+        { period: "백테스트 진행 중", returnPct: "-", winRate: "-", sharpe: "-", mdd: "-" },
+      ],
+      liveExpectation: {
+        pythonReturn: "Demo 가동 중 — 실적 축적 중",
+        websiteReturn: "-",
+        expectedReturn: "횡보장에서 소폭 수익, 추세장에서 관망 (손실 0)",
+        reasons: [
+          "RSI < 25 극단값에서만 진입 → 높은 반등 확률",
+          "BB 중간선 TP → 확실한 평균회귀 타겟",
+          "ADX < 25 필터 → 추세장 역행 위험 차단",
+          "v6 Adaptive의 횡보장 약점을 정확히 보완",
+        ],
+        caveats: [
+          "추세장에서는 수익 없음 (관망)",
+          "횡보장이 아닌 급락장에서 과매도 매수 시 추가 하락 위험",
+          "소액 운영(1%) — 큰 수익 기대 어려움",
+          "Demo 검증 후 실전 전환 필요",
+        ],
+      },
+    },
+    asset: "BTC/USDT",
+    exchange: "Bybit (Demo)",
+    status: "active" as const,
+    startDate: "2026-03-29",
+    initialCapital: 10000,
+    currentValue: 10000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
+  {
+    id: "seykota-bybit",
+    name: "Seykota EMA v1 Bot (Bybit)",
+    description: "EMA100 + ATR 동적밴드 장기 추세추종 — Bybit Demo 복제, 월 1~2회 거래",
+    strategyDetail: {
+      summary: "빗썸에서 가동 중인 Seykota 전략을 Bybit Demo에 복제한 봇. EMA100을 장기 추세 중심선으로, ATR 밴드로 돌파/이탈을 감지합니다. 거래 빈도가 극히 낮고(월 1~2회), 한번 진입하면 평균 159일 보유하는 장기 전략.",
+      regimes: [
+        { name: "📈 매수", condition: "가격 > EMA100 + ATR × 1.5", action: "전액 롱 진입" },
+        { name: "📉 매도", condition: "가격 < EMA100 - ATR × 1.5", action: "전량 청산" },
+        { name: "⏸️ 보유/대기", condition: "밴드 내 가격", action: "현재 상태 유지" },
+      ],
+      entryConditions: [
+        { label: "추세 중심선", value: "EMA 100일" },
+        { label: "돌파 밴드", value: "ATR 14일 × 1.5" },
+        { label: "방향", value: "롱(매수)만 — 하락장은 현금 보유" },
+        { label: "체크 주기", value: "일봉 기준 하루 1회" },
+      ],
+      riskManagement: [
+        { label: "SL", value: "EMA100 - ATR×1.5 (동적)" },
+        { label: "포지션 크기", value: "자본의 2%" },
+        { label: "자금 배분", value: "전체의 30%" },
+        { label: "평균 보유 기간", value: "159일" },
+      ],
+      feeStructure: [
+        { label: "Maker", value: "0.02%" },
+        { label: "Taker", value: "0.055%" },
+      ],
+      backtestResults: [
+        { period: "2020.1 ~ 2022.12", returnPct: "+350.4%", winRate: "66.7%", sharpe: "1.45", mdd: "-40.8%" },
+        { period: "2023.1 ~ 2024.12", returnPct: "+128.4%", winRate: "50.0%", sharpe: "1.33", mdd: "-34.2%" },
+        { period: "2025.1 ~ 2026.3", returnPct: "+13.0%", winRate: "100%", sharpe: "0.65", mdd: "-14.7%" },
+        { period: "전체 (6년)", returnPct: "+1,678%", winRate: "75.0%", sharpe: "1.36", mdd: "-40.9%" },
+      ],
+      liveExpectation: {
+        pythonReturn: "6년 +1,678% (빗썸 실전과 동일 로직)",
+        websiteReturn: "백테스트 도구에서 확인 가능",
+        expectedReturn: "BTC Buy&Hold 대비 약 2배, 하락장 방어 탁월",
+        reasons: [
+          "6년간 8건 거래, 평균 159일 보유 — 수수료 최소",
+          "하락장에서 현금 보유 → 손실 회피",
+          "v6와 상관관계 낮음 → 포트폴리오 분산 효과",
+        ],
+        caveats: [
+          "롱만 가능 — 하락장에서 수익 없음",
+          "MDD -40.9% — 장기 보유 중 큰 낙폭 가능",
+          "거래 극히 드묾 — 몇 달간 아무 거래 없을 수 있음",
+        ],
+      },
+    },
+    asset: "BTC/USDT",
+    exchange: "Bybit (Demo)",
+    status: "active" as const,
+    startDate: "2026-03-29",
+    initialCapital: 15000,
+    currentValue: 15000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
 ];
 
 /** 금액을 한국식으로 포맷 (억/만원 단위) */
@@ -661,7 +805,7 @@ export default function BotPerformancePage() {
 
   // Calculate aggregated stats — 실투자 vs 모의투자 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const simBotIds = ["kis-rsi-macd", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine"];
+  const simBotIds = ["kis-rsi-macd", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "rsi-meanrev", "seykota-bybit"];
   const realBots = strategies.filter((b) => !simBotIds.includes(b.id));
   const simBots = strategies.filter((b) => simBotIds.includes(b.id));
 
