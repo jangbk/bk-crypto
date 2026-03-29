@@ -22,6 +22,7 @@ interface BotStrategy {
   id: string;
   name: string;
   description: string;
+  strategyDetail?: StrategyDetail;
   asset: string;
   exchange: string;
   status: "active" | "paused" | "stopped";
@@ -49,6 +50,16 @@ interface BotStrategy {
     pnl: string;
   }>;
   _live?: boolean;
+}
+
+interface StrategyDetail {
+  summary: string;
+  regimes?: { name: string; condition: string; action: string }[];
+  entryConditions?: { label: string; value: string }[];
+  riskManagement?: { label: string; value: string }[];
+  feeStructure?: { label: string; value: string }[];
+  backtestResults?: { period: string; returnPct: string; winRate: string; sharpe: string; mdd: string }[];
+  files?: { name: string; desc: string }[];
 }
 
 const FALLBACK_STRATEGIES: BotStrategy[] = [
@@ -129,8 +140,53 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   },
   {
     id: "bybit-v6-hybrid",
-    name: "Bybit v6-hybrid Bot",
-    description: "Confidence Score ≥ 0.6 필터 + 추세추종/MeanRev + CHOPPY 자동감지",
+    name: "Bybit v6 Adaptive Bot",
+    description: "일봉 레짐(BULL/BEAR/DANGER) + 60분봉 추세추종 — 멀티타임프레임 적응형",
+    strategyDetail: {
+      summary: "일봉으로 시장 상황을 판단하고, 60분봉으로 거래하는 BTC 선물 자동매매 봇. 확실한 추세에서만 거래하고, 불확실할 때는 포지션을 축소하여 리스크를 관리합니다.",
+      regimes: [
+        { name: "🟢 BULL", condition: "가격 > MA50 > MA200, ROC30 > 5%", action: "롱(매수)만 진입" },
+        { name: "🔴 BEAR", condition: "가격 < MA50 < MA200, ROC30 < -3%", action: "숏(매도)만 진입" },
+        { name: "🟡 WEAK_BULL", condition: "가격 > MA50 (정배열 아님)", action: "롱 허용, 포지션 축소" },
+        { name: "🟠 WEAK_BEAR", condition: "가격 < MA50 (역배열 아님)", action: "숏 허용, 포지션 축소" },
+        { name: "⚠️ DANGER", condition: "ATR 변동성 z-score > 2.0", action: "포지션 청산, 거래 중단" },
+      ],
+      entryConditions: [
+        { label: "ADX (추세 강도)", value: ">= 22" },
+        { label: "BULL 롱 진입", value: "가격 > MA20, RSI 48~75, DI+ > DI- + 3" },
+        { label: "BEAR 숏 진입", value: "가격 < MA20, RSI 25~52, DI- > DI+ + 3" },
+        { label: "최소 보유 시간", value: "6시간" },
+        { label: "쿨다운 (손실 후)", value: "8시간" },
+        { label: "쿨다운 (수익 후)", value: "3시간" },
+      ],
+      riskManagement: [
+        { label: "SL (손절)", value: "2.0 × ATR (~$600-1,000)" },
+        { label: "TP (익절)", value: "4.0 × ATR (~$1,200-2,000)" },
+        { label: "R:R 비율", value: "1:2" },
+        { label: "트레일링 스탑", value: "1.2 × ATR (수익 구간 자동 상향)" },
+        { label: "일일 최대 손실", value: "3% 초과 시 당일 거래 중단" },
+        { label: "연속 3손실", value: "리스크 × 0.7" },
+        { label: "연속 5손실", value: "리스크 × 0.5" },
+        { label: "포지션 크기", value: "자본의 0.5~2% (확신도 비례)" },
+      ],
+      feeStructure: [
+        { label: "Maker (지정가)", value: "0.02% — 진입, TP 청산" },
+        { label: "Taker (시장가)", value: "0.055% — SL 청산" },
+        { label: "슬리피지", value: "0.02% — 진입 + 청산 양쪽" },
+      ],
+      backtestResults: [
+        { period: "횡보장 (2025.1~8)", returnPct: "+5~12%", winRate: "42~46%", sharpe: "0.28~0.68", mdd: "-6~-16%" },
+        { period: "상승장 (2025.9~2026.3)", returnPct: "+25~61%", winRate: "46~50%", sharpe: "2.5~3.0", mdd: "-4~-18%" },
+      ],
+      files: [
+        { name: "bot_v6.py", desc: "실전 봇 (Demo 가동 중)" },
+        { name: "regime_detector.py", desc: "일봉 레짐 감지 (BULL/BEAR/DANGER)" },
+        { name: "backtest_adaptive.py", desc: "멀티타임프레임 백테스터" },
+        { name: "optimize_v6.py", desc: "파라미터 최적화 (57조합 그리드서치)" },
+        { name: "exchange.py", desc: "Bybit API 래퍼" },
+        { name: "indicators.py", desc: "기술적 지표 (MA, RSI, ADX, BB, ATR)" },
+      ],
+    },
     asset: "BTC/USDT",
     exchange: "Bybit (Demo)",
     status: "active",
@@ -789,8 +845,153 @@ export default function BotPerformancePage() {
               </div>
             </div>
           </section>
+
+          {/* Strategy Detail — 전략 상세 설명 */}
+          {bot.strategyDetail && (
+            <StrategyDetailSection detail={bot.strategyDetail} />
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <section className="rounded-lg border border-border bg-card p-4">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between font-semibold text-left"
+      >
+        <span>📋 전략 상세 설명</span>
+        <span className="text-muted-foreground text-sm">{isOpen ? "접기 ▲" : "펼치기 ▼"}</span>
+      </button>
+
+      {isOpen && (
+        <div className="mt-4 space-y-5 text-sm">
+          {/* 요약 */}
+          <p className="text-muted-foreground leading-relaxed">{detail.summary}</p>
+
+          {/* 레짐 판단 */}
+          {detail.regimes && (
+            <div>
+              <h4 className="font-semibold mb-2">레짐 판단 (일봉, 하루 1회)</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-1.5 pr-3 text-muted-foreground font-medium">레짐</th>
+                      <th className="text-left py-1.5 pr-3 text-muted-foreground font-medium">조건</th>
+                      <th className="text-left py-1.5 text-muted-foreground font-medium">행동</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.regimes.map((r, i) => (
+                      <tr key={i} className="border-b border-border/50">
+                        <td className="py-1.5 pr-3 font-medium whitespace-nowrap">{r.name}</td>
+                        <td className="py-1.5 pr-3 text-muted-foreground">{r.condition}</td>
+                        <td className="py-1.5 font-medium">{r.action}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 진입 조건 */}
+          {detail.entryConditions && (
+            <div>
+              <h4 className="font-semibold mb-2">진입 조건 (60분봉, 매시간 체크)</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {detail.entryConditions.map((c, i) => (
+                  <div key={i} className="flex justify-between py-1 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground">{c.label}</span>
+                    <span className="font-medium">{c.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 리스크 관리 */}
+          {detail.riskManagement && (
+            <div>
+              <h4 className="font-semibold mb-2">리스크 관리</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {detail.riskManagement.map((r, i) => (
+                  <div key={i} className="flex justify-between py-1 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground">{r.label}</span>
+                    <span className="font-medium">{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 수수료 구조 */}
+          {detail.feeStructure && (
+            <div>
+              <h4 className="font-semibold mb-2">수수료 구조</h4>
+              <div className="space-y-1">
+                {detail.feeStructure.map((f, i) => (
+                  <div key={i} className="flex justify-between py-1 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground">{f.label}</span>
+                    <span className="font-medium">{f.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 백테스트 결과 */}
+          {detail.backtestResults && (
+            <div>
+              <h4 className="font-semibold mb-2">백테스트 검증 결과</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-1.5 pr-3 text-muted-foreground font-medium">기간</th>
+                      <th className="text-left py-1.5 pr-3 text-muted-foreground font-medium">수익률</th>
+                      <th className="text-left py-1.5 pr-3 text-muted-foreground font-medium">승률</th>
+                      <th className="text-left py-1.5 pr-3 text-muted-foreground font-medium">샤프</th>
+                      <th className="text-left py-1.5 text-muted-foreground font-medium">MDD</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.backtestResults.map((b, i) => (
+                      <tr key={i} className="border-b border-border/50">
+                        <td className="py-1.5 pr-3 whitespace-nowrap">{b.period}</td>
+                        <td className="py-1.5 pr-3 font-bold text-positive">{b.returnPct}</td>
+                        <td className="py-1.5 pr-3">{b.winRate}</td>
+                        <td className="py-1.5 pr-3">{b.sharpe}</td>
+                        <td className="py-1.5 text-negative">{b.mdd}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 파일 구조 */}
+          {detail.files && (
+            <div>
+              <h4 className="font-semibold mb-2">파일 구조</h4>
+              <div className="space-y-1">
+                {detail.files.map((f, i) => (
+                  <div key={i} className="flex gap-3 py-1 px-2 rounded bg-muted/30">
+                    <code className="text-xs font-mono text-primary whitespace-nowrap">{f.name}</code>
+                    <span className="text-muted-foreground">{f.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
