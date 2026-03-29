@@ -142,8 +142,8 @@ const STRATEGIES: Strategy[] = [
     params: ["ROC 임계 (%)", "SL (ATR배수)", "TP (ATR배수)"],
     paramHints: [
       "30일 수익률 임계값. BULL>5%, BEAR<-3%. 기본 5",
-      "스탑로스 ATR 배수. 2.0이 기본 (최적화 결과). 높을수록 넓은 스탑",
-      "테이크프로핏 ATR 배수. 4.0이 기본 (최적화 결과). 높을수록 큰 수익 타겟",
+      "스탑로스 ATR 배수. 일봉 기준 1.0 기본. 실전봇(60분봉)은 2.0 사용",
+      "테이크프로핏 ATR 배수. 일봉 기준 2.0 기본. 실전봇(60분봉)은 4.0 사용",
     ],
     isBotStrategy: true,
   },
@@ -435,7 +435,7 @@ function runV6Adaptive(
 
     // --- Trailing stop update ---
     if (pos) {
-      const trailDist = curATR * slMult * 1.2;
+      const trailDist = curATR * slMult * 1.5; // 일봉은 더 넉넉한 트레일링
       if (pos.side === "Buy") {
         if (price > pos.highest) pos.highest = price;
         const newSL = pos.highest - trailDist;
@@ -1402,7 +1402,7 @@ function getBotDefaults(strategyId: string): string[] {
     case "bot-seykota-ema": return ["100", "1.5", "14"];
     case "bot-ptj-200ma": return ["200", "1.5", "14"];
     case "bot-kis-rsi-macd": return ["12/26/9", "20", "7"];
-    case "bot-bybit-v6-hybrid": return ["5", "2.0", "4.0"];
+    case "bot-bybit-v6-hybrid": return ["5", "1.0", "2.0"];
     case "bot-bybit-funding-arb": return ["0.03", "70", "15"];
     default: return ["0.5", "80", "5"];
   }
@@ -1574,8 +1574,8 @@ export default function BacktestPage() {
           }
           case "bot-bybit-v6-hybrid": {
             const rocThreshold = parseFloat(paramValues[0]) || 5;
-            const slMult = parseFloat(paramValues[1]) || 2.0;
-            const tpMult = parseFloat(paramValues[2]) || 4.0;
+            const slMult = parseFloat(paramValues[1]) || 1.0;
+            const tpMult = parseFloat(paramValues[2]) || 2.0;
             backResult = runV6Adaptive(prices, rocThreshold, slMult, tpMult, capital);
             break;
           }
