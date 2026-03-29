@@ -1114,33 +1114,6 @@ export default function BotPerformancePage() {
         </div>
       </div>
 
-      {/* Summary Bars — 실투자 / 모의투자 분리 */}
-      <div className="mb-6 space-y-1.5">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-border bg-muted/30 px-4 py-2 text-sm">
-          <span className="text-muted-foreground font-medium">실투자 합계</span>
-          <span>투자금 <strong>{formatKRW(realInvested)}</strong></span>
-          <span>평가금 <strong>{formatKRW(realCurrent)}</strong></span>
-          <span className={realTradedPnL >= 0 ? "text-positive" : "text-negative"}>
-            수익 <strong>{realTradedPnL >= 0 ? "+" : ""}{formatKRW(realTradedPnL)}</strong>
-          </span>
-          <span className={Number(realReturnPct) >= 0 ? "text-positive" : "text-negative"}>
-            <strong>{Number(realReturnPct) >= 0 ? "+" : ""}{realReturnPct}%</strong>
-          </span>
-        </div>
-        {simBots.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-dashed border-border bg-muted/10 px-4 py-2 text-sm text-muted-foreground">
-            <span className="font-medium">모의투자</span>
-            <span>KRW <strong>{formatKRW(simBots.filter(b => !isUSDBot(b.id)).reduce((s,b) => s + getCapital(b), 0))}</strong></span>
-            <span>USD <strong>{formatUSD(simBots.filter(b => isUSDBot(b.id)).reduce((s,b) => s + getCapital(b), 0))}</strong></span>
-            <span className={simTradedPnL >= 0 ? "text-positive" : "text-negative"}>
-              수익 <strong>{simTradedPnL >= 0 ? "+" : ""}{formatKRW(simTradedPnL)}</strong>
-            </span>
-            <span className={Number(simReturnPct) >= 0 ? "text-positive" : "text-negative"}>
-              <strong>{Number(simReturnPct) >= 0 ? "+" : ""}{simReturnPct}%</strong>
-            </span>
-          </div>
-        )}
-      </div>
 
       {/* Selected Bot Detail */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
