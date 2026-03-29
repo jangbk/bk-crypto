@@ -620,11 +620,17 @@ export default function BotPerformancePage() {
 
         const live = data.strategies as BotStrategy[];
         if (live && live.length > 0) {
-          // FALLBACK의 strategyDetail을 merge (API에는 없으므로)
+          // FALLBACK의 strategyDetail을 merge + API에 없는 봇은 FALLBACK에서 유지
           const merged = live.map((s) => {
             const fallback = FALLBACK_STRATEGIES.find((f) => f.id === s.id);
             return fallback?.strategyDetail ? { ...s, strategyDetail: fallback.strategyDetail } : s;
           });
+          // API에 없는 FALLBACK 봇 추가 (22b-strategy-engine 등)
+          for (const fb of FALLBACK_STRATEGIES) {
+            if (!merged.find((m) => m.id === fb.id)) {
+              merged.push(fb);
+            }
+          }
           setStrategies(merged);
           setIsLive(true);
           setLastUpdated(data.timestamp);
