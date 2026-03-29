@@ -394,8 +394,8 @@ function runV6AdaptiveMultiTF(
       }
     }
 
-    // Entry signal
-    if (!pos) {
+    // Entry signal — confidence < 0.3이면 SIDEWAYS(관망)
+    if (!pos && confidence >= 0.3) {
       const cooldown = lastTradeWasLoss ? COOLDOWN_LOSS : COOLDOWN_WIN;
       if (i - lastTradeIdx >= cooldown && curADX >= 22) {
         let risk = 0.02 * Math.max(0.5, confidence);
