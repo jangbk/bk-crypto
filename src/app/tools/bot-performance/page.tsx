@@ -1042,20 +1042,6 @@ export default function BotPerformancePage() {
       </div>
 
       {/* Selected Bot Detail */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Activity className="h-3.5 w-3.5" />
-            수익률
-          </div>
-          <p className={`mt-1 text-lg font-bold ${Number(botReturnPct) >= 0 ? "text-positive" : "text-negative"}`}>
-            {Number(botReturnPct) >= 0 ? "+" : ""}{botReturnPct}%
-          </p>
-        </div>
-      </div>
-
-
-      {/* Selected Bot Detail */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: Performance Metrics */}
         <div className="lg:col-span-2 space-y-6">
