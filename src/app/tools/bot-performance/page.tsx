@@ -432,6 +432,80 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     monthlyReturns: [],
     recentTrades: [],
   },
+  {
+    id: "22b-strategy-engine",
+    name: "22B Strategy Engine v1.3",
+    description: "Opportunity-Driven 멀티전략 — Binance Futures, 7개 레짐, 10개 전략",
+    strategyDetail: {
+      summary: "Binance Futures에서 7개 시장 레짐을 자동 판정하고, 10개 전략 중 적합한 것만 실행하는 Opportunity-Driven 자동매매 엔진. AI(OpenClaw)가 시장 해석과 전략 추천을 하되, 실행은 rule-based 봇이 담당합니다.",
+      regimes: [
+        { name: "🟢 BTC_BULLISH", condition: "BTC 4H EMA50 상방 + 24H 수익률 > 0% + 펀딩 < 0.05%", action: "추세추종, 돌파, 멀티전략 허용" },
+        { name: "🔴 BTC_BEARISH", condition: "BTC 4H EMA50 하방 + 24H 수익률 < -1%", action: "평균회귀, 헤지만 허용 (롱 차단)" },
+        { name: "⚖️ BTC_SIDEWAYS", condition: "24H 수익률 ±1% + ATR/price < 3%", action: "평균회귀, 레인지 전략" },
+        { name: "🔄 ALT_ROTATION", condition: "BTC 횡보/상승 + BTC.D 하락 + 알트 거래량 1.5x", action: "알트코인 추세추종" },
+        { name: "🔥 HIGH_VOL", condition: "ATR/price > 5% 또는 1H 변동 > 3%", action: "신규 진입 50% 축소" },
+        { name: "😴 LOW_VOL", condition: "ATR/price < 2% + BB bandwidth < 50%", action: "스퀴즈 돌파 전략" },
+        { name: "⚠️ EVENT_RISK", condition: "FOMC/CPI 등 매크로 이벤트 24h 이내", action: "전체 신규 진입 차단" },
+      ],
+      entryConditions: [
+        { label: "전략 수", value: "10개 (EMA Cross, RSI3 Reversal, VWAP Bounce 등)" },
+        { label: "스코어링", value: "11개 규칙, 최대 20점 — 8점 이상만 실행" },
+        { label: "기회 큐", value: "TTL 1시간, 순위 관리, Top-N 필터" },
+        { label: "승인 방식", value: "Telegram으로 22B(운영자) 승인/거절" },
+        { label: "AI 역할", value: "레짐 해석 + 전략 추천 (실행 금지)" },
+      ],
+      riskManagement: [
+        { label: "레짐 기반 차단", value: "EVENT_RISK 시 전체 진입 차단" },
+        { label: "UNKNOWN 레짐", value: "confidence 30% 감산 + LIVE 진입 차단" },
+        { label: "운영 모드", value: "Paper → Shadow → Live → Full Auto (4단계)" },
+        { label: "포지션 제한", value: "최대 동시 3포지션" },
+      ],
+      feeStructure: [
+        { label: "Binance Maker", value: "0.02%" },
+        { label: "Binance Taker", value: "0.04%" },
+      ],
+      backtestResults: [
+        { period: "Paper Trading", returnPct: "검증 중", winRate: "-", sharpe: "-", mdd: "-" },
+      ],
+      liveExpectation: {
+        pythonReturn: "Paper Trading 검증 진행 중",
+        websiteReturn: "-",
+        expectedReturn: "멀티전략 + 레짐 필터로 안정적 수익 목표",
+        reasons: [
+          "7개 레짐 판정으로 시장 상황별 최적 전략 자동 선택",
+          "10개 전략 분산으로 단일 전략 리스크 회피",
+          "Opportunity Scoring(20점 만점)으로 저품질 시그널 필터링",
+          "AI 해석 + Rule-based 실행 분리 → 일관성 보장",
+        ],
+        caveats: [
+          "아직 Paper Trading 단계 — 실전 검증 전",
+          "Binance Futures 레버리지 리스크",
+          "10개 전략 관리 복잡도 높음",
+          "AI 추천이 정확하지 않을 수 있음 (참고용)",
+        ],
+      },
+    },
+    asset: "BTC, ETH, 알트코인",
+    exchange: "Binance (Paper)",
+    status: "paused" as const,
+    startDate: "2026-03-01",
+    initialCapital: 10000,
+    currentValue: 10000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
 ];
 
 /** 금액을 한국식으로 포맷 (억/만원 단위) */
@@ -581,7 +655,7 @@ export default function BotPerformancePage() {
 
   // Calculate aggregated stats — 실투자 vs 모의투자 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const simBotIds = ["kis-rsi-macd", "bybit-v6-hybrid", "bybit-funding-arb"];
+  const simBotIds = ["kis-rsi-macd", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine"];
   const realBots = strategies.filter((b) => !simBotIds.includes(b.id));
   const simBots = strategies.filter((b) => simBotIds.includes(b.id));
 
