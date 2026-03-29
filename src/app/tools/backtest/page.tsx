@@ -148,6 +148,18 @@ const STRATEGIES: Strategy[] = [
     isBotStrategy: true,
   },
   {
+    id: "bot-22b-engine",
+    name: "🤖 22B Strategy Engine v1.3",
+    description: "Bitget Futures 멀티전략 (EMA Cross + RSI Reversal + Breakout + 레짐 필터) — 간소화 시뮬레이션",
+    params: ["TP (%)", "SL (%)", "스코어 임계"],
+    paramHints: [
+      "테이크프로핏 %. 3.0이 기본 (EMA Cross 기준)",
+      "스탑로스 %. 1.5가 기본",
+      "Opportunity Score 임계값. 8이 기본 (20점 만점)",
+    ],
+    isBotStrategy: true,
+  },
+  {
     id: "bot-bybit-funding-arb",
     name: "🤖 Funding Rate Arb Bot",
     description: "Delta Neutral 펀딩비 아비트라지 (멀티코인 로테이션) — Demo 가동 중",
@@ -213,6 +225,213 @@ const ASSET_TO_COINGECKO: Record<string, string> = {
   "XRP/KRW": "ripple",
   "BTC/USD": "bitcoin",
 };
+
+// --- 22B Strategy Engine 간소화 시뮬레이션 ---
+// 3개 핵심 전략 + 7개 레짐 필터 통합
+// EMA Cross (추세), RSI Exhaustion (역추세), Range Breakout (돌파)
+function run22BEngine(
+  dailyPrices: PriceBar[],
+  hourlyPrices: PriceBar[],
+  tpPct: number, slPct: number, scoreThreshold: number,
+  initialCapital: number,
+): BacktestResult {
+  // --- 일봉 레짐 맵 ---
+  const dCloses = dailyPrices.map(p => p.close);
+  function dSma(period: number, idx: number): number {
+    if (idx < period - 1) return dCloses[idx];
+    let s = 0; for (let i = idx - period + 1; i <= idx; i++) s += dCloses[i]; return s / period;
+  }
+  const dMa50 = dCloses.map((_, i) => dSma(50, i));
+  const dAtr14: number[] = [];
+  { const h=dailyPrices.map(p=>p.high),l=dailyPrices.map(p=>p.low),c=dCloses;
+    const tr=[h[0]-l[0]]; for(let i=1;i<c.length;i++) tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));
+    dAtr14.push(tr[0]); for(let i=1;i<tr.length;i++){if(i<14) dAtr14.push(tr.slice(0,i+1).reduce((a,b)=>a+b)/(i+1)); else dAtr14.push((dAtr14[i-1]*13+tr[i])/14);}
+  }
+  type Regime22B = "BTC_BULLISH" | "BTC_BEARISH" | "BTC_SIDEWAYS" | "HIGH_VOL" | "LOW_VOL";
+  const regimeMap = new Map<string, Regime22B>();
+  for (let i = 50; i < dailyPrices.length; i++) {
+    const p = dCloses[i], m50 = dMa50[i];
+    const roc24h = i >= 1 ? (dCloses[i] - dCloses[i-1]) / dCloses[i-1] * 100 : 0;
+    const atrPct = (dAtr14[i] / dCloses[i]) * 100;
+    let regime: Regime22B;
+    if (atrPct > 5) regime = "HIGH_VOL";
+    else if (atrPct < 2) regime = "LOW_VOL";
+    else if (p > m50 && roc24h > -1) regime = "BTC_BULLISH";
+    else if (p < m50 && roc24h < 1) regime = "BTC_BEARISH";
+    else regime = "BTC_SIDEWAYS";
+    regimeMap.set(dailyPrices[i].date.slice(0, 10), regime);
+  }
+
+  // --- 60분봉 지표 ---
+  const closes = hourlyPrices.map(p => p.close);
+  const highs = hourlyPrices.map(p => p.high);
+  const lows = hourlyPrices.map(p => p.low);
+  function ema(arr: number[], period: number): number[] {
+    const r = [arr[0]]; const k = 2 / (period + 1);
+    for (let i = 1; i < arr.length; i++) r.push(arr[i] * k + r[i-1] * (1-k));
+    return r;
+  }
+  const ema20 = ema(closes, 20);
+  const ema50 = ema(closes, 50);
+  // RSI
+  const rsiArr: number[] = new Array(closes.length).fill(50);
+  { let aG=0,aL=0; for(let i=1;i<=14&&i<closes.length;i++){const d=closes[i]-closes[i-1];if(d>0)aG+=d;else aL-=d;} aG/=14;aL/=14;
+    for(let i=14;i<closes.length;i++){const d=closes[i]-closes[i-1];aG=(aG*13+(d>0?d:0))/14;aL=(aL*13+(d<0?-d:0))/14;rsiArr[i]=aL===0?100:100-100/(1+aG/aL);}
+  }
+  // Range (20-bar high/low)
+  const rangeHigh: number[] = [], rangeLow: number[] = [];
+  for (let i = 0; i < closes.length; i++) {
+    const start = Math.max(0, i - 20);
+    let hi = -Infinity, lo = Infinity;
+    for (let j = start; j < i; j++) { hi = Math.max(hi, highs[j]); lo = Math.min(lo, lows[j]); }
+    rangeHigh.push(hi === -Infinity ? highs[i] : hi);
+    rangeLow.push(lo === Infinity ? lows[i] : lo);
+  }
+  // Volume (20-bar avg)
+  // CryptoCompare doesn't give volume via Bybit kline, use price momentum as proxy
+
+  // --- Trading loop ---
+  let capital = initialCapital;
+  const equityCurve: number[] = [100];
+  const drawdownCurve: number[] = [0];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  let pos: { side: string; entry: number; qty: number; sl: number; tp: number; entryIdx: number; strategy: string } | null = null;
+  const FEE = 0.0004; // Bitget avg
+  let lastTradeIdx = -999;
+
+  for (let i = 55; i < hourlyPrices.length; i++) {
+    const price = closes[i], high = highs[i], low = lows[i];
+    const dateKey = hourlyPrices[i].date.slice(0, 10);
+    const regime = regimeMap.get(dateKey) || "BTC_SIDEWAYS";
+    // 이전 날짜 탐색
+    let curRegime = regime;
+    if (!regimeMap.has(dateKey)) {
+      const d = new Date(dateKey);
+      for (let b=1;b<=5;b++){d.setDate(d.getDate()-1);const pk=d.toISOString().slice(0,10);if(regimeMap.has(pk)){curRegime=regimeMap.get(pk)!;break;}}
+    }
+
+    // SL/TP check
+    if (pos) {
+      if (pos.side === "Buy" && low <= pos.sl) {
+        const pnl = (pos.sl - pos.entry) * pos.qty;
+        capital += pnl - Math.abs(pos.qty * pos.sl) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        lastTradeIdx = i; pos = null;
+      } else if (pos.side === "Buy" && high >= pos.tp) {
+        const pnl = (pos.tp - pos.entry) * pos.qty;
+        capital += pnl - Math.abs(pos.qty * pos.tp) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        lastTradeIdx = i; pos = null;
+      } else if (pos.side === "Sell" && high >= pos.sl) {
+        const pnl = (pos.entry - pos.sl) * pos.qty;
+        capital += pnl - Math.abs(pos.qty * pos.sl) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        lastTradeIdx = i; pos = null;
+      } else if (pos.side === "Sell" && low <= pos.tp) {
+        const pnl = (pos.entry - pos.tp) * pos.qty;
+        capital += pnl - Math.abs(pos.qty * pos.tp) * FEE;
+        trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((i - pos.entryIdx) / 24) });
+        lastTradeIdx = i; pos = null;
+      }
+    }
+
+    // HIGH_VOL → 50% 리스크 축소, EVENT_RISK 시뮬레이션 생략
+    const riskMult = curRegime === "HIGH_VOL" ? 0.5 : 1.0;
+
+    // Signal scoring + entry
+    if (!pos && i - lastTradeIdx >= 6) {
+      let bestSignal: { side: string; score: number; strategy: string } | null = null as { side: string; score: number; strategy: string } | null;
+
+      // Strategy 1: EMA Cross — Golden cross (BTC_BULLISH, BTC_SIDEWAYS, LOW_VOL)
+      if (curRegime === "BTC_BULLISH" || curRegime === "BTC_SIDEWAYS" || curRegime === "LOW_VOL") {
+        if (ema20[i] > ema50[i] && ema20[i-1] <= ema50[i-1] && rsiArr[i] >= 45 && rsiArr[i] <= 65) {
+          const score = 8 + (rsiArr[i] - 45) / 20 * 4;
+          if (score >= scoreThreshold && (!bestSignal || score > bestSignal.score))
+            bestSignal = { side: "Buy", score, strategy: "EMA Cross" };
+        }
+      }
+      // Strategy 1b: EMA Cross — Death cross (BTC_BEARISH, BTC_SIDEWAYS)
+      if (curRegime === "BTC_BEARISH" || curRegime === "BTC_SIDEWAYS") {
+        if (ema20[i] < ema50[i] && ema20[i-1] >= ema50[i-1] && rsiArr[i] >= 35 && rsiArr[i] <= 55) {
+          const score = 8 + (55 - rsiArr[i]) / 20 * 4;
+          if (score >= scoreThreshold && (!bestSignal || score > bestSignal.score))
+            bestSignal = { side: "Sell", score, strategy: "EMA Cross" };
+        }
+      }
+
+      // Strategy 2: RSI Exhaustion (BTC_BEARISH, BTC_SIDEWAYS — 역추세)
+      if (curRegime === "BTC_BEARISH" || curRegime === "BTC_SIDEWAYS") {
+        if (rsiArr[i] < 30) { // 과매도 → 롱
+          const score = 6 + (30 - rsiArr[i]) / 10 * 6; // 6~12
+          if (score >= scoreThreshold && (!bestSignal || score > bestSignal.score))
+            bestSignal = { side: "Buy", score, strategy: "RSI Exhaustion" };
+        }
+      }
+      if (curRegime === "BTC_BULLISH" || curRegime === "BTC_SIDEWAYS") {
+        if (rsiArr[i] > 70) { // 과매수 → 숏
+          const score = 6 + (rsiArr[i] - 70) / 10 * 6;
+          if (score >= scoreThreshold && (!bestSignal || score > bestSignal.score))
+            bestSignal = { side: "Sell", score, strategy: "RSI Exhaustion" };
+        }
+      }
+
+      // Strategy 3: Range Breakout (LOW_VOL, BTC_SIDEWAYS)
+      if (curRegime === "LOW_VOL" || curRegime === "BTC_SIDEWAYS" || curRegime === "BTC_BULLISH") {
+        if (price > rangeHigh[i]) { // 상단 돌파
+          const score = 7 + Math.min(5, (price - rangeHigh[i]) / rangeHigh[i] * 100 * 10);
+          if (score >= scoreThreshold && (!bestSignal || score > bestSignal.score))
+            bestSignal = { side: "Buy", score, strategy: "Range Breakout" };
+        }
+        if (price < rangeLow[i]) { // 하단 돌파
+          const score = 7 + Math.min(5, (rangeLow[i] - price) / rangeLow[i] * 100 * 10);
+          if (score >= scoreThreshold && (!bestSignal || score > bestSignal.score))
+            bestSignal = { side: "Sell", score, strategy: "Range Breakout" };
+        }
+      }
+
+      // Execute best signal
+      if (bestSignal) {
+        const risk = 0.02 * riskMult;
+        const qty = (capital * risk) / (price * slPct / 100);
+        const entry = bestSignal.side === "Buy" ? price * 1.0002 : price * 0.9998;
+        const sl = bestSignal.side === "Buy" ? entry * (1 - slPct / 100) : entry * (1 + slPct / 100);
+        const tp = bestSignal.side === "Buy" ? entry * (1 + tpPct / 100) : entry * (1 - tpPct / 100);
+        capital -= qty * entry * FEE;
+        pos = { side: bestSignal.side, entry, qty, sl, tp, entryIdx: i, strategy: bestSignal.strategy };
+      }
+    }
+
+    peak = Math.max(peak, capital + (pos ? (pos.side === "Buy" ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty) : 0));
+    const eq = capital + (pos ? (pos.side === "Buy" ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty) : 0);
+    const dd = ((eq - peak) / peak) * 100; maxDD = Math.min(maxDD, dd);
+    equityCurve.push((eq / initialCapital) * 100); drawdownCurve.push(dd);
+  }
+
+  if (pos) {
+    const price = closes[closes.length - 1];
+    const pnl = pos.side === "Buy" ? (price - pos.entry) * pos.qty : (pos.entry - price) * pos.qty;
+    capital += pnl;
+    trades.push({ pnl: (pnl / capital) * 100, holdDays: Math.round((closes.length - pos.entryIdx) / 24) });
+  }
+
+  // 리샘플링
+  const dailyEquity: number[] = [], dailyDD: number[] = [], dailyDates: string[] = [];
+  let lastDate = "";
+  for (let i = 0; i < equityCurve.length; i++) {
+    const hIdx = Math.min(55 + i, hourlyPrices.length - 1);
+    const d = hourlyPrices[hIdx]?.date.slice(0, 10) || lastDate;
+    if (d !== lastDate) { dailyEquity.push(equityCurve[i]); dailyDD.push(drawdownCurve[i]); dailyDates.push(d); lastDate = d; }
+    else { dailyEquity[dailyEquity.length - 1] = equityCurve[i]; dailyDD[dailyDD.length - 1] = drawdownCurve[i]; }
+  }
+  const chartPrices = dailyPrices.filter(p => dailyDates.length > 0 && p.date.slice(0,10) >= dailyDates[0] && p.date.slice(0,10) <= dailyDates[dailyDates.length-1]);
+  const finalEquity = dailyEquity.slice(0, chartPrices.length);
+  const finalDD = dailyDD.slice(0, chartPrices.length);
+  while (finalEquity.length < chartPrices.length) { finalEquity.push(finalEquity[finalEquity.length-1]||100); finalDD.push(finalDD[finalDD.length-1]||0); }
+
+  return computeStats(chartPrices, finalEquity, finalDD, trades, capital, initialCapital, maxDD,
+    "22B Strategy Engine (간소화 시뮬레이션)", "BTC/USDT", "Bybit 60분봉+일봉 (실제 거래소 데이터)");
+}
 
 // --- v6 Adaptive Multi-Timeframe backtest ---
 // 일봉: MA50/MA200 + ROC30 → BULL/BEAR/DANGER 레짐 판단
@@ -1672,6 +1891,7 @@ function getBotDefaults(strategyId: string): string[] {
     case "bot-ptj-200ma": return ["200", "1.5", "14"];
     case "bot-kis-rsi-macd": return ["12/26/9", "20", "7"];
     case "bot-bybit-v6-hybrid": return ["5", "2.0", "4.0"];
+    case "bot-22b-engine": return ["3.0", "1.5", "8"];
     case "bot-bybit-funding-arb": return ["0.03", "70", "15"];
     default: return ["0.5", "80", "5"];
   }
@@ -1692,7 +1912,7 @@ export default function BacktestPage() {
   const strategy = STRATEGIES.find((s) => s.id === selectedStrategy)!;
   const isBotStrategy = strategy?.isBotStrategy ?? false;
   const isKIS = selectedStrategy === "bot-kis-rsi-macd";
-  const isCryptoBotStrategy = selectedStrategy === "bot-seykota-ema" || selectedStrategy === "bot-ptj-200ma" || selectedStrategy === "bot-bybit-v6-hybrid" || selectedStrategy === "bot-bybit-funding-arb";
+  const isCryptoBotStrategy = selectedStrategy === "bot-seykota-ema" || selectedStrategy === "bot-ptj-200ma" || selectedStrategy === "bot-bybit-v6-hybrid" || selectedStrategy === "bot-22b-engine" || selectedStrategy === "bot-bybit-funding-arb";
 
   const normalStrategies = STRATEGIES.filter((s) => !s.isBotStrategy);
   const botStrategies = STRATEGIES.filter((s) => s.isBotStrategy);
@@ -1708,7 +1928,10 @@ export default function BacktestPage() {
       setStartDate("2017-01-01");
     } else if (strategyId === "bot-bybit-v6-hybrid") {
       setAsset("BTC/USD");
-      setStartDate("2020-10-01"); // Bybit 60분봉 2020-03 + MA200 워밍업 = 2020-10부터
+      setStartDate("2020-10-01");
+    } else if (strategyId === "bot-22b-engine") {
+      setAsset("BTC/USD");
+      setStartDate("2020-10-01");
     } else if (strategyId === "bot-bybit-funding-arb") {
       setAsset("BTC/USD");
       setStartDate("2020-04-01");
@@ -1785,7 +2008,7 @@ export default function BacktestPage() {
         warmupBars = (parseInt(paramValues[0]) || 200) + 10;
       } else if (selectedStrategy === "bot-seykota-ema") {
         warmupBars = (parseInt(paramValues[0]) || 100) + 10;
-      } else if (selectedStrategy === "bot-bybit-v6-hybrid") {
+      } else if (selectedStrategy === "bot-bybit-v6-hybrid" || selectedStrategy === "bot-22b-engine") {
         warmupBars = 250; // MA200 + ROC30 + buffer
       } else if (selectedStrategy === "bot-bybit-funding-arb") {
         warmupBars = 110;
@@ -1842,6 +2065,42 @@ export default function BacktestPage() {
             const atrMult = parseFloat(paramValues[1]) || 1.5;
             const atrPeriod = parseInt(paramValues[2]) || 14;
             backResult = runPTJ200MA(prices, emaPeriod, atrMult, atrPeriod, 0.001, capital);
+            break;
+          }
+          case "bot-22b-engine": {
+            const tpPct22b = parseFloat(paramValues[0]) || 3.0;
+            const slPct22b = parseFloat(paramValues[1]) || 1.5;
+            const scoreThreshold22b = parseFloat(paramValues[2]) || 8;
+
+            // Bybit API에서 일봉+60분봉 fetch (v6와 동일)
+            const sym22b = "BTCUSDT";
+            const sMs22b = start.getTime(), eMs22b = end.getTime();
+            const dStart22b = sMs22b - 250 * 24 * 3600 * 1000;
+            const daily22b = new Map<number, PriceBar>();
+            let dc22b = dStart22b;
+            while (dc22b < eMs22b) {
+              const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym22b}&interval=D&start=${dc22b}&limit=1000`);
+              const j = await r.json();
+              const rows = j.result?.list || [];
+              if (!rows.length) break;
+              for (const rr of rows) { const t=parseInt(rr[0]); if(t<=eMs22b) daily22b.set(t,{date:new Date(t).toISOString().split("T")[0],open:parseFloat(rr[1]),high:parseFloat(rr[2]),low:parseFloat(rr[3]),close:parseFloat(rr[4])}); }
+              rows.sort((a:string[],b:string[])=>parseInt(a[0])-parseInt(b[0]));
+              const lt=parseInt(rows[rows.length-1][0]); if(lt<=dc22b) break; dc22b=lt+1;
+            }
+            const hourly22b = new Map<number, PriceBar>();
+            let hc22b = sMs22b;
+            while (hc22b < eMs22b) {
+              const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym22b}&interval=60&start=${hc22b}&limit=1000`);
+              const j = await r.json();
+              const rows = j.result?.list || [];
+              if (!rows.length) break;
+              for (const rr of rows) { const t=parseInt(rr[0]); if(t<=eMs22b) hourly22b.set(t,{date:new Date(t).toISOString().replace("T"," ").slice(0,16),open:parseFloat(rr[1]),high:parseFloat(rr[2]),low:parseFloat(rr[3]),close:parseFloat(rr[4])}); }
+              rows.sort((a:string[],b:string[])=>parseInt(a[0])-parseInt(b[0]));
+              const lt=parseInt(rows[rows.length-1][0]); if(lt<=hc22b) break; hc22b=lt+1;
+            }
+            const d22bArr = Array.from(daily22b.values()).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime());
+            const h22bArr = Array.from(hourly22b.values()).sort((a,b)=>new Date(a.date).getTime()-new Date(b.date).getTime());
+            backResult = run22BEngine(d22bArr, h22bArr, tpPct22b, slPct22b, scoreThreshold22b, capital);
             break;
           }
           case "bot-bybit-v6-hybrid": {
