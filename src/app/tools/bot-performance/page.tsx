@@ -979,6 +979,17 @@ export default function BotPerformancePage() {
             );
           })}
         </div>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 px-4 py-2 text-sm mb-2">
+          <span className="font-semibold text-emerald-700 dark:text-emerald-400">실투자 합계</span>
+          <span>투자금 <strong>{formatKRW(realInvested)}</strong></span>
+          <span>평가금 <strong>{formatKRW(realCurrent)}</strong></span>
+          <span className={Number(realReturnPct) >= 0 ? "text-positive" : "text-negative"}>
+            수익 <strong>{realTradedPnL >= 0 ? "+" : ""}{formatKRW(realTradedPnL)}</strong>
+          </span>
+          <span className={Number(realReturnPct) >= 0 ? "text-positive" : "text-negative"}>
+            <strong>{Number(realReturnPct) >= 0 ? "+" : ""}{realReturnPct}%</strong>
+          </span>
+        </div>
       </div>
 
       <div className="mb-2">
@@ -1019,6 +1030,14 @@ export default function BotPerformancePage() {
               </button>
             );
           })}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 px-4 py-2 text-sm mb-2">
+          <span className="font-semibold text-blue-700 dark:text-blue-400">모의투자 합계</span>
+          <span>KRW <strong>{formatKRW(simBots.filter(b => !isUSDBot(b.id)).reduce((s,b) => s + getCapital(b), 0))}</strong></span>
+          <span>USD <strong>{formatUSD(simBots.filter(b => isUSDBot(b.id)).reduce((s,b) => s + getCapital(b), 0))}</strong></span>
+          <span className={Number(simReturnPct) >= 0 ? "text-positive" : "text-negative"}>
+            수익 <strong>{Number(simReturnPct) >= 0 ? "+" : ""}{simReturnPct}%</strong>
+          </span>
         </div>
       </div>
 
@@ -1111,8 +1130,8 @@ export default function BotPerformancePage() {
         {simBots.length > 0 && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-dashed border-border bg-muted/10 px-4 py-2 text-sm text-muted-foreground">
             <span className="font-medium">모의투자</span>
-            <span>투자금 <strong>{formatKRW(simInvested)}</strong></span>
-            <span>평가금 <strong>{formatKRW(simCurrent)}</strong></span>
+            <span>KRW <strong>{formatKRW(simBots.filter(b => !isUSDBot(b.id)).reduce((s,b) => s + getCapital(b), 0))}</strong></span>
+            <span>USD <strong>{formatUSD(simBots.filter(b => isUSDBot(b.id)).reduce((s,b) => s + getCapital(b), 0))}</strong></span>
             <span className={simTradedPnL >= 0 ? "text-positive" : "text-negative"}>
               수익 <strong>{simTradedPnL >= 0 ? "+" : ""}{formatKRW(simTradedPnL)}</strong>
             </span>
