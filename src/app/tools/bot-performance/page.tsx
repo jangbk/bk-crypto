@@ -1041,68 +1041,8 @@ export default function BotPerformancePage() {
         </div>
       </div>
 
-      {/* Selected Bot Stats */}
+      {/* Selected Bot Detail */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <DollarSign className="h-3.5 w-3.5" />
-            투자금
-            {editingBotId !== bot.id && (
-              <button
-                onClick={() => startEditing(bot.id)}
-                className="ml-auto rounded p-0.5 hover:bg-muted transition-colors"
-                title="투자금 수정"
-              >
-                <Pencil className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          {editingBotId === bot.id ? (
-            <div className="mt-1 flex items-center gap-1">
-              <input
-                ref={editRef}
-                type="text"
-                inputMode="numeric"
-                value={editValue}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/[^0-9]/g, "");
-                  setEditValue(raw ? parseInt(raw, 10).toLocaleString() : "");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveCapital(bot.id, parseInt(editValue.replace(/,/g, "")) || 0);
-                  if (e.key === "Escape") setEditingBotId(null);
-                }}
-                onBlur={() => saveCapital(bot.id, parseInt(editValue.replace(/,/g, "")) || 0)}
-                className="w-28 rounded border border-primary bg-background px-2 py-0.5 text-lg font-bold font-mono focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <span className="text-sm text-muted-foreground">원</span>
-            </div>
-          ) : (
-            <p
-              className="mt-1 text-lg font-bold cursor-pointer hover:text-primary transition-colors"
-              onClick={() => startEditing(bot.id)}
-              title="클릭하여 수정"
-            >
-              {formatBotValue(bot.id, effectiveCapital)}
-            </p>
-          )}
-        </div>
-        <div className="rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <BarChart3 className="h-3.5 w-3.5" />
-            현재 평가금
-          </div>
-          <p className="mt-1 text-lg font-bold">{formatBotValue(bot.id, bot.currentValue)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <TrendingUp className="h-3.5 w-3.5" />
-            수익
-          </div>
-          <p className={`mt-1 text-lg font-bold ${botPnL >= 0 ? "text-positive" : "text-negative"}`}>
-            {botPnL >= 0 ? "+" : ""}{formatBotValue(bot.id, botPnL)}
-          </p>
-        </div>
         <div className="rounded-lg border border-border bg-card p-3">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Activity className="h-3.5 w-3.5" />
