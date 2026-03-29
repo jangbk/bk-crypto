@@ -138,7 +138,7 @@ const STRATEGIES: Strategy[] = [
   {
     id: "bot-bybit-v6-hybrid",
     name: "🤖 Bybit v6 Adaptive Bot",
-    description: "일봉 레짐(BULL/BEAR/DANGER) + 60분봉 추세추종. 실전봇과 동일 멀티타임프레임 — Demo 가동 중",
+    description: "일봉 레짐 + 60분봉 추세추종. Bybit 실제 데이터 사용, 실전봇과 동일 로직 — Demo 가동 중",
     params: ["ROC 임계 (%)", "SL (ATR배수)", "TP (ATR배수)"],
     paramHints: [
       "30일 수익률 임계값. BULL>5%, BEAR<-3%. 기본 5",
@@ -306,7 +306,7 @@ function runV6AdaptiveMultiTF(
   let peak = capital, maxDD = 0;
   let pos: { side: string; entry: number; qty: number; sl: number; tp: number; entryIdx: number; highest: number; lowest: number } | null = null;
   const MAKER_FEE = 0.0002, TAKER_FEE = 0.00055, SLIPPAGE = 0.0002;
-  const COOLDOWN_LOSS = 48, COOLDOWN_WIN = 24; // hourly bars (2일/1일 — 거래빈도 Python 수준으로 조정)
+  const COOLDOWN_LOSS = 8, COOLDOWN_WIN = 3; // hourly bars — Python 백테스트와 동일
   let lastTradeIdx = -999, lastTradeWasLoss = false, consecutiveLosses = 0;
 
   const startIdx = 50; // 60분봉 지표 워밍업 (MA20+ADX14+buffer)
@@ -394,8 +394,8 @@ function runV6AdaptiveMultiTF(
       }
     }
 
-    // Entry signal — confidence < 0.3이면 SIDEWAYS(관망)
-    if (!pos && confidence >= 0.3) {
+    // Entry signal
+    if (!pos) {
       const cooldown = lastTradeWasLoss ? COOLDOWN_LOSS : COOLDOWN_WIN;
       if (i - lastTradeIdx >= cooldown && curADX >= 22) {
         let risk = 0.02 * Math.max(0.5, confidence);
@@ -460,7 +460,7 @@ function runV6AdaptiveMultiTF(
   while (finalEquity.length < chartPrices.length) { finalEquity.push(finalEquity[finalEquity.length - 1] || 100); finalDD.push(finalDD[finalDD.length - 1] || 0); }
 
   return computeStats(chartPrices, finalEquity, finalDD, trades, capital, initialCapital, maxDD,
-    "Bybit v6 Adaptive (멀티타임프레임)", "BTC/USD", "CryptoCompare 60분봉+일봉 (실제 데이터)");
+    "Bybit v6 Adaptive (멀티타임프레임)", "BTC/USDT", "Bybit 60분봉+일봉 (실제 거래소 데이터)");
 }
 
 // --- Legacy single-timeframe v6 (kept for reference) ---
@@ -1822,25 +1822,72 @@ export default function BacktestPage() {
             const rocThreshold = parseFloat(paramValues[0]) || 5;
             const slMult = parseFloat(paramValues[1]) || 2.0;
             const tpMult = parseFloat(paramValues[2]) || 4.0;
-            // 멀티타임프레임: 60분봉 추가 fetch (일봉=prices는 이미 있음)
-            const hourlyBarsNeeded = daysDiff * 24 + 200 * 24; // 거래기간 + 워밍업
-            const hourlyMap = new Map<number, { time: number; open: number; high: number; low: number; close: number }>();
-            // CryptoCompare histohour limit=2000 → 분할 fetch
-            const numRequests = Math.ceil(hourlyBarsNeeded / 2000);
-            for (let r = 0; r < numRequests; r++) {
-              const reqToTs = toTs - r * 2000 * 3600;
-              const hUrl = `https://min-api.cryptocompare.com/data/v2/histohour?fsym=${fsym}&tsym=USD&limit=2000&toTs=${reqToTs}`;
+
+            // === Bybit API로 일봉 + 60분봉 직접 fetch ===
+            const bybitSymbol = "BTCUSDT";
+            const startMs = start.getTime();
+            const endMs = end.getTime();
+
+            // 1. 일봉 fetch (MA200 워밍업 포함)
+            const dailyStartMs = startMs - 250 * 24 * 60 * 60 * 1000;
+            const bybitDailyMap = new Map<number, PriceBar>();
+            let dCursor = dailyStartMs;
+            while (dCursor < endMs) {
+              const dUrl = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${bybitSymbol}&interval=D&start=${dCursor}&limit=1000`;
+              const dRes = await fetch(dUrl);
+              const dJson = await dRes.json();
+              const rows = dJson.result?.list || [];
+              if (rows.length === 0) break;
+              for (const r of rows) {
+                const ts = parseInt(r[0]);
+                if (ts <= endMs) {
+                  bybitDailyMap.set(ts, {
+                    date: new Date(ts).toISOString().split("T")[0],
+                    open: parseFloat(r[1]), high: parseFloat(r[2]),
+                    low: parseFloat(r[3]), close: parseFloat(r[4]),
+                  });
+                }
+              }
+              rows.sort((a: string[], b: string[]) => parseInt(a[0]) - parseInt(b[0]));
+              const lastTs = parseInt(rows[rows.length - 1][0]);
+              if (lastTs <= dCursor) break;
+              dCursor = lastTs + 1;
+            }
+            const bybitDaily = Array.from(bybitDailyMap.values())
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            // 2. 60분봉 fetch (거래 기간)
+            const bybitHourlyMap = new Map<number, PriceBar>();
+            let hCursor = startMs;
+            while (hCursor < endMs) {
+              const hUrl = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${bybitSymbol}&interval=60&start=${hCursor}&limit=1000`;
               const hRes = await fetch(hUrl);
               const hJson = await hRes.json();
-              if (hJson.Data?.Data) for (const d of hJson.Data.Data) if (d.open > 0) hourlyMap.set(d.time, d);
+              const rows = hJson.result?.list || [];
+              if (rows.length === 0) break;
+              for (const r of rows) {
+                const ts = parseInt(r[0]);
+                if (ts <= endMs) {
+                  bybitHourlyMap.set(ts, {
+                    date: new Date(ts).toISOString().replace("T", " ").slice(0, 16),
+                    open: parseFloat(r[1]), high: parseFloat(r[2]),
+                    low: parseFloat(r[3]), close: parseFloat(r[4]),
+                  });
+                }
+              }
+              rows.sort((a: string[], b: string[]) => parseInt(a[0]) - parseInt(b[0]));
+              const lastTs = parseInt(rows[rows.length - 1][0]);
+              if (lastTs <= hCursor) break;
+              hCursor = lastTs + 1;
             }
-            const hourlySorted = Array.from(hourlyMap.values()).sort((a, b) => a.time - b.time);
-            const hourlyPrices: PriceBar[] = hourlySorted.map((d) => ({
-              date: new Date(d.time * 1000).toISOString().replace("T", " ").slice(0, 16),
-              open: d.open, high: d.high, low: d.low, close: d.close,
-            }));
-            // prices = 일봉 (레짐용), hourlyPrices = 60분봉 (거래용)
-            backResult = runV6AdaptiveMultiTF(prices, hourlyPrices, rocThreshold, slMult, tpMult, capital);
+            const bybitHourly = Array.from(bybitHourlyMap.values())
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            if (bybitDaily.length < 200 || bybitHourly.length < 100) {
+              throw new Error(`Bybit 데이터 부족: 일봉 ${bybitDaily.length}개, 60분봉 ${bybitHourly.length}개`);
+            }
+
+            backResult = runV6AdaptiveMultiTF(bybitDaily, bybitHourly, rocThreshold, slMult, tpMult, capital);
             break;
           }
           case "bot-bybit-funding-arb": {
