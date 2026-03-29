@@ -650,6 +650,53 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     monthlyReturns: [],
     recentTrades: [],
   },
+  {
+    id: "capital-manager",
+    name: "🏛️ 지휘관 봇 (Capital Manager)",
+    description: "봇 간 자금 관리 + 유휴 자금 Earn 예치 + 성과 기반 리밸런싱",
+    strategyDetail: {
+      summary: "개별 봇을 직접 거래하지 않고, 3개 봇(v6 Adaptive, Seykota, RSI MeanRev)의 자금을 관리하는 상위 봇. 매시간 잔고를 모니터링하고, 유휴 현금을 Earn에 예치하며, 월 1회 성과 기반으로 자금을 재배분합니다.",
+      regimes: [
+        { name: "📊 모니터링", condition: "매 1시간", action: "각 봇 잔고 + 포지션 상태 확인" },
+        { name: "🏦 Earn 예치", condition: "포지션 없는 봇의 유휴 현금", action: "Bybit Earn 자동 예치 (연 5-8%)" },
+        { name: "📋 일일 리포트", condition: "매일 22시", action: "전체 자산, 봇별 PnL → Telegram" },
+        { name: "🔄 리밸런싱", condition: "매월 1일", action: "성과 기반 자금 재배분" },
+        { name: "⏸️ 봇 정지", condition: "연속 5손실", action: "해당 봇 자동 일시 정지" },
+      ],
+      entryConditions: [
+        { label: "관리 대상", value: "v6 Adaptive (50%) + Seykota (30%) + RSI MeanRev (20%)" },
+        { label: "체크 주기", value: "1시간 간격" },
+        { label: "리포트", value: "매일 22시 Telegram" },
+        { label: "리밸런싱", value: "매월 1일 (성과 기반)" },
+      ],
+      riskManagement: [
+        { label: "수익 봇", value: "자본 최대 +50% 증액" },
+        { label: "손실 봇", value: "자본 최대 -30% 감액" },
+        { label: "연속 5손실", value: "해당 봇 자동 정지 + 자금 회수" },
+        { label: "최소 Earn 비율", value: "전체 자산의 30%" },
+      ],
+    },
+    asset: "전체 봇 포트폴리오",
+    exchange: "Bybit (Demo)",
+    status: "active" as const,
+    startDate: "2026-03-29",
+    initialCapital: 50000,
+    currentValue: 50000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
 ];
 
 /** 금액을 한국식으로 포맷 (억/만원 단위) */
@@ -805,7 +852,7 @@ export default function BotPerformancePage() {
 
   // Calculate aggregated stats — 실투자 vs 모의투자 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const simBotIds = ["kis-rsi-macd", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "rsi-meanrev", "seykota-bybit"];
+  const simBotIds = ["kis-rsi-macd", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "rsi-meanrev", "seykota-bybit", "capital-manager"];
   const realBots = strategies.filter((b) => !simBotIds.includes(b.id));
   const simBots = strategies.filter((b) => simBotIds.includes(b.id));
 
