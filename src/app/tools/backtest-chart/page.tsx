@@ -277,8 +277,10 @@ export default function BacktestChartPage() {
                     return (
                     <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                       <td className="py-1.5 text-zinc-400">{new Date(t.ts).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit" })}</td>
-                      <td className={`py-1.5 font-bold ${tr.side === "LONG" ? "text-emerald-400" : "text-red-400"}`}>
-                        {tr.type === "open" ? (tr.side === "LONG" ? "🟢 롱진입" : "🔴 숏진입") : (tr.side === "LONG" ? "🟢 롱청산" : "🔴 숏청산")}
+                      <td className={`py-1.5 font-bold ${isClose ? ((tr.pnl ?? 0) >= 0 ? "text-emerald-400" : "text-red-400") : tr.side === "LONG" ? "text-emerald-400" : "text-red-400"}`}>
+                        {tr.type === "open"
+                          ? (tr.side === "LONG" ? "🟢 롱 진입" : "🔴 숏 진입")
+                          : ((tr.pnl ?? 0) >= 0 ? "✅ 수익 청산" : "❌ 손절 청산")}
                       </td>
                       <td className="py-1.5 text-right font-mono text-zinc-300">
                         {isClose && entryPrice ? (
