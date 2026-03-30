@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBithumbBotData } from "../bithumb/route";
 import { getCoinoneBotData } from "../coinone/route";
-import { getKisBotData } from "../kis/route";
 
 // Fallback data — 거래 없는 초기 상태
 const BYBIT_BOTS = [
@@ -110,37 +109,11 @@ const FALLBACK_STRATEGIES = [
     monthlyReturns: [] as number[],
     recentTrades: [] as Array<{ time: string; type: string; price: string; qty: string; pnl: string }>,
   },
-  {
-    id: "kis-rsi-macd",
-    name: "KIS RSI/MACD v1 Bot",
-    description: "RSI 14 + MACD 12/26/9 전략",
-    asset: "삼성전자, SK하이닉스, NAVER, 카카오, LG화학",
-    exchange: "한국투자증권",
-    status: "active" as const,
-    startDate: "2025-04-01",
-    initialCapital: 100000000,
-    currentValue: 100000000,
-    totalReturn: 0,
-    monthlyReturn: 0,
-    maxDrawdown: 0,
-    sharpeRatio: 0,
-    winRate: 0,
-    totalTrades: 0,
-    profitTrades: 0,
-    lossTrades: 0,
-    avgWin: 0,
-    avgLoss: 0,
-    profitFactor: 0,
-    dailyPnL: [] as number[],
-    monthlyReturns: [] as number[],
-    recentTrades: [] as Array<{ time: string; type: string; price: string; qty: string; pnl: string }>,
-  },
 ];
 
 const botFetchers = [
   { id: "seykota-ema", fn: getBithumbBotData },
   { id: "ptj-200ma", fn: getCoinoneBotData },
-  { id: "kis-rsi-macd", fn: getKisBotData },
 ];
 
 export async function GET() {
