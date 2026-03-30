@@ -267,17 +267,35 @@ export default function BacktestChartPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {trades.map((t, i) => (
+                  {trades.map((t, i) => {
+                    const tr = t.trade;
+                    if (!tr) return null;
+                    const isClose = tr.type === "close";
+                    const entryPrice = (tr as any).entry_price;
+                    const hold = (tr as any).hold;
+                    const pnlPct = (tr as any).pnl_pct;
+                    return (
                     <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                      <td className="py-1.5 text-zinc-400">{new Date(t.ts).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}</td>
-                      <td className={`py-1.5 font-bold ${t.trade?.side === "LONG" ? "text-emerald-400" : "text-red-400"}`}>
-                        {t.trade?.type === "open" ? (t.trade.side === "LONG" ? "🟢롱" : "🔴숏") : "⬜청산"}
+                      <td className="py-1.5 text-zinc-400">{new Date(t.ts).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit" })}</td>
+                      <td className={`py-1.5 font-bold ${tr.side === "LONG" ? "text-emerald-400" : "text-red-400"}`}>
+                        {tr.type === "open" ? (tr.side === "LONG" ? "🟢 롱진입" : "🔴 숏진입") : (tr.side === "LONG" ? "🟢 롱청산" : "🔴 숏청산")}
                       </td>
-                      <td className="py-1.5 text-right font-mono text-zinc-300">${t.price.toLocaleString()}</td>
-                      <td className={`py-1.5 text-right font-mono font-bold ${(t.trade?.pnl ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {t.trade?.pnl !== undefined ? `$${t.trade.pnl.toFixed(0)}` : "-"}
+                      <td className="py-1.5 text-right font-mono text-zinc-300">
+                        {isClose && entryPrice ? (
+                          <span>${entryPrice.toLocaleString()} → ${t.price.toLocaleString()}</span>
+                        ) : (
+                          <span>${t.price.toLocaleString()}</span>
+                        )}
                       </td>
-                      <td className="py-1.5 text-zinc-500">{t.trade?.reason ?? "진입"}</td>
+                      <td className={`py-1.5 text-right font-mono font-bold ${(tr.pnl ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {tr.pnl !== undefined ? (
+                          <span>${tr.pnl.toFixed(0)} {pnlPct !== undefined ? `(${pnlPct > 0 ? "+" : ""}${pnlPct}%)` : ""}</span>
+                        ) : "-"}
+                      </td>
+                      <td className="py-1.5 text-zinc-500">
+                        {isClose ? tr.reason : "진입"}
+                        {hold ? <span className="ml-1 text-zinc-600">({hold}캔들)</span> : ""}
+                      </td>
                       <td className="py-1.5">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                           t.regime === "BULL" ? "bg-emerald-500/10 text-emerald-400" :
@@ -286,7 +304,8 @@ export default function BacktestChartPage() {
                       </td>
                       <td className="py-1.5 text-zinc-500 text-[10px]">{t.risk_profile}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
