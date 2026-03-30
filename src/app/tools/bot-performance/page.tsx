@@ -218,75 +218,6 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     recentTrades: [],
   },
   {
-    id: "kis-rsi-macd",
-    name: "KIS RSI/MACD v1 Bot",
-    description: "MACD 크로스 + EMA 트렌드 필터 — 한국 주식",
-    strategyDetail: {
-      summary: "한국투자증권 API를 통해 국내 주식을 자동 매매하는 봇. MACD 골든크로스/데드크로스로 진입/청산하고, EMA 트렌드 필터로 상승장에서만 매수합니다.",
-      regimes: [
-        { name: "📈 매수", condition: "MACD 골든크로스 + 가격 > EMA20", action: "해당 종목 매수" },
-        { name: "📉 매도", condition: "MACD 데드크로스 또는 손절 -7%", action: "전량 매도" },
-        { name: "⏸️ 대기", condition: "시그널 없음", action: "현금 보유" },
-      ],
-      entryConditions: [
-        { label: "MACD", value: "12/26/9 (단기/장기/시그널 EMA)" },
-        { label: "트렌드 필터", value: "EMA 20일 — 가격이 위에 있을 때만 매수" },
-        { label: "손절", value: "-7% 하락 시 강제 매도" },
-        { label: "대상 종목", value: "삼성전자, SK하이닉스, NAVER, 카카오, LG화학" },
-        { label: "포지션", value: "종목당 균등 배분" },
-      ],
-      riskManagement: [
-        { label: "방향", value: "롱(매수)만 — 현물 주식" },
-        { label: "손절", value: "-7% 고정 손절" },
-        { label: "수수료", value: "0.015% (한투 온라인)" },
-        { label: "거래 빈도", value: "종목당 월 2~5회" },
-      ],
-      feeStructure: [
-        { label: "한국투자증권 수수료", value: "0.015% (온라인)" },
-        { label: "세금 (매도)", value: "0.18% (증권거래세)" },
-      ],
-      backtestResults: [
-        { period: "한국 주식", returnPct: "종목별 상이", winRate: "-", sharpe: "-", mdd: "-" },
-      ],
-      liveExpectation: {
-        pythonReturn: "종목/기간별 상이",
-        websiteReturn: "백테스트 도구에서 종목별 확인 가능",
-        expectedReturn: "개별 종목 추세에 따라 변동",
-        reasons: [
-          "MACD는 모멘텀 지표로 추세 전환 포착에 강점",
-          "EMA 필터로 하락장에서 매수 방지",
-          "5개 종목 분산으로 개별 종목 리스크 완화",
-        ],
-        caveats: [
-          "한국 주식 시장은 횡보가 많아 MACD 가짜 신호 빈번",
-          "손절 -7%가 잦으면 누적 손실 가능",
-          "장 마감 후 다음날 시가 매매 → 갭 리스크",
-          "증권거래세 0.18%가 수수료 대비 높음",
-        ],
-      },
-    },
-    asset: "삼성전자, SK하이닉스, NAVER, 카카오, LG화학",
-    exchange: "한국투자증권",
-    status: "active",
-    startDate: "2025-04-01",
-    initialCapital: 100000000,
-    currentValue: 100000000,
-    totalReturn: 0,
-    monthlyReturn: 0,
-    maxDrawdown: 0,
-    sharpeRatio: 0,
-    winRate: 0,
-    totalTrades: 0,
-    profitTrades: 0,
-    lossTrades: 0,
-    avgWin: 0,
-    avgLoss: 0,
-    profitFactor: 0,
-    dailyPnL: [],
-    monthlyReturns: [],
-    recentTrades: [],
-  },
-  {
     id: "bybit-v6-hybrid",
     name: "Bybit v6 Adaptive Bot",
     description: "일봉 레짐(BULL/BEAR/DANGER) + 60분봉 추세추종 — 멀티타임프레임 적응형",
@@ -865,7 +796,7 @@ export default function BotPerformancePage() {
 
   // Calculate aggregated stats — 실투자 vs 모의투자 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const simBotIds = ["kis-rsi-macd", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "rsi-meanrev", "seykota-bybit", "capital-manager"];
+  const simBotIds = ["bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "rsi-meanrev", "seykota-bybit", "capital-manager"];
   const realBots = strategies.filter((b) => !simBotIds.includes(b.id));
   const simBots = strategies.filter((b) => simBotIds.includes(b.id));
 
