@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, ReferenceDot, ComposedChart,
+  CartesianGrid, ComposedChart,
 } from "recharts";
 
 interface DataPoint {
@@ -58,6 +58,10 @@ export default function BacktestChartPage() {
   const chartData = useMemo(() => data.map((d) => ({
     ...d,
     dateShort: new Date(d.ts).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }),
+    // 매매 포인트를 별도 dataKey로 추가 (차트에서 dot으로 표시)
+    buyPoint: d.trade?.type === "open" && d.trade?.side === "LONG" ? d.price : undefined,
+    sellPoint: d.trade?.type === "open" && d.trade?.side === "SHORT" ? d.price : undefined,
+    closePoint: d.trade?.type === "close" ? d.price : undefined,
   })), [data]);
 
   const compareChartData = useMemo(() => compareData.map((d) => ({
@@ -204,18 +208,19 @@ export default function BacktestChartPage() {
                 <XAxis dataKey="dateShort" tick={{ fill: "#71717a", fontSize: 10 }} interval={Math.floor(sampledData.length / 8)} />
                 <YAxis domain={["auto", "auto"]} tick={{ fill: "#71717a", fontSize: 10 }} tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`} />
                 <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: "8px", fontSize: "12px" }}
-                  formatter={(val, name) => [name === "price" ? `$${Number(val).toLocaleString()}` : String(val), name === "price" ? "BTC" : String(name)]}
+                  formatter={(val, name) => {
+                    if (!val) return [null, null];
+                    if (name === "price") return [`$${Number(val).toLocaleString()}`, "BTC"];
+                    if (name === "buyPoint") return [`$${Number(val).toLocaleString()}`, "🟢 롱 진입"];
+                    if (name === "sellPoint") return [`$${Number(val).toLocaleString()}`, "🔴 숏 진입"];
+                    if (name === "closePoint") return [`$${Number(val).toLocaleString()}`, "🟣 청산"];
+                    return [String(val), String(name)];
+                  }}
                   labelFormatter={(l) => String(l)} />
                 <Line type="monotone" dataKey="price" stroke="#f59e0b" strokeWidth={1.5} dot={false} />
-                {sampledData.filter((d) => d.trade?.type === "open" && d.trade?.side === "LONG").map((d, i) => (
-                  <ReferenceDot key={`b${i}`} x={d.dateShort} y={d.price} r={5} fill="#10b981" stroke="#10b981" />
-                ))}
-                {sampledData.filter((d) => d.trade?.type === "open" && d.trade?.side === "SHORT").map((d, i) => (
-                  <ReferenceDot key={`s${i}`} x={d.dateShort} y={d.price} r={5} fill="#ef4444" stroke="#ef4444" />
-                ))}
-                {sampledData.filter((d) => d.trade?.type === "close").map((d, i) => (
-                  <ReferenceDot key={`c${i}`} x={d.dateShort} y={d.price} r={4} fill="#a855f7" stroke="#a855f7" />
-                ))}
+                <Line type="monotone" dataKey="buyPoint" stroke="none" dot={{ fill: "#10b981", r: 6, strokeWidth: 2, stroke: "#10b981" }} isAnimationActive={false} connectNulls={false} />
+                <Line type="monotone" dataKey="sellPoint" stroke="none" dot={{ fill: "#ef4444", r: 6, strokeWidth: 2, stroke: "#ef4444" }} isAnimationActive={false} connectNulls={false} />
+                <Line type="monotone" dataKey="closePoint" stroke="none" dot={{ fill: "#a855f7", r: 5, strokeWidth: 2, stroke: "#a855f7" }} isAnimationActive={false} connectNulls={false} />
               </ComposedChart>
             </ResponsiveContainer>
             <div className="flex gap-4 mt-2 text-xs text-zinc-500 justify-center">
