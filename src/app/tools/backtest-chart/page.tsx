@@ -18,7 +18,8 @@ interface DataPoint {
 }
 
 const STRATEGIES = [
-  { id: "v6_adaptive", label: "v6.2 적응형", color: "#10b981", desc: "레짐별 리스크 자동 조정 (현재 운영)" },
+  { id: "alpha_v4", label: "Alpha v4 ★", color: "#8b5cf6", desc: "RSI레짐 + BB돌파 + 동적손절 (현재 운영)" },
+  { id: "v6_adaptive", label: "v6.2 적응형", color: "#10b981", desc: "레짐별 리스크 자동 조정 (교체됨)" },
   { id: "v6_fixed", label: "v6 고정(기존)", color: "#3b82f6", desc: "SL 3%, 리스크 2% 고정" },
   { id: "rsi_meanrev", label: "RSI MeanRev", color: "#f59e0b", desc: "BB+RSI 횡보 평균회귀" },
   { id: "seykota", label: "Seykota EMA", color: "#ef4444", desc: "EMA100 일봉 추세 (비활성)" },
@@ -29,10 +30,10 @@ const PERIODS = [
   { id: "p2", label: "기간2: 2025.09~2026.03 (하락)", desc: "BTC -38%" },
 ];
 
-const REGIME_COLORS: Record<string, string> = { BULL: "#10b981", BEAR: "#ef4444", SIDEWAYS: "#64748b" };
+const REGIME_COLORS: Record<string, string> = { BULL: "#10b981", BEAR: "#ef4444", SIDEWAYS: "#64748b", HIGHVOL: "#f97316" };
 
 export default function BacktestChartPage() {
-  const [strategy, setStrategy] = useState("v6_adaptive");
+  const [strategy, setStrategy] = useState("alpha_v4");
   const [period, setPeriod] = useState<"p1" | "p2">("p1");
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
