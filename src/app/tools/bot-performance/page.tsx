@@ -556,7 +556,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     name: "🏛️ 지휘관 봇 (Capital Manager)",
     description: "봇 간 자금 관리 + 유휴 자금 Earn 예치 + 성과 기반 리밸런싱",
     strategyDetail: {
-      summary: "개별 봇을 직접 거래하지 않고, 3개 봇(v6 Adaptive, Seykota, RSI MeanRev)의 자금을 관리하는 상위 봇. 매시간 잔고를 모니터링하고, 유휴 현금을 Earn에 예치하며, 월 1회 성과 기반으로 자금을 재배분합니다.",
+      summary: "개별 봇을 직접 거래하지 않고, 2개 봇(Alpha v4 + RSI MeanRev)의 자금을 관리하는 상위 봇. 매시간 잔고를 모니터링하고, Kill Switch(-5%), 일일 손실 한도(-2%), Circuit Breaker(API 5연속 실패→30초 대기)로 시스템 리스크를 관리합니다.",
       regimes: [
         { name: "📊 모니터링", condition: "매 1시간", action: "각 봇 잔고 + 포지션 상태 확인" },
         { name: "🏦 Earn 예치", condition: "포지션 없는 봇의 유휴 현금", action: "Bybit Earn 자동 예치 (연 5-8%)" },
@@ -565,16 +565,17 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
         { name: "⏸️ 봇 정지", condition: "연속 5손실", action: "해당 봇 자동 일시 정지" },
       ],
       entryConditions: [
-        { label: "관리 대상", value: "v6 Adaptive (50%) + Seykota (30%) + RSI MeanRev (20%)" },
+        { label: "관리 대상", value: "Alpha v4 ($30,000) + RSI MeanRev ($20,000)" },
         { label: "체크 주기", value: "1시간 간격" },
         { label: "리포트", value: "매일 22시 Telegram" },
         { label: "리밸런싱", value: "매월 1일 (성과 기반)" },
       ],
       riskManagement: [
-        { label: "수익 봇", value: "자본 최대 +50% 증액" },
-        { label: "손실 봇", value: "자본 최대 -30% 감액" },
+        { label: "Kill Switch", value: "일일 -5% → 전 포지션 강제 청산 + 주문 취소" },
+        { label: "일일 손실 한도", value: "-2% → 신규 주문 차단 (기존 포지션 유지)" },
+        { label: "Circuit Breaker", value: "API 5연속 실패 → 30초 대기 후 재시도" },
         { label: "연속 5손실", value: "해당 봇 자동 정지 + 자금 회수" },
-        { label: "최소 Earn 비율", value: "전체 자산의 30%" },
+        { label: "자정 자동 리셋", value: "Kill Switch / 손실 한도 매일 자정 초기화" },
       ],
     },
     asset: "전체 봇 포트폴리오",
