@@ -1200,6 +1200,9 @@ export default function BotPerformancePage() {
         </div>
       </div>
 
+      {/* 장세별 매매 전략 설명 */}
+      <MarketRegimeGuide />
+
       {/* Strategy Detail — 전략 상세 설명 (전체 너비) */}
       {bot.strategyDetail && (
         <div className="mt-6">
@@ -1210,19 +1213,202 @@ export default function BotPerformancePage() {
   );
 }
 
-function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
-  const [isOpen, setIsOpen] = useState(true);
+function MarketRegimeGuide() {
+  const [isOpen, setIsOpen] = useState(false);
   return (
-    <section className="rounded-lg border border-border bg-card p-4">
+    <section className="mt-6 rounded-lg border border-border bg-card p-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between font-semibold text-left"
       >
-        <span>📋 전략 상세 설명</span>
+        <span>📊 장세별 매매 전략 (Alpha v4 + RSI MeanRev)</span>
         <span className="text-muted-foreground text-sm">{isOpen ? "접기 ▲" : "펼치기 ▼"}</span>
       </button>
-
       {isOpen && (
+        <div className="mt-4 space-y-4 text-sm">
+          {/* 시스템 구조도 */}
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <pre className="text-xs font-mono leading-relaxed overflow-x-auto whitespace-pre">{`
+  일봉 RSI ──┐
+             ├─→ 레짐 판단 ─┬─ BULL (RSI>55 + EMA위)  → Alpha v4 롱
+  200 EMA ───┘              ├─ BEAR (RSI<40 + EMA아래) → Alpha v4 숏
+                            ├─ SIDEWAYS (RSI 40~55)    → RSI MeanRev
+                            └─ HIGHVOL (ATR 급등)       → 거래 차단
+            `}</pre>
+          </div>
+
+          {/* 4가지 장세 카드 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* BULL */}
+            <div className="rounded-lg border-l-4 border-l-emerald-500 bg-emerald-500/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">상승장 (BULL)</span>
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p><strong>조건:</strong> 일봉 RSI &gt; 55 + 가격 &gt; 200EMA</p>
+                <p><strong>전략:</strong> BB 상단 돌파 시 롱 진입</p>
+                <p><strong>피라미딩:</strong> 수익 8%+ 시 추가 (최대 L3)</p>
+                <p><strong>청산:</strong> 트레일링 30% 반환 또는 200EMA 하향돌파</p>
+                <p className="text-emerald-600 dark:text-emerald-400 font-medium mt-1">6년 롱 PnL: +$17,654 | 승률 41%</p>
+              </div>
+            </div>
+
+            {/* BEAR */}
+            <div className="rounded-lg border-l-4 border-l-red-500 bg-red-500/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingDown className="w-4 h-4 text-red-500" />
+                <span className="font-bold text-red-600 dark:text-red-400">하락장 (BEAR)</span>
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p><strong>조건:</strong> 일봉 RSI &lt; 40 + 가격 &lt; 200EMA</p>
+                <p><strong>전략:</strong> BB 하단 돌파 시 숏 진입</p>
+                <p><strong>필터:</strong> RSI 40~45 약하락 차단 (승률 12% → 제외)</p>
+                <p><strong>청산:</strong> 트레일링 30% 반환 또는 200EMA 상향돌파</p>
+                <p className="text-red-600 dark:text-red-400 font-medium mt-1">6년 숏 PnL: +$7,361 | 승률 26%</p>
+              </div>
+            </div>
+
+            {/* SIDEWAYS */}
+            <div className="rounded-lg border-l-4 border-l-slate-500 bg-slate-500/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="w-4 h-4 text-slate-500" />
+                <span className="font-bold text-slate-600 dark:text-slate-400">횡보장 (SIDEWAYS)</span>
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p><strong>조건:</strong> RSI 40~55 또는 RSI/EMA 방향 불일치</p>
+                <p><strong>Alpha v4:</strong> 거래 완전 차단 (자본 보존)</p>
+                <p><strong>RSI MeanRev:</strong> RSI &lt; 25 매수 / RSI &gt; 75 매도 (ADX &lt; 25)</p>
+                <p><strong>Earn:</strong> 유휴 자금 Bybit Earn 자동 예치 (연 5~8%)</p>
+                <p className="text-slate-600 dark:text-slate-400 font-medium mt-1">전체 시간의 41% | 불필요한 손실 방지</p>
+              </div>
+            </div>
+
+            {/* HIGHVOL */}
+            <div className="rounded-lg border-l-4 border-l-orange-500 bg-orange-500/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="w-4 h-4 text-orange-500" />
+                <span className="font-bold text-orange-600 dark:text-orange-400">고변동 (HIGHVOL)</span>
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p><strong>조건:</strong> ATR &gt; 60일 평균 + 2 표준편차</p>
+                <p><strong>전략:</strong> 신규 진입 차단</p>
+                <p><strong>기존 포지션:</strong> 트레일링/손절만 관리</p>
+                <p><strong>사유:</strong> 급등급락 시 손절 반복 방지</p>
+                <p className="text-orange-600 dark:text-orange-400 font-medium mt-1">전체 시간의 ~6% | 극단적 변동성 회피</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 피라미딩 구조 */}
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <h4 className="font-semibold mb-2">피라미딩 구조 (수익의 핵심 엔진)</h4>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="rounded bg-card p-2 text-center">
+                <div className="text-muted-foreground">L1 (탐색)</div>
+                <div className="font-bold text-lg">20%</div>
+                <div className="text-muted-foreground">승률</div>
+                <div className="text-red-500 text-xs mt-1">추세 탐색 비용</div>
+              </div>
+              <div className="rounded bg-card p-2 text-center border border-primary/30">
+                <div className="text-muted-foreground">L2 (확인)</div>
+                <div className="font-bold text-lg text-primary">87%</div>
+                <div className="text-muted-foreground">승률</div>
+                <div className="text-primary text-xs mt-1">+8% 수익 시 추가</div>
+              </div>
+              <div className="rounded bg-card p-2 text-center border-2 border-emerald-500/50">
+                <div className="text-muted-foreground">L3 (수확)</div>
+                <div className="font-bold text-lg text-emerald-500">100%</div>
+                <div className="text-muted-foreground">승률</div>
+                <div className="text-emerald-500 text-xs mt-1">총 수익의 핵심</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Feedback Controller */}
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <h4 className="font-semibold mb-2">Feedback Controller (자동 리스크 조정)</h4>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>연속 5손실 → 리스크 90%로 경감</p>
+              <p>연속 8손실 → 리스크 70%로 경감 (거래 중지 없음)</p>
+              <p>연속 3승 → 리스크 105~120% 확대</p>
+              <p>6시간마다 몬테카를로 시뮬레이션으로 파라미터 자동 검증</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [pwInput, setPwInput] = useState("");
+  const [pwError, setPwError] = useState(false);
+  const DETAIL_PW = "bk2026";
+
+  const handleUnlock = () => {
+    if (pwInput === DETAIL_PW) {
+      setIsUnlocked(true);
+      setIsOpen(true);
+      setPwError(false);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("strategy-detail-unlocked", "1");
+      }
+    } else {
+      setPwError(true);
+    }
+  };
+
+  // 세션 내 한번 인증하면 유지
+  useState(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("strategy-detail-unlocked") === "1") {
+      setIsUnlocked(true);
+    }
+  });
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-4">
+      <button
+        onClick={() => {
+          if (isUnlocked) {
+            setIsOpen(!isOpen);
+          } else if (!isOpen) {
+            setIsOpen(true);
+          } else {
+            setIsOpen(false);
+          }
+        }}
+        className="w-full flex items-center justify-between font-semibold text-left"
+      >
+        <span>{isUnlocked ? "📋 전략 상세 설명" : "🔒 전략 상세 설명"}</span>
+        <span className="text-muted-foreground text-sm">
+          {isUnlocked ? (isOpen ? "접기 ▲" : "펼치기 ▼") : "비밀번호 필요"}
+        </span>
+      </button>
+
+      {isOpen && !isUnlocked && (
+        <div className="mt-4 flex items-center gap-2">
+          <input
+            type="password"
+            value={pwInput}
+            onChange={(e) => { setPwInput(e.target.value); setPwError(false); }}
+            onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
+            placeholder="비밀번호 입력"
+            className={`rounded border px-3 py-1.5 text-sm bg-background ${pwError ? "border-red-500" : "border-border"}`}
+          />
+          <button
+            onClick={handleUnlock}
+            className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90"
+          >
+            확인
+          </button>
+          {pwError && <span className="text-xs text-red-500">비밀번호가 틀렸습니다</span>}
+        </div>
+      )}
+
+      {isOpen && isUnlocked && (
         <div className="mt-4 space-y-5 text-sm">
           {/* 요약 */}
           <p className="text-muted-foreground leading-relaxed">{detail.summary}</p>
