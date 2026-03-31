@@ -31,9 +31,9 @@ const BYBIT_BOTS = [
     _live: false,
   },
   {
-    id: "bybit-rsi-meanrev",
-    name: "RSI MeanRev Bot",
-    description: "BB+RSI 평균회귀 — 횡보장 전용",
+    id: "rsi-meanrev",
+    name: "RSI MeanRev v1 Bot",
+    description: "RSI+BB+CI Lookback 평균회귀 — 횡보장 전용",
     asset: "BTC/USDT",
     exchange: "Bybit (Demo)",
     status: "active" as const,

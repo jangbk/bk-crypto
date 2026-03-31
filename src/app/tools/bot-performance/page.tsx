@@ -297,20 +297,41 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     recentTrades: [],
   },
   {
-    id: "bybit-rsi-meanrev",
-    name: "RSI MeanRev Bot",
-    description: "BB+RSI 평균회귀 — 횡보장 전용 (Alpha v4 SIDEWAYS 시 활성)",
+    id: "rsi-meanrev",
+    name: "RSI MeanRev v1 Bot",
+    description: "RSI+BB+CI Lookback 평균회귀 — 횡보장 전용 (Alpha v4 SIDEWAYS 시 활성)",
     strategyDetail: {
-      summary: "Alpha v4가 SIDEWAYS로 거래 차단할 때 이 봇이 활성화됩니다. 볼린저밴드 하단에서 매수, 상단에서 매도하는 평균회귀 전략. ADX < 25(추세 약함) 조건에서만 거래합니다.",
+      summary: "Alpha v4가 SIDEWAYS로 거래 차단할 때 이 봇이 활성화됩니다. RSI 극단값 + BB 이탈 + CI Lookback 필터로 진짜 평균회귀 기회만 선별. CI 필터로 손실 거래 제거, MDD 80% 개선.",
       regimes: [
-        { name: "📥 매수", condition: "RSI < 25 + ADX < 25", action: "BB 하단 근처 롱 진입" },
-        { name: "📤 매도", condition: "RSI > 75 + ADX < 25", action: "BB 상단 근처 숏 진입" },
-        { name: "⏸️ 대기", condition: "ADX > 25 (추세장)", action: "거래 안 함 (Alpha v4에 위임)" },
+        { name: "📥 매수", condition: "RSI < 30 + BB하단 + ADX < 25 + CI Lookback >= 40", action: "롱 진입" },
+        { name: "📤 매도", condition: "RSI > 70 + BB상단 + ADX < 25 + CI Lookback >= 40", action: "숏 진입" },
+        { name: "🎯 청산", condition: "가격이 BB 중간선 도달", action: "평균 회귀 완료" },
+        { name: "⏸️ 대기", condition: "ADX > 25 또는 CI < 40", action: "거래 안 함 (Alpha v4에 위임)" },
       ],
       riskManagement: [
+        { label: "SL", value: "1.5 x ATR" },
         { label: "레버리지", value: "3x" },
-        { label: "ADX 필터", value: "< 25에서만 거래" },
+        { label: "포지션", value: "자본의 1% (소액)" },
+        { label: "CI Lookback", value: "직전 14일 평균 CI >= 40 (횡보 확인)" },
       ],
+      backtestResults: [
+        { period: "2025.1 ~ 2025.8", returnPct: "+0.5%", winRate: "100%", sharpe: "-", mdd: "-0.3%" },
+        { period: "2025.9 ~ 2026.3", returnPct: "+3.1%", winRate: "100%", sharpe: "-0.11", mdd: "-0.9%" },
+      ],
+      liveExpectation: {
+        pythonReturn: "Demo 가동 중",
+        websiteReturn: "P1: +0.5% / P2: +3.1%",
+        expectedReturn: "횡보장 소폭 수익, 추세장 관망",
+        reasons: [
+          "CI Lookback 필터로 손실 거래 제거 → MDD -1.5% → -0.3%",
+          "승률 100% (CI 필터 적용 후)",
+          "Alpha v4 횡보장 약점 보완",
+        ],
+        caveats: [
+          "진입 기회 매우 적음 (CI 필터로 3→1건/기간)",
+          "소액 운영 — 큰 수익 기대 어려움",
+        ],
+      },
     },
     asset: "BTC/USDT",
     exchange: "Bybit (Demo)",
@@ -390,86 +411,6 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     exchange: "Bitget (Paper)",
     status: "stopped" as const,
     startDate: "2026-03-01",
-    initialCapital: 100000,
-    currentValue: 100000,
-    totalReturn: 0,
-    monthlyReturn: 0,
-    maxDrawdown: 0,
-    sharpeRatio: 0,
-    winRate: 0,
-    totalTrades: 0,
-    profitTrades: 0,
-    lossTrades: 0,
-    avgWin: 0,
-    avgLoss: 0,
-    profitFactor: 0,
-    dailyPnL: [],
-    monthlyReturns: [],
-    recentTrades: [],
-  },
-  {
-    id: "rsi-meanrev",
-    name: "RSI MeanRev v1 Bot",
-    description: "RSI 역추세 (횡보장 전용) — v6 약점 보완, 과매도 매수/과매수 매도",
-    strategyDetail: {
-      summary: "횡보장에서 RSI 극단값과 볼린저 밴드 이탈을 포착해 평균회귀 매매하는 봇. v6 Adaptive가 약한 횡보 구간에서 수익을 내는 보완 전략. 추세장(ADX>25)에서는 자동 중단하며, CI Lookback 필터로 '직전까지 횡보였다가 급변한' 진짜 평균회귀 기회만 선별합니다.",
-      regimes: [
-        { name: "📥 매수", condition: "RSI < 30 + 가격 < BB 하단 + ADX < 25 + CI Lookback ≥ 40", action: "롱 진입" },
-        { name: "📤 매도", condition: "RSI > 70 + 가격 > BB 상단 + ADX < 25 + CI Lookback ≥ 40", action: "숏 진입" },
-        { name: "🎯 청산", condition: "가격이 BB 중간선 도달", action: "포지션 청산 (평균 회귀)" },
-        { name: "⏸️ 관망 (추세)", condition: "ADX > 25 (추세장)", action: "거래 중단 — 추세 역행 방지" },
-        { name: "⏸️ 관망 (추세돌파)", condition: "CI Lookback < 40 (직전부터 추세 진행 중)", action: "거래 중단 — 추세 중 급락은 회귀 아닌 하락" },
-        { name: "⚠️ DANGER", condition: "ATR z-score > 2.0", action: "거래 중단" },
-      ],
-      entryConditions: [
-        { label: "RSI 과매도", value: "< 30" },
-        { label: "RSI 과매수", value: "> 70" },
-        { label: "BB 이탈", value: "가격이 볼린저 밴드 상/하단 돌파" },
-        { label: "ADX 제한", value: "< 25 (추세장에서 거래 안 함)" },
-        { label: "CI Lookback", value: "직전 14일(-16~-3일) 평균 CI ≥ 40 (직전 횡보 확인)" },
-        { label: "쿨다운", value: "12일 (역추세는 보수적)" },
-        { label: "TP", value: "BB 중간선 (동적 — 평균으로 회귀)" },
-      ],
-      riskManagement: [
-        { label: "SL", value: "1.5 × ATR" },
-        { label: "포지션 크기", value: "자본의 1% (소액)" },
-        { label: "추세장 차단", value: "ADX > 25 → 자동 거래 중단" },
-        { label: "연속 3손실", value: "리스크 × 0.5" },
-        { label: "자금 배분", value: "전체의 20% (소액 운영)" },
-      ],
-      feeStructure: [
-        { label: "Maker", value: "0.02%" },
-        { label: "Taker", value: "0.055%" },
-      ],
-      backtestResults: [
-        { period: "2025.1 ~ 2025.8", returnPct: "+0.5%", winRate: "100%", sharpe: "-", mdd: "-0.3%" },
-        { period: "2025.9 ~ 2026.3", returnPct: "+3.1%", winRate: "100%", sharpe: "-0.11", mdd: "-0.9%" },
-      ],
-      liveExpectation: {
-        pythonReturn: "Demo 가동 중 — 실적 축적 중",
-        websiteReturn: "P1: +0.5% / P2: +3.1% (CI Lookback ≥ 40)",
-        expectedReturn: "횡보장에서 소폭 수익, 추세장에서 관망 (손실 0)",
-        reasons: [
-          "RSI < 30 극단값 + BB 하단 이탈에서만 진입 → 높은 반등 확률",
-          "BB 중간선 TP → 확실한 평균회귀 타겟",
-          "ADX < 25 필터 → 추세장 역행 위험 차단",
-          "CI Lookback ≥ 40 → '직전까지 횡보였다가 급변'한 진짜 회귀 기회만 선별",
-          "백테스트: CI 필터로 손실 거래 제거, MDD -1.5% → -0.3% (80% 개선)",
-          "v6 Adaptive의 횡보장 약점을 정확히 보완",
-        ],
-        caveats: [
-          "추세장에서는 수익 없음 (관망)",
-          "CI Lookback 필터로 진입 기회 감소 (3→1건/기간) — 대신 승률 100%",
-          "소액 운영(자본의 20%) — 큰 수익 기대 어려움",
-          "시뮬레이션 백테스트 — 실제 시장과 차이 가능",
-          "Demo 검증 후 실전 전환 필요",
-        ],
-      },
-    },
-    asset: "BTC/USDT",
-    exchange: "Bybit (Demo)",
-    status: "active" as const,
-    startDate: "2026-03-29",
     initialCapital: 100000,
     currentValue: 100000,
     totalReturn: 0,
@@ -636,7 +577,7 @@ function formatUSD(value: number): string {
 }
 
 function isUSDBot(id: string): boolean {
-  const usdBots = ["bybit-alpha-v4", "bybit-rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "rsi-meanrev", "seykota-bybit", "capital-manager"];
+  const usdBots = ["bybit-alpha-v4", "rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "seykota-bybit", "capital-manager"];
   return usdBots.includes(id);
 }
 
@@ -773,7 +714,7 @@ export default function BotPerformancePage() {
 
   // Calculate aggregated stats — 실투자 vs 모의투자 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const simBotIds = ["bybit-alpha-v4", "bybit-rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "rsi-meanrev", "seykota-bybit", "capital-manager"];
+  const simBotIds = ["bybit-alpha-v4", "rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "seykota-bybit", "capital-manager"];
   const realBots = strategies.filter((b) => !simBotIds.includes(b.id));
   const simBots = strategies.filter((b) => simBotIds.includes(b.id));
 
