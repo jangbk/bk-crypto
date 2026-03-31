@@ -1342,9 +1342,8 @@ function MarketRegimeGuide() {
 }
 
 function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
-  const alreadyUnlocked = typeof window !== "undefined" && sessionStorage.getItem("strategy-detail-unlocked") === "1";
   const [isOpen, setIsOpen] = useState(false);
-  const [isUnlocked, setIsUnlocked] = useState(alreadyUnlocked);
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState(false);
   const DETAIL_PW = "jbk123";
@@ -1354,9 +1353,6 @@ function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
       setIsUnlocked(true);
       setIsOpen(true);
       setPwError(false);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("strategy-detail-unlocked", "1");
-      }
     } else {
       setPwError(true);
     }
