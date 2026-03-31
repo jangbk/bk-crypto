@@ -554,7 +554,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   {
     id: "capital-manager",
     name: "🏛️ 지휘관 봇 (Capital Manager)",
-    description: "봇 간 자금 관리 + 유휴 자금 Earn 예치 + 성과 기반 리밸런싱",
+    description: "Alpha v4($30K) + RSI MeanRev($20K) 통합 관리. Kill Switch, 일일손실한도, Circuit Breaker",
     strategyDetail: {
       summary: "개별 봇을 직접 거래하지 않고, 2개 봇(Alpha v4 + RSI MeanRev)의 자금을 관리하는 상위 봇. 매시간 잔고를 모니터링하고, Kill Switch(-5%), 일일 손실 한도(-2%), Circuit Breaker(API 5연속 실패→30초 대기)로 시스템 리스크를 관리합니다.",
       regimes: [
@@ -578,12 +578,12 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
         { label: "자정 자동 리셋", value: "Kill Switch / 손실 한도 매일 자정 초기화" },
       ],
     },
-    asset: "전체 봇 포트폴리오",
+    asset: "Alpha v4 $30K + RSI MeanRev $20K",
     exchange: "Bybit (Demo)",
     status: "active" as const,
-    startDate: "2026-03-29",
-    initialCapital: 100000,
-    currentValue: 100000,
+    startDate: "2026-03-31",
+    initialCapital: 50000,
+    currentValue: 50000,
     totalReturn: 0,
     monthlyReturn: 0,
     maxDrawdown: 0,
