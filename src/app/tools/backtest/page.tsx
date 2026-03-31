@@ -101,13 +101,37 @@ const STRATEGIES: Strategy[] = [
   // --- 가동 중인 봇 ---
   {
     id: "bot-alpha-v4",
-    name: "🤖 Alpha v4 Bot (Bybit) ★ 현재 운영",
-    description: "RSI+EMA 레짐감지 + BB돌파 + 동적손절. 6년 +50.6%, MDD 5.4%, PF 2.13",
+    name: "🤖 Alpha v4 Bot (Bybit Demo) ★ 현재 운영",
+    description: "RSI+EMA 레짐감지 + BB돌파 + 동적손절. 6년 +50.6%, MDD 5.4%, PF 2.13. $50,000 Demo",
     params: ["RSI Bull 기준", "RSI Bear 기준", "SL 캡 (%)"],
     paramHints: [
       "일봉 RSI가 이 값 이상이고 200EMA 위면 BULL(롱만). 기본 55",
       "일봉 RSI가 이 값 이하이고 200EMA 아래면 BEAR(숏만). 기본 40",
       "ATR 동적 손절의 최대 캡. 5%가 최적 (4%는 -14pp, 6%는 MDD↑)",
+    ],
+    isBotStrategy: true,
+  },
+  {
+    id: "bot-seykota-ema",
+    name: "🤖 Seykota EMA v1 Bot (빗썸) ★ 실투자",
+    description: "EMA100 + ATR 동적밴드 추세추종. 6년 +1,678%, 승률 75%. ₩350만 실투자",
+    params: ["EMA 기간", "ATR 배수", "ATR 기간"],
+    paramHints: [
+      "지수이동평균 기간. 100이 기본 (약 3개월 추세)",
+      "ATR에 곱하는 배수. 1.5가 기본. 클수록 보수적",
+      "평균 변동폭(ATR) 계산 기간. 14가 기본",
+    ],
+    isBotStrategy: true,
+  },
+  {
+    id: "bot-ptj-200ma",
+    name: "🤖 PTJ 200MA v1 Bot (코인원) ★ 실투자",
+    description: "EMA200 + ATR 동적밴드 초장기 추세. 6년 +568.9%. ₩250만 실투자",
+    params: ["EMA 기간", "ATR 배수", "ATR 기간"],
+    paramHints: [
+      "지수이동평균 기간. 200이 기본 (약 10개월 장기 추세)",
+      "ATR에 곱하는 배수. 1.5가 기본",
+      "평균 변동폭(ATR) 계산 기간. 14가 기본",
     ],
     isBotStrategy: true,
   },
