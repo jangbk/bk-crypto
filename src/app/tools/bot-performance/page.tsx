@@ -1346,7 +1346,7 @@ function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState(false);
-  const DETAIL_PW = "bk2026";
+  const DETAIL_PW = "jbk123";
 
   const handleUnlock = () => {
     if (pwInput === DETAIL_PW) {
