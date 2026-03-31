@@ -51,6 +51,8 @@ const CRYPTO_MOMENTUM: ChartItem[] = [
   { id: "btc-rsi", title: "Bitcoin RSI (14D)", description: "14일 상대강도지수", section: "crypto", category: "Momentum", chartType: "line", color: "#2962FF", apiEndpoint: "/api/crypto/history", apiParams: { coin: "bitcoin", days: "365", metric: "rsi" } },
   { id: "btc-macd", title: "Bitcoin MACD", description: "MACD (12, 26, 9) 시그널", section: "crypto", category: "Momentum", chartType: "bar", color: "#10B981", apiEndpoint: "/api/crypto/history", apiParams: { coin: "bitcoin", days: "365", metric: "macd" } },
   { id: "stochastic-rsi", title: "Stochastic RSI", description: "스토캐스틱 RSI (14, 14, 3, 3)", section: "crypto", category: "Momentum", chartType: "line", color: "#F97316", apiEndpoint: "/api/crypto/history", apiParams: { coin: "bitcoin", days: "365", metric: "rsi" } },
+  { id: "btc-choppiness", title: "Choppiness Index (14D)", description: "횡보/추세 판별 지표 (>61.8 횡보, <38.2 추세)", section: "crypto", category: "Momentum", chartType: "line", color: "#EAB308", apiEndpoint: "/api/crypto/history", apiParams: { coin: "bitcoin", days: "365", metric: "choppiness" } },
+  { id: "btc-adx", title: "ADX (14D)", description: "추세 강도 지표 + DI+/DI- (>25 추세, <20 횡보)", section: "crypto", category: "Momentum", chartType: "line", color: "#EC4899", apiEndpoint: "/api/crypto/history", apiParams: { coin: "bitcoin", days: "365", metric: "adx" } },
 ];
 
 const CRYPTO_TA: ChartItem[] = [
