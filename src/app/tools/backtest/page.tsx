@@ -171,6 +171,18 @@ const STRATEGIES: Strategy[] = [
     ],
     isBotStrategy: true,
   },
+  {
+    id: "bot-rsi-meanrev",
+    name: "🤖 RSI MeanRev v1 Bot",
+    description: "RSI 극단값 + BB 이탈 + ADX<25 + CI Lookback — 횡보장 전용 평균회귀",
+    params: ["RSI 기간", "BB 기간", "CI Lookback 임계값"],
+    paramHints: [
+      "RSI 계산 기간. 14가 표준. 짧으면 신호 빈번, 길면 안정적",
+      "볼린저 밴드 기간. 20이 표준. 횡보 감지 민감도 조절",
+      "직전 14일 평균 CI 임계값. 40이 기본 (직전까지 횡보였는지 확인, 0이면 비활성)",
+    ],
+    isBotStrategy: true,
+  },
 ];
 
 const KR_STOCK_ASSETS: { label: string; value: string; symbol: string }[] = [
@@ -1220,6 +1232,222 @@ function runMeanReversion(
     "평균회귀 (볼린저 밴드)", "Crypto", "CryptoCompare (실제 데이터)");
 }
 
+// --- RSI MeanRev + CI Lookback 필터 ---
+// RSI 극단값 + 볼린저밴드 이탈 + ADX<25(횡보) + CI Lookback≥40(직전 횡보 확인)
+// CI Lookback: 직전 14일(-16~-3일) 평균 CI ≥ 임계값 → "최근까지 횡보였다가 급변" 패턴
+function runRsiMeanRevCI(
+  prices: PriceBar[],
+  rsiPeriod: number,
+  bbPeriod: number,
+  ciThreshold: number,
+  initialCapital: number,
+): BacktestResult {
+  const closes = prices.map((p) => p.close);
+  const highs = prices.map((p) => p.high);
+  const lows = prices.map((p) => p.low);
+  const n = closes.length;
+  let capital = initialCapital;
+  const equityCurve: number[] = [];
+  const drawdownCurve: number[] = [];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  let position: "long" | "short" | null = null, entryPrice = 0, entryIdx = 0;
+  const investRatio = 0.2; // 자본의 20% (소액 운영)
+
+  // --- RSI (Wilder) ---
+  const rsi: number[] = new Array(n).fill(50);
+  {
+    let aG = 0, aL = 0;
+    for (let i = 1; i <= rsiPeriod && i < n; i++) {
+      const d = closes[i] - closes[i - 1];
+      if (d > 0) aG += d; else aL -= d;
+    }
+    aG /= rsiPeriod; aL /= rsiPeriod;
+    if (rsiPeriod < n) rsi[rsiPeriod] = aL === 0 ? 100 : 100 - 100 / (1 + aG / aL);
+    for (let i = rsiPeriod + 1; i < n; i++) {
+      const d = closes[i] - closes[i - 1];
+      aG = (aG * (rsiPeriod - 1) + (d > 0 ? d : 0)) / rsiPeriod;
+      aL = (aL * (rsiPeriod - 1) + (d < 0 ? -d : 0)) / rsiPeriod;
+      rsi[i] = aL === 0 ? 100 : 100 - 100 / (1 + aG / aL);
+    }
+  }
+
+  // --- Bollinger Bands ---
+  const bbMid: number[] = new Array(n).fill(0);
+  const bbUpper: number[] = new Array(n).fill(0);
+  const bbLower: number[] = new Array(n).fill(0);
+  for (let i = bbPeriod - 1; i < n; i++) {
+    const slice = closes.slice(i - bbPeriod + 1, i + 1);
+    const mean = slice.reduce((a, b) => a + b, 0) / bbPeriod;
+    const std = Math.sqrt(slice.reduce((s, v) => s + (v - mean) ** 2, 0) / bbPeriod);
+    bbMid[i] = mean;
+    bbUpper[i] = mean + 2 * std;
+    bbLower[i] = mean - 2 * std;
+  }
+
+  // --- ADX (14) ---
+  const adxPeriod = 14;
+  const adx: number[] = new Array(n).fill(20);
+  {
+    const tr: number[] = [0];
+    const pDM: number[] = [0];
+    const mDM: number[] = [0];
+    for (let i = 1; i < n; i++) {
+      tr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])));
+      const up = highs[i] - highs[i - 1], dn = lows[i - 1] - lows[i];
+      pDM.push(up > dn && up > 0 ? up : 0);
+      mDM.push(dn > up && dn > 0 ? dn : 0);
+    }
+    let sTR = 0, sPDM = 0, sMDM = 0;
+    for (let i = 1; i <= adxPeriod && i < n; i++) { sTR += tr[i]; sPDM += pDM[i]; sMDM += mDM[i]; }
+    const dx: number[] = [];
+    for (let i = adxPeriod; i < n; i++) {
+      if (i > adxPeriod) { sTR = sTR - sTR / adxPeriod + tr[i]; sPDM = sPDM - sPDM / adxPeriod + pDM[i]; sMDM = sMDM - sMDM / adxPeriod + mDM[i]; }
+      const dp = sTR > 0 ? 100 * sPDM / sTR : 0;
+      const dm = sTR > 0 ? 100 * sMDM / sTR : 0;
+      const ds = dp + dm;
+      dx.push(ds > 0 ? 100 * Math.abs(dp - dm) / ds : 0);
+    }
+    if (dx.length >= adxPeriod) {
+      let adxVal = dx.slice(0, adxPeriod).reduce((a, b) => a + b, 0) / adxPeriod;
+      adx[adxPeriod * 2 - 1] = adxVal;
+      for (let i = adxPeriod; i < dx.length; i++) {
+        adxVal = (adxVal * (adxPeriod - 1) + dx[i]) / adxPeriod;
+        adx[adxPeriod + i] = adxVal;
+      }
+    }
+  }
+
+  // --- Choppiness Index (14) ---
+  const ciPeriod = 14;
+  const ci: number[] = new Array(n).fill(50);
+  {
+    const tr: number[] = [highs[0] - lows[0]];
+    for (let i = 1; i < n; i++) {
+      tr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])));
+    }
+    for (let i = ciPeriod; i < n; i++) {
+      const atrSum = tr.slice(i - ciPeriod + 1, i + 1).reduce((a, b) => a + b, 0);
+      const highest = Math.max(...highs.slice(i - ciPeriod + 1, i + 1));
+      const lowest = Math.min(...lows.slice(i - ciPeriod + 1, i + 1));
+      const range = highest - lowest;
+      if (range > 0) ci[i] = (100 * Math.log10(atrSum / range)) / Math.log10(ciPeriod);
+    }
+  }
+
+  // --- ATR (14) for DANGER detection ---
+  const atr: number[] = new Array(n).fill(0);
+  {
+    for (let i = 1; i < n; i++) {
+      const trVal = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+      atr[i] = i < 14 ? trVal : (atr[i - 1] * 13 + trVal) / 14;
+    }
+  }
+
+  const warmup = Math.max(bbPeriod, rsiPeriod, adxPeriod * 2, ciPeriod + 1);
+  let cooldownUntil = 0;
+
+  for (let i = 0; i < n; i++) {
+    if (i >= warmup) {
+      // DANGER: ATR z-score > 2.0 → 즉시 청산
+      const atrSlice = atr.slice(Math.max(0, i - 50), i + 1);
+      const atrMean = atrSlice.reduce((a, b) => a + b, 0) / atrSlice.length;
+      const atrStd = Math.sqrt(atrSlice.reduce((s, v) => s + (v - atrMean) ** 2, 0) / atrSlice.length);
+      const atrZ = atrStd > 0 ? (atr[i] - atrMean) / atrStd : 0;
+
+      if (atrZ > 2.0 && position) {
+        // 강제 청산
+        const pnlPct = position === "long"
+          ? ((closes[i] - entryPrice) / entryPrice) * 100
+          : ((entryPrice - closes[i]) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = null;
+        cooldownUntil = i + 12; // 12일 쿨다운
+      }
+
+      const isRanging = adx[i] < 25;         // ADX 필터
+      // CI Lookback: 직전 14일 평균 CI (3일 전부터 — 급변 전 횡보 확인)
+      let isChoppy = true;
+      if (ciThreshold > 0) {
+        const lkStart = Math.max(0, i - 16), lkEnd = Math.max(0, i - 3);
+        if (lkEnd > lkStart) {
+          const avgCI = ci.slice(lkStart, lkEnd).reduce((a, b) => a + b, 0) / (lkEnd - lkStart);
+          isChoppy = avgCI >= ciThreshold;
+        }
+      }
+
+      // 진입 조건: 쿨다운 끝 + ADX<25 + lookback CI>임계값
+      if (!position && i >= cooldownUntil && isRanging && isChoppy && atrZ <= 2.0) {
+        // 롱: RSI < 30 + 가격 < BB 하단
+        if (rsi[i] < 30 && closes[i] < bbLower[i]) {
+          position = "long"; entryPrice = closes[i]; entryIdx = i;
+        }
+        // 숏: RSI > 70 + 가격 > BB 상단
+        else if (rsi[i] > 70 && closes[i] > bbUpper[i]) {
+          position = "short"; entryPrice = closes[i]; entryIdx = i;
+        }
+      }
+
+      // 청산: BB 중간선 도달 (평균회귀)
+      if (position === "long" && closes[i] >= bbMid[i]) {
+        const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = null;
+        cooldownUntil = i + 12;
+      } else if (position === "short" && closes[i] <= bbMid[i]) {
+        const pnlPct = ((entryPrice - closes[i]) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = null;
+        cooldownUntil = i + 12;
+      }
+
+      // 손절: 1.5 × ATR
+      if (position === "long" && closes[i] < entryPrice - 1.5 * atr[i]) {
+        const pnlPct = ((closes[i] - entryPrice) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = null;
+        cooldownUntil = i + 12;
+      } else if (position === "short" && closes[i] > entryPrice + 1.5 * atr[i]) {
+        const pnlPct = ((entryPrice - closes[i]) / entryPrice) * 100;
+        capital += capital * investRatio * (pnlPct / 100);
+        trades.push({ pnl: pnlPct, holdDays: i - entryIdx });
+        position = null;
+        cooldownUntil = i + 12;
+      }
+    }
+
+    // Equity tracking
+    let equity = capital;
+    if (position === "long") {
+      equity = capital + capital * investRatio * ((closes[i] - entryPrice) / entryPrice);
+    } else if (position === "short") {
+      equity = capital + capital * investRatio * ((entryPrice - closes[i]) / entryPrice);
+    }
+    peak = Math.max(peak, equity);
+    const dd = ((equity - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((equity / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+
+  // 미청산 포지션 정리
+  if (position) {
+    const pnlPct = position === "long"
+      ? ((closes[n - 1] - entryPrice) / entryPrice) * 100
+      : ((entryPrice - closes[n - 1]) / entryPrice) * 100;
+    capital += capital * investRatio * (pnlPct / 100);
+    trades.push({ pnl: pnlPct, holdDays: n - entryIdx });
+  }
+
+  const ciLabel = ciThreshold > 0 ? ` + CI>${ciThreshold}` : "";
+  return computeStats(prices, equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
+    `RSI MeanRev (ADX<25${ciLabel})`, "BTC/USDT", "CryptoCompare (실제 데이터)");
+}
+
 // --- 모멘텀 (RSI + MACD) ---
 function runMomentumStrategy(
   prices: PriceBar[], rsiPeriod: number, rsiOversold: number, initialCapital: number,
@@ -2184,6 +2412,13 @@ export default function BacktestPage() {
           }
           case "bot-bybit-funding-arb": {
             backResult = runFundingArbSim(prices, capital);
+            break;
+          }
+          case "bot-rsi-meanrev": {
+            const rsiP = parseInt(paramValues[0]) || 14;
+            const bbP = parseInt(paramValues[1]) || 20;
+            const ciT = parseFloat(paramValues[2]) ?? 40;
+            backResult = runRsiMeanRevCI(prices, rsiP, bbP, ciT, capital);
             break;
           }
           case "volatility-breakout": {
