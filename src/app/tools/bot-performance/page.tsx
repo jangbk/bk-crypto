@@ -1342,8 +1342,9 @@ function MarketRegimeGuide() {
 }
 
 function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
+  const alreadyUnlocked = typeof window !== "undefined" && sessionStorage.getItem("strategy-detail-unlocked") === "1";
   const [isOpen, setIsOpen] = useState(false);
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(alreadyUnlocked);
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState(false);
   const DETAIL_PW = "jbk123";
@@ -1360,13 +1361,6 @@ function StrategyDetailSection({ detail }: { detail: StrategyDetail }) {
       setPwError(true);
     }
   };
-
-  // 세션 내 한번 인증하면 유지
-  useState(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("strategy-detail-unlocked") === "1") {
-      setIsUnlocked(true);
-    }
-  });
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
