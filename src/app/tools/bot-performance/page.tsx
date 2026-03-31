@@ -511,12 +511,13 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     name: "RSI MeanRev v1 Bot",
     description: "RSI 역추세 (횡보장 전용) — v6 약점 보완, 과매도 매수/과매수 매도",
     strategyDetail: {
-      summary: "횡보장에서 RSI 극단값과 볼린저 밴드 이탈을 포착해 평균회귀 매매하는 봇. v6 Adaptive가 약한 횡보 구간에서 수익을 내는 보완 전략. 추세장(ADX>25)에서는 자동으로 거래를 중단합니다.",
+      summary: "횡보장에서 RSI 극단값과 볼린저 밴드 이탈을 포착해 평균회귀 매매하는 봇. v6 Adaptive가 약한 횡보 구간에서 수익을 내는 보완 전략. 추세장(ADX>25)이나 추세 전환 직전(CI<38.2)에서는 자동으로 거래를 중단합니다.",
       regimes: [
-        { name: "📥 매수", condition: "RSI < 25 + 가격 < BB 하단 + ADX < 25", action: "롱 진입" },
-        { name: "📤 매도", condition: "RSI > 75 + 가격 > BB 상단 + ADX < 25", action: "숏 진입" },
+        { name: "📥 매수", condition: "RSI < 25 + 가격 < BB 하단 + ADX < 25 + CI > 50", action: "롱 진입" },
+        { name: "📤 매도", condition: "RSI > 75 + 가격 > BB 상단 + ADX < 25 + CI > 50", action: "숏 진입" },
         { name: "🎯 청산", condition: "가격이 BB 중간선 도달", action: "포지션 청산 (평균 회귀)" },
-        { name: "⏸️ 관망", condition: "ADX > 25 (추세장)", action: "거래 중단 — 추세 역행 방지" },
+        { name: "⏸️ 관망 (추세)", condition: "ADX > 25 (추세장)", action: "거래 중단 — 추세 역행 방지" },
+        { name: "⏸️ 관망 (전환)", condition: "CI < 38.2 (추세 전환 임박)", action: "거래 중단 — 횡보 이탈 직전" },
         { name: "⚠️ DANGER", condition: "ATR z-score > 2.0", action: "거래 중단" },
       ],
       entryConditions: [
@@ -524,6 +525,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
         { label: "RSI 과매수", value: "> 75 (극단값만)" },
         { label: "BB 이탈", value: "가격이 볼린저 밴드 상/하단 돌파" },
         { label: "ADX 제한", value: "< 25 (추세장에서 거래 안 함)" },
+        { label: "CI 필터", value: "> 50 (확실한 횡보장에서만 진입, <38.2면 차단)" },
         { label: "쿨다운", value: "12시간 (역추세는 보수적)" },
         { label: "TP", value: "BB 중간선 (동적 — 평균으로 회귀)" },
       ],
@@ -549,10 +551,12 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
           "RSI < 25 극단값에서만 진입 → 높은 반등 확률",
           "BB 중간선 TP → 확실한 평균회귀 타겟",
           "ADX < 25 필터 → 추세장 역행 위험 차단",
+          "CI > 50 필터 → '진짜 횡보'에서만 진입, 추세 전환 직전 거짓 신호 차단",
           "v6 Adaptive의 횡보장 약점을 정확히 보완",
         ],
         caveats: [
           "추세장에서는 수익 없음 (관망)",
+          "CI 필터 추가로 진입 기회 감소 — 대신 승률 향상 기대",
           "횡보장이 아닌 급락장에서 과매도 매수 시 추가 하락 위험",
           "소액 운영(1%) — 큰 수익 기대 어려움",
           "Demo 검증 후 실전 전환 필요",

@@ -138,6 +138,112 @@ function calculateEMA(prices: number[], period: number): (number | null)[] {
   return ema;
 }
 
+// Choppiness Index: 100 * LOG10(SUM(ATR,period) / (Highest-Lowest)) / LOG10(period)
+// High values (>61.8) = choppy/sideways, Low values (<38.2) = trending
+function calculateChoppiness(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number = 14,
+): (number | null)[] {
+  const n = closes.length;
+  const ci: (number | null)[] = new Array(n).fill(null);
+  if (n < period + 1) return ci;
+
+  // Calculate True Range
+  const tr: number[] = [highs[0] - lows[0]];
+  for (let i = 1; i < n; i++) {
+    tr.push(
+      Math.max(
+        highs[i] - lows[i],
+        Math.abs(highs[i] - closes[i - 1]),
+        Math.abs(lows[i] - closes[i - 1]),
+      ),
+    );
+  }
+
+  for (let i = period; i < n; i++) {
+    const atrSum = tr.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+    const highest = Math.max(...highs.slice(i - period + 1, i + 1));
+    const lowest = Math.min(...lows.slice(i - period + 1, i + 1));
+    const range = highest - lowest;
+    if (range > 0) {
+      ci[i] = (100 * Math.log10(atrSum / range)) / Math.log10(period);
+    }
+  }
+
+  return ci;
+}
+
+// ADX: Average Directional Index — measures trend strength (0-100)
+// >25 = trending, <20 = weak/no trend
+function calculateADX(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number = 14,
+): { adx: (number | null)[]; diPlus: (number | null)[]; diMinus: (number | null)[] } {
+  const n = closes.length;
+  const adx: (number | null)[] = new Array(n).fill(null);
+  const diPlus: (number | null)[] = new Array(n).fill(null);
+  const diMinus: (number | null)[] = new Array(n).fill(null);
+  if (n < period * 2) return { adx, diPlus, diMinus };
+
+  // True Range, +DM, -DM
+  const tr: number[] = [0];
+  const plusDM: number[] = [0];
+  const minusDM: number[] = [0];
+
+  for (let i = 1; i < n; i++) {
+    tr.push(
+      Math.max(
+        highs[i] - lows[i],
+        Math.abs(highs[i] - closes[i - 1]),
+        Math.abs(lows[i] - closes[i - 1]),
+      ),
+    );
+    const upMove = highs[i] - highs[i - 1];
+    const downMove = lows[i - 1] - lows[i];
+    plusDM.push(upMove > downMove && upMove > 0 ? upMove : 0);
+    minusDM.push(downMove > upMove && downMove > 0 ? downMove : 0);
+  }
+
+  // Wilder's smoothing for ATR, +DM, -DM
+  let smoothTR = tr.slice(1, period + 1).reduce((a, b) => a + b, 0);
+  let smoothPlusDM = plusDM.slice(1, period + 1).reduce((a, b) => a + b, 0);
+  let smoothMinusDM = minusDM.slice(1, period + 1).reduce((a, b) => a + b, 0);
+
+  const dx: number[] = [];
+
+  for (let i = period; i < n; i++) {
+    if (i > period) {
+      smoothTR = smoothTR - smoothTR / period + tr[i];
+      smoothPlusDM = smoothPlusDM - smoothPlusDM / period + plusDM[i];
+      smoothMinusDM = smoothMinusDM - smoothMinusDM / period + minusDM[i];
+    }
+
+    const pdi = smoothTR > 0 ? (100 * smoothPlusDM) / smoothTR : 0;
+    const mdi = smoothTR > 0 ? (100 * smoothMinusDM) / smoothTR : 0;
+    diPlus[i] = pdi;
+    diMinus[i] = mdi;
+
+    const diSum = pdi + mdi;
+    dx.push(diSum > 0 ? (100 * Math.abs(pdi - mdi)) / diSum : 0);
+  }
+
+  // Smooth DX into ADX
+  if (dx.length >= period) {
+    let adxVal = dx.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    adx[period * 2 - 1] = adxVal;
+    for (let i = period; i < dx.length; i++) {
+      adxVal = (adxVal * (period - 1) + dx[i]) / period;
+      adx[period + i] = adxVal;
+    }
+  }
+
+  return { adx, diPlus, diMinus };
+}
+
 // ─── Generate realistic sample data ──────────────────────────────
 function generateSample(days: number, base: number, seed: number): Array<[number, number]> {
   const now = Date.now();
@@ -185,7 +291,30 @@ function computeIndicators(
   const timestamps = data.map((p) => p[0]);
   const extras: Record<string, unknown> = {};
 
-  if (metric === "mvrv") {
+  // CoinGecko free API only provides close prices.
+  // Approximate daily high/low using adjacent closes for CI & ADX.
+  const approxHighs = prices.map((p, i) => {
+    const neighbours = [p];
+    if (i > 0) neighbours.push(prices[i - 1]);
+    if (i < prices.length - 1) neighbours.push(prices[i + 1]);
+    return Math.max(...neighbours);
+  });
+  const approxLows = prices.map((p, i) => {
+    const neighbours = [p];
+    if (i > 0) neighbours.push(prices[i - 1]);
+    if (i < prices.length - 1) neighbours.push(prices[i + 1]);
+    return Math.min(...neighbours);
+  });
+
+  if (metric === "choppiness") {
+    const ci = calculateChoppiness(approxHighs, approxLows, prices);
+    extras.indicator = timestamps.map((ts, i) => [ts, ci[i]]).filter((d) => d[1] !== null);
+  } else if (metric === "adx") {
+    const { adx, diPlus, diMinus } = calculateADX(approxHighs, approxLows, prices);
+    extras.indicator = timestamps.map((ts, i) => [ts, adx[i]]).filter((d) => d[1] !== null);
+    extras.diPlus = timestamps.map((ts, i) => [ts, diPlus[i]]).filter((d) => d[1] !== null);
+    extras.diMinus = timestamps.map((ts, i) => [ts, diMinus[i]]).filter((d) => d[1] !== null);
+  } else if (metric === "mvrv") {
     // MVRV Z-Score approximation: (Price - SMA200) / StdDev200
     const sma200 = calculateSMA(prices, 200);
     const mvrv: (number | null)[] = prices.map((price, i) => {
