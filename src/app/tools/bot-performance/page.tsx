@@ -552,6 +552,67 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     monthlyReturns: [],
     recentTrades: [],
   },
+  {
+    id: "bybit-rotation",
+    name: "Crypto Rotation (레짐 적응형)",
+    description: "5코인 모멘텀 로테이션 + BULL/BEAR/SIDEWAYS 자동 전환 — Bybit 선물",
+    strategyDetail: {
+      summary: "KIS Rotation v3 + Alpha v6 레짐 감지 합체. 상승장엔 롱 Top2 2x, 하락장엔 숏 또는 현금, 횡보장엔 보수적 롱. 레짐 전환 시 즉시 리밸런싱.",
+      regimes: [
+        { name: "🟢 BULL", condition: "MA50>MA200, ROC30>5%", action: "롱 Top2, 2x, 90% 투입" },
+        { name: "⚪ SIDEWAYS", condition: "약한 추세", action: "롱 Top1, 1x, 50%" },
+        { name: "🔴 BEAR", condition: "MA50<MA200, ROC30<-3%", action: "숏 1건, 1x, 30%" },
+        { name: "⚠️ DANGER", condition: "ATR z-score > 2.0", action: "전액 현금" },
+      ],
+      entryConditions: [
+        { label: "유니버스", value: "BTC, ETH, XRP, SOL, DOGE" },
+        { label: "모멘텀", value: "60일 수익률 순위" },
+        { label: "리밸런싱", value: "월 1회 + 레짐 전환 시 즉시" },
+      ],
+      riskManagement: [
+        { label: "손절", value: "-5% (레버리지 기준)" },
+        { label: "트레일링", value: "5% 수익 시 활성, 50% 반환 시 청산" },
+      ],
+      backtestResults: [
+        { period: "2025.1~8 (상승장)", returnPct: "+34.6%", winRate: "40%", sharpe: "1.31", mdd: "-24.5%" },
+        { period: "2025.9~2026.3 (하락장)", returnPct: "-1.6%", winRate: "50%", sharpe: "-0.05", mdd: "-20.2%" },
+      ],
+      liveExpectation: {
+        pythonReturn: "합산 +33.0%, 기존 대비 42.7%p 개선",
+        websiteReturn: "백테스트 도구에서 확인 가능",
+        expectedReturn: "상승장 유지 + 하락장 손실 97% 감소",
+        reasons: [
+          "BULL: +34.6% (기존과 동일), BEAR: -1.6% (기존 -43.9%에서 42%p 개선)",
+          "레짐 전환 시 즉시 리밸런싱",
+          "트레일링으로 수익 보호",
+        ],
+        caveats: [
+          "Demo 검증 중 (2026.04.04~)",
+          "MDD -24.5%",
+        ],
+      },
+    },
+    asset: "BTC, ETH, XRP, SOL, DOGE",
+    exchange: "Bybit (Demo)",
+    status: "active" as const,
+    startDate: "2026-04-04",
+    initialCapital: 50000,
+    currentValue: 50000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
 ];
 
 /** 금액을 한국식으로 포맷 (억/만원 단위) */
@@ -583,7 +644,7 @@ function formatUSD(value: number): string {
 }
 
 function isUSDBot(id: string): boolean {
-  const usdBots = ["bybit-alpha-v4", "rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "seykota-bybit", "capital-manager"];
+  const usdBots = ["bybit-alpha-v4", "rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "seykota-bybit", "capital-manager", "bybit-rotation"];
   return usdBots.includes(id);
 }
 
@@ -720,7 +781,7 @@ export default function BotPerformancePage() {
 
   // Calculate aggregated stats — 실투자 vs 모의투자 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const simBotIds = ["bybit-alpha-v4", "rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "seykota-bybit", "capital-manager"];
+  const simBotIds = ["bybit-alpha-v4", "rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "seykota-bybit", "capital-manager", "bybit-rotation"];
   const realBots = strategies.filter((b) => !simBotIds.includes(b.id));
   const simBots = strategies.filter((b) => simBotIds.includes(b.id));
 
