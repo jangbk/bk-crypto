@@ -464,7 +464,8 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
       backtestResults: [
         { period: "2020.1 ~ 2022.12", returnPct: "+350.4%", winRate: "66.7%", sharpe: "1.45", mdd: "-40.8%" },
         { period: "2023.1 ~ 2024.12", returnPct: "+128.4%", winRate: "50.0%", sharpe: "1.33", mdd: "-34.2%" },
-        { period: "2025.1 ~ 2026.3", returnPct: "+13.0%", winRate: "100%", sharpe: "0.65", mdd: "-14.7%" },
+        { period: "2025.1 ~ 2025.8 (상승장)", returnPct: "+9.05%", winRate: "50.0%", sharpe: "1.13", mdd: "-7.16%" },
+        { period: "2025.9 ~ 2026.3 (하락장)", returnPct: "0.00%", winRate: "-", sharpe: "-", mdd: "0.00%" },
         { period: "전체 (6년)", returnPct: "+1,678%", winRate: "75.0%", sharpe: "1.36", mdd: "-40.9%" },
       ],
       liveExpectation: {
