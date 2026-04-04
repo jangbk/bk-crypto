@@ -30,32 +30,7 @@ const BYBIT_BOTS = [
     recentTrades: [] as Array<{ time: string; type: string; price: string; qty: string; pnl: string }>,
     _live: false,
   },
-  {
-    id: "rsi-meanrev",
-    name: "RSI MeanRev v1 Bot",
-    description: "RSI+BB+CI Lookback 평균회귀 — 횡보장 전용",
-    asset: "BTC/USDT",
-    exchange: "Bybit (Demo)",
-    status: "active" as const,
-    startDate: "2026-03-31",
-    initialCapital: 20000,
-    currentValue: 20000,
-    totalReturn: 0,
-    monthlyReturn: 0,
-    maxDrawdown: 0,
-    sharpeRatio: 0,
-    winRate: 0,
-    totalTrades: 0,
-    profitTrades: 0,
-    lossTrades: 0,
-    avgWin: 0,
-    avgLoss: 0,
-    profitFactor: 0,
-    dailyPnL: [] as number[],
-    monthlyReturns: [] as number[],
-    recentTrades: [] as Array<{ time: string; type: string; price: string; qty: string; pnl: string }>,
-    _live: false,
-  },
+  // RSI MeanRev 삭제 (2026-04-04) — Rotation이 대체
 ];
 
 const FALLBACK_STRATEGIES = [
