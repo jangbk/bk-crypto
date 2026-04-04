@@ -6,11 +6,11 @@ import { getCoinoneBotData } from "../coinone/route";
 const BYBIT_BOTS = [
   {
     id: "bybit-alpha-v4",
-    name: "Alpha v4 Bot",
-    description: "RSI+EMA 레짐감지 + BB돌파 + 동적손절. 6년 +50.6%, MDD 5.4%",
+    name: "Alpha v5 Bot",
+    description: "레짐감지 + BULL 숏차단 + 트레일링 강화. MDD 1.58%",
     asset: "BTC/USDT",
     exchange: "Bybit (Demo)",
-    status: "active" as const,
+    status: "stopped" as const,
     startDate: "2026-03-31",
     initialCapital: 30000,
     currentValue: 30000,
