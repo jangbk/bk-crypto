@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 import { getBithumbBotData } from "../bithumb/route";
 import { getCoinoneBotData } from "../coinone/route";
 
-// Bybit Demo 봇 — Alpha v4 체제
-const BYBIT_BOTS = [
+// Bybit Demo 봇 — Alpha v5 체제
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const BYBIT_BOTS: any[] = [
   {
     id: "bybit-alpha-v4",
     name: "Alpha v5 Bot",
     description: "레짐감지 + BULL 숏차단 + 트레일링 강화. MDD 1.58%",
     asset: "BTC/USDT",
     exchange: "Bybit (Demo)",
-    status: "active" as const,  // TypeScript 타입 호환 (실제로는 미가동)
+    status: "stopped",
     startDate: "2026-03-31",
     initialCapital: 30000,
     currentValue: 30000,
