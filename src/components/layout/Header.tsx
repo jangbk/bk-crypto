@@ -15,10 +15,16 @@ import type { NavItem } from "@/lib/types";
 function Logo() {
   return (
     <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="BK CRYPTO 홈">
-      <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-[#f7931a] flex items-center justify-center shadow-md">
+      <div className="relative h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg">
         <svg viewBox="0 0 40 40" className="h-10 w-10" aria-hidden="true">
-          <rect width="40" height="40" rx="8" fill="#f7931a" />
-          <text x="20" y="30" textAnchor="middle" fontSize="30" fontWeight="bold" fill="#fff" fontFamily="Arial, sans-serif">₿</text>
+          <defs>
+            <linearGradient id="bk-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="100%" stopColor="#8b5cf6" />
+            </linearGradient>
+          </defs>
+          <rect width="40" height="40" rx="10" fill="url(#bk-grad)" />
+          <text x="20" y="28" textAnchor="middle" fontSize="18" fontWeight="900" fill="#fff" fontFamily="system-ui, sans-serif">BK</text>
         </svg>
       </div>
       <span className="hidden leading-tight sm:block font-[var(--font-orbitron)]">
