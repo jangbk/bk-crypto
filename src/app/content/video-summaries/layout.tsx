@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Video Summaries",
+  title: { absolute: "BK CRYPTO" },
   description: "영상 요약 - YouTube 투자 영상 AI 요약",
 };
 
