@@ -1838,39 +1838,51 @@ function calcRSI(closes: number[], period: number = 14): number[] {
   return rsi;
 }
 
-// === Helper: ADX ===
+// === Helper: ADX (Wilder's smoothing, matches pandas ta) ===
 function calcADX(prices: PriceBar[], period: number = 14): number[] {
   const n = prices.length;
-  const adx = new Array(n).fill(25);
-  if (n < period * 2) return adx;
-  const tr: number[] = [], pdm: number[] = [], ndm: number[] = [];
-  for (let i = 0; i < n; i++) {
-    if (i === 0) { tr.push(prices[i].high - prices[i].low); pdm.push(0); ndm.push(0); continue; }
+  // 0 = not ready (prevents false entries during warmup)
+  const adx = new Array(n).fill(0);
+  if (n < period * 3) return adx;
+
+  const tr: number[] = [0], pdm: number[] = [0], ndm: number[] = [0];
+  for (let i = 1; i < n; i++) {
     const h = prices[i].high, l = prices[i].low, pc = prices[i - 1].close;
     tr.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
     const up = h - prices[i - 1].high, dn = prices[i - 1].low - l;
     pdm.push(up > dn && up > 0 ? up : 0);
     ndm.push(dn > up && dn > 0 ? dn : 0);
   }
-  // Smoothed
-  let atr = 0, spd = 0, snd = 0;
-  for (let i = 0; i < period; i++) { atr += tr[i]; spd += pdm[i]; snd += ndm[i]; }
+
+  // Wilder's smoothing for ATR, +DM, -DM
+  let smTR = 0, smPDM = 0, smNDM = 0;
+  for (let i = 1; i <= period; i++) { smTR += tr[i]; smPDM += pdm[i]; smNDM += ndm[i]; }
+
   const dx: number[] = new Array(n).fill(0);
-  for (let i = period; i < n; i++) {
-    atr = atr - atr / period + tr[i];
-    spd = spd - spd / period + pdm[i];
-    snd = snd - snd / period + ndm[i];
-    const pdi = atr > 0 ? 100 * spd / atr : 0;
-    const ndi = atr > 0 ? 100 * snd / atr : 0;
-    dx[i] = (pdi + ndi) > 0 ? 100 * Math.abs(pdi - ndi) / (pdi + ndi) : 0;
+  for (let i = period + 1; i < n; i++) {
+    smTR = smTR - smTR / period + tr[i];
+    smPDM = smPDM - smPDM / period + pdm[i];
+    smNDM = smNDM - smNDM / period + ndm[i];
+    const pdi = smTR > 0 ? 100 * smPDM / smTR : 0;
+    const ndi = smTR > 0 ? 100 * smNDM / smTR : 0;
+    const sum = pdi + ndi;
+    dx[i] = sum > 0 ? 100 * Math.abs(pdi - ndi) / sum : 0;
   }
-  // ADX = SMA of DX
-  let sum = 0;
-  for (let i = period; i < period * 2 && i < n; i++) sum += dx[i];
-  for (let i = period * 2; i < n; i++) {
+
+  // ADX = Wilder's smoothed DX (not SMA)
+  const adxStart = period * 2 + 1;
+  if (adxStart >= n) return adx;
+
+  // First ADX = average of first `period` DX values
+  let adxSum = 0;
+  for (let i = period + 1; i <= period * 2 && i < n; i++) adxSum += dx[i];
+  adx[adxStart] = adxSum / period;
+
+  // Subsequent ADX = Wilder's smoothing
+  for (let i = adxStart + 1; i < n; i++) {
     adx[i] = (adx[i - 1] * (period - 1) + dx[i]) / period;
-    if (i === period * 2) adx[i] = sum / period;
   }
+
   return adx;
 }
 
@@ -1922,17 +1934,18 @@ function runSeykotaV2(
       if (exit) {
         const proceeds = position * close * (1 - commission);
         trades.push({ pnl: ((close - entryPrice) / entryPrice) * 100, holdDays: i - holdStart });
-        capital = proceeds;
+        capital += proceeds;  // 잔여 5% + 매도 금액
         position = 0;
       }
     } else {
-      if (a > adxMin && bullish && r > 40 && r < 70 && (gc || pb)) {
-        const cost = capital * 0.95 * (1 - commission);
-        position = cost / close;
+      // ADX must be > 0 (calculated) and > adxMin
+      if (a > 0 && a > adxMin && bullish && r > 40 && r < 70 && (gc || pb)) {
+        const invest = capital * 0.95;
+        position = invest * (1 - commission) / close;
         entryPrice = close;
         highest = close;
         holdStart = i;
-        capital *= 0.05;
+        capital -= invest;
       }
     }
 
