@@ -740,16 +740,42 @@ export default function BotPerformancePage() {
         if (cancelled) return;
 
         const live = data.strategies as BotStrategy[];
+
+        // 맥미니 라이브 상태도 가져오기
+        let liveStatus: Record<string, { currentValue: number; totalReturn: number; status: string; position: unknown; extra: Record<string, unknown> }> = {};
+        try {
+          const liveRes = await fetch("/api/bots/live-status");
+          if (liveRes.ok) {
+            const liveData = await liveRes.json();
+            if (liveData.bots) {
+              for (const bot of liveData.bots) {
+                liveStatus[bot.id] = bot;
+              }
+            }
+          }
+        } catch { /* ignore */ }
+
         if (live && live.length > 0) {
           // FALLBACK의 strategyDetail을 merge + API에 없는 봇은 FALLBACK에서 유지
           const merged = live.map((s) => {
             const fallback = FALLBACK_STRATEGIES.find((f) => f.id === s.id);
-            return fallback?.strategyDetail ? { ...s, strategyDetail: fallback.strategyDetail } : s;
+            const ls = liveStatus[s.id];
+            const base = fallback?.strategyDetail ? { ...s, strategyDetail: fallback.strategyDetail } : s;
+            // 맥미니 라이브 데이터 반영
+            if (ls && ls.currentValue > 0) {
+              return { ...base, currentValue: ls.currentValue, totalReturn: ls.totalReturn, status: ls.status === "running" ? "active" as const : base.status };
+            }
+            return base;
           });
           // API에 없는 FALLBACK 봇 추가 (22b-strategy-engine 등)
           for (const fb of FALLBACK_STRATEGIES) {
             if (!merged.find((m) => m.id === fb.id)) {
-              merged.push(fb);
+              const ls = liveStatus[fb.id];
+              if (ls && ls.currentValue > 0) {
+                merged.push({ ...fb, currentValue: ls.currentValue, totalReturn: ls.totalReturn });
+              } else {
+                merged.push(fb);
+              }
             }
           }
           setStrategies(merged);
