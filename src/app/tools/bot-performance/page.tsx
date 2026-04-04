@@ -829,11 +829,14 @@ export default function BotPerformancePage() {
 
   const bot = strategies.find((b) => b.id === selectedBot) ?? strategies[0];
 
-  // Calculate aggregated stats — 실투자 vs 모의투자 분리
+  // Calculate aggregated stats — Live / Demo Testing / In Development 3단계 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const simBotIds = ["bybit-alpha-v4", "rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "seykota-bybit", "capital-manager", "bybit-rotation"];
-  const realBots = strategies.filter((b) => !simBotIds.includes(b.id));
-  const simBots = strategies.filter((b) => simBotIds.includes(b.id));
+  const demoBotIds = ["bybit-rotation"];  // Demo Testing: 실전 검증 중 (실가격, 가상자금)
+  const devBotIds = ["bybit-alpha-v4", "rsi-meanrev", "bybit-v6-hybrid", "bybit-funding-arb", "22b-strategy-engine", "seykota-bybit", "capital-manager"];  // In Development
+  const realBots = strategies.filter((b) => !demoBotIds.includes(b.id) && !devBotIds.includes(b.id));
+  const demoBots = strategies.filter((b) => demoBotIds.includes(b.id));
+  const devBots = strategies.filter((b) => devBotIds.includes(b.id));
+  const simBots = [...demoBots, ...devBots];  // 합산용
 
   const realInvested = realBots.reduce((sum, b) => sum + getCapital(b), 0);
   const realTradedPnL = realBots.reduce((sum, b) => b.totalTrades > 0 ? sum + (b.currentValue - getCapital(b)) : sum, 0);
@@ -902,11 +905,12 @@ export default function BotPerformancePage() {
         </div>
       </div>
 
-      {/* Bot Selection — 실투자 / 데모 분리 */}
+      {/* Bot Selection — Live / Demo Testing / In Development 3단계 */}
       <div className="mb-2">
         <h3 className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          실투자
+          Live Trading
+          <span className="text-xs font-normal text-muted-foreground">실제 자금 운용</span>
         </h3>
         <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
           {realBots.map((b) => {
@@ -946,7 +950,7 @@ export default function BotPerformancePage() {
           })}
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 px-4 py-2 text-sm mb-2">
-          <span className="font-semibold text-emerald-700 dark:text-emerald-400">실투자 합계</span>
+          <span className="font-semibold text-emerald-700 dark:text-emerald-400">Live 합계</span>
           <span>투자금 <strong>{formatKRW(realInvested)}</strong></span>
           <span>평가금 <strong>{formatKRW(realCurrent)}</strong></span>
           <span className={Number(realReturnPct) >= 0 ? "text-positive" : "text-negative"}>
@@ -958,13 +962,58 @@ export default function BotPerformancePage() {
         </div>
       </div>
 
+      {/* Demo Testing — 실전 검증 중 */}
+      <div className="mb-2">
+        <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-amber-500" />
+          Demo Testing
+          <span className="text-xs font-normal text-muted-foreground">실전 검증 중 (실가격, 가상자금)</span>
+        </h3>
+        <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {demoBots.map((b) => {
+            const cap = getCapital(b);
+            const pnl = b.totalTrades > 0 ? b.currentValue - cap : 0;
+            const ret = b.totalTrades > 0 && cap > 0 ? ((pnl / cap) * 100).toFixed(1) : "0.0";
+            return (
+              <button
+                key={b.id}
+                onClick={() => setSelectedBot(b.id)}
+                className={`shrink-0 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                  selectedBot === b.id
+                    ? "border-amber-500 bg-amber-500/15 ring-2 ring-amber-500/30"
+                    : "border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">{b.name}</span>
+                  {getStatusBadge(b.status)}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {b.exchange} · {b.asset}
+                </div>
+                <div className="mt-1.5 flex items-center gap-3 text-xs">
+                  <span className="text-muted-foreground">{formatBotValue(b.id, cap)}</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className="font-semibold">{formatBotValue(b.id, b.currentValue)}</span>
+                  <span className={`font-bold ${Number(ret) >= 0 ? "text-positive" : "text-negative"}`}>
+                    {Number(ret) >= 0 ? "+" : ""}{ret}%
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* In Development — 개발/백테스트 단계 */}
       <div className="mb-2">
         <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-blue-500" />
-          데모 / 모의투자
+          In Development
+          <span className="text-xs font-normal text-muted-foreground">개발 · 백테스트 단계</span>
         </h3>
         <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {simBots.map((b) => {
+          {devBots.map((b) => {
             const cap = getCapital(b);
             const pnl = b.totalTrades > 0 ? b.currentValue - cap : 0;
             const ret = b.totalTrades > 0 && cap > 0 ? ((pnl / cap) * 100).toFixed(1) : "0.0";
@@ -996,14 +1045,6 @@ export default function BotPerformancePage() {
               </button>
             );
           })}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 px-4 py-2 text-sm mb-2">
-          <span className="font-semibold text-blue-700 dark:text-blue-400">모의투자 합계</span>
-          <span>KRW <strong>{formatKRW(simBots.filter(b => !isUSDBot(b.id)).reduce((s,b) => s + getCapital(b), 0))}</strong></span>
-          <span>USD <strong>{formatUSD(simBots.filter(b => isUSDBot(b.id)).reduce((s,b) => s + getCapital(b), 0))}</strong></span>
-          <span className={Number(simReturnPct) >= 0 ? "text-positive" : "text-negative"}>
-            수익 <strong>{Number(simReturnPct) >= 0 ? "+" : ""}{simReturnPct}%</strong>
-          </span>
         </div>
       </div>
 
