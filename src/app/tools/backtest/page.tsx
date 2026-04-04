@@ -2428,23 +2428,33 @@ export default function BacktestPage() {
 
       // Bot strategies need extra warmup bars for MA calculation
       let warmupBars = 0;
-      if (selectedStrategy === "bot-ptj-200ma") {
+      if (selectedStrategy === "bot-seykota-v2") {
+        warmupBars = 200; // EMA60 + ADX14*2 + RSI14 + buffer
+      } else if (selectedStrategy === "bot-ptj-v4") {
+        warmupBars = 200; // EMA100 + ATR14 + ROC20 + buffer
+      } else if (selectedStrategy === "bot-rotation") {
+        warmupBars = 100; // 60일 모멘텀 + buffer
+      } else if (selectedStrategy === "bot-alpha-v5") {
+        warmupBars = 250; // MA200 + ATR + ADX
+      } else if (selectedStrategy === "bot-ptj-200ma") {
         warmupBars = (parseInt(paramValues[0]) || 200) + 10;
       } else if (selectedStrategy === "bot-seykota-ema") {
         warmupBars = (parseInt(paramValues[0]) || 100) + 10;
       } else if (selectedStrategy === "bot-bybit-v6-hybrid" || selectedStrategy === "bot-22b-engine") {
-        warmupBars = 250; // MA200 + ROC30 + buffer
+        warmupBars = 250;
       } else if (selectedStrategy === "bot-bybit-funding-arb") {
         warmupBars = 110;
       }
       const totalBarsNeeded = daysDiff + warmupBars;
       const toTs = Math.floor(end.getTime() / 1000);
       const fsym = coinId === "bitcoin" ? "BTC" : coinId === "ethereum" ? "ETH" : coinId === "solana" ? "SOL" : "XRP";
+      // 봇 전략은 KRW, 일반 전략은 USD
+      const tsym = isBotStrategy ? "KRW" : "USD";
 
       // Fetch data — multiple requests if >2000 bars needed
       const allDataMap = new Map<number, { time: number; open: number; high: number; low: number; close: number }>();
       if (totalBarsNeeded <= 2000) {
-        const url = `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${fsym}&tsym=USD&limit=${totalBarsNeeded}&toTs=${toTs}`;
+        const url = `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${fsym}&tsym=${tsym}&limit=${totalBarsNeeded}&toTs=${toTs}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("CryptoCompare error");
         const json = await res.json();
@@ -2453,8 +2463,8 @@ export default function BacktestPage() {
         // Split into 2 requests
         const midTs = toTs - Math.floor(totalBarsNeeded / 2) * 86400;
         const urls = [
-          `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${fsym}&tsym=USD&limit=2000&toTs=${midTs}`,
-          `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${fsym}&tsym=USD&limit=2000&toTs=${toTs}`,
+          `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${fsym}&tsym=${tsym}&limit=2000&toTs=${midTs}`,
+          `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${fsym}&tsym=${tsym}&limit=2000&toTs=${toTs}`,
         ];
         const results = await Promise.all(urls.map((u) => fetch(u).then((r) => r.json())));
         for (const json of results) {
