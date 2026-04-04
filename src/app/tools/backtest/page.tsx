@@ -1817,6 +1817,227 @@ function calcATR(prices: PriceBar[], period: number): number[] {
 // 매수: price > EMA + ATR*배수 (상승 추세 돌파)
 // 매도: price < EMA - ATR*배수 (하락 추세 돌파)
 // ATR 동적밴드로 변동성에 따라 진입/청산 기준 자동 조절
+// === Helper: RSI ===
+function calcRSI(closes: number[], period: number = 14): number[] {
+  const rsi = new Array(closes.length).fill(50);
+  let gainSum = 0, lossSum = 0;
+  for (let i = 1; i <= period && i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d > 0) gainSum += d; else lossSum -= d;
+  }
+  let avgGain = gainSum / period, avgLoss = lossSum / period;
+  for (let i = period; i < closes.length; i++) {
+    if (i > period) {
+      const d = closes[i] - closes[i - 1];
+      avgGain = (avgGain * (period - 1) + (d > 0 ? d : 0)) / period;
+      avgLoss = (avgLoss * (period - 1) + (d < 0 ? -d : 0)) / period;
+    }
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    rsi[i] = 100 - 100 / (1 + rs);
+  }
+  return rsi;
+}
+
+// === Helper: ADX ===
+function calcADX(prices: PriceBar[], period: number = 14): number[] {
+  const n = prices.length;
+  const adx = new Array(n).fill(25);
+  if (n < period * 2) return adx;
+  const tr: number[] = [], pdm: number[] = [], ndm: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (i === 0) { tr.push(prices[i].high - prices[i].low); pdm.push(0); ndm.push(0); continue; }
+    const h = prices[i].high, l = prices[i].low, pc = prices[i - 1].close;
+    tr.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
+    const up = h - prices[i - 1].high, dn = prices[i - 1].low - l;
+    pdm.push(up > dn && up > 0 ? up : 0);
+    ndm.push(dn > up && dn > 0 ? dn : 0);
+  }
+  // Smoothed
+  let atr = 0, spd = 0, snd = 0;
+  for (let i = 0; i < period; i++) { atr += tr[i]; spd += pdm[i]; snd += ndm[i]; }
+  const dx: number[] = new Array(n).fill(0);
+  for (let i = period; i < n; i++) {
+    atr = atr - atr / period + tr[i];
+    spd = spd - spd / period + pdm[i];
+    snd = snd - snd / period + ndm[i];
+    const pdi = atr > 0 ? 100 * spd / atr : 0;
+    const ndi = atr > 0 ? 100 * snd / atr : 0;
+    dx[i] = (pdi + ndi) > 0 ? 100 * Math.abs(pdi - ndi) / (pdi + ndi) : 0;
+  }
+  // ADX = SMA of DX
+  let sum = 0;
+  for (let i = period; i < period * 2 && i < n; i++) sum += dx[i];
+  for (let i = period * 2; i < n; i++) {
+    adx[i] = (adx[i - 1] * (period - 1) + dx[i]) / period;
+    if (i === period * 2) adx[i] = sum / period;
+  }
+  return adx;
+}
+
+// === Seykota v2.1: EMA 15/60 크로스 + ADX>20 + RSI 40-70 + ATR 동적SL ===
+function runSeykotaV2(
+  prices: PriceBar[],
+  fastPeriod: number = 15,
+  slowPeriod: number = 60,
+  adxMin: number = 20,
+  commission: number = 0.001,
+  initialCapital: number = 10000000,
+): BacktestResult {
+  const closes = prices.map(p => p.close);
+  const emaFast = calcEMA(closes, fastPeriod);
+  const emaSlow = calcEMA(closes, slowPeriod);
+  const atr = calcATR(prices, 14);
+  const rsi = calcRSI(closes, 14);
+  const adx = calcADX(prices, 14);
+
+  let capital = initialCapital;
+  let position = 0, entryPrice = 0, highest = 0;
+  const equityCurve: number[] = [100];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  const drawdownCurve: number[] = [0];
+  let holdStart = 0;
+
+  const startIdx = slowPeriod + 1;
+
+  for (let i = startIdx; i < prices.length; i++) {
+    const close = closes[i];
+    const ef = emaFast[i], es = emaSlow[i];
+    const pef = emaFast[i-1], pes = emaSlow[i-1];
+    const r = rsi[i], a = adx[i], at = atr[i];
+    const bullish = ef > es;
+    const gc = pef <= pes && ef > es;
+    const pb = bullish && prices[i].low <= ef * 1.01 && close > ef;
+
+    if (position > 0) {
+      if (close > highest) highest = close;
+      let exit = false;
+      // ATR SL
+      if (close <= entryPrice - at * 1.5) exit = true;
+      // Trailing
+      else if (close > entryPrice * 1.03 && close <= highest - at * 2.0) exit = true;
+      // Trend reversal
+      else if (!bullish && r < 40) exit = true;
+
+      if (exit) {
+        const proceeds = position * close * (1 - commission);
+        trades.push({ pnl: ((close - entryPrice) / entryPrice) * 100, holdDays: i - holdStart });
+        capital = proceeds;
+        position = 0;
+      }
+    } else {
+      if (a > adxMin && bullish && r > 40 && r < 70 && (gc || pb)) {
+        const cost = capital * 0.95 * (1 - commission);
+        position = cost / close;
+        entryPrice = close;
+        highest = close;
+        holdStart = i;
+        capital *= 0.05;
+      }
+    }
+
+    const equity = position > 0 ? capital + position * close : capital;
+    peak = Math.max(peak, equity);
+    const dd = ((equity - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((equity / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+
+  if (position > 0) {
+    const lc = closes[closes.length - 1];
+    capital += position * lc * (1 - commission);
+    trades.push({ pnl: ((lc - entryPrice) / entryPrice) * 100, holdDays: prices.length - holdStart });
+  }
+
+  return computeStats(prices.slice(Math.max(startIdx - 1, 0)), equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
+    "Seykota v2.1 Bot", "BTC", "CryptoCompare (실제 데이터)");
+}
+
+// === PTJ v4.1: EMA100 + ATR*0.8 밴드 + ROC20 모멘텀 + 3단계 청산 + 재진입 ===
+function runPTJv4(
+  prices: PriceBar[],
+  emaPeriod: number = 100,
+  atrMult: number = 0.8,
+  slPct: number = 7,
+  commission: number = 0.001,
+  initialCapital: number = 10000000,
+): BacktestResult {
+  const closes = prices.map(p => p.close);
+  const ema = calcEMA(closes, emaPeriod);
+  const atr = calcATR(prices, 14);
+  const rsi = calcRSI(closes, 14);
+
+  let capital = initialCapital;
+  let position = 0, entryPrice = 0, highest = 0;
+  const equityCurve: number[] = [100];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  const drawdownCurve: number[] = [0];
+  let holdStart = 0;
+
+  const startIdx = emaPeriod + 1;
+
+  for (let i = startIdx; i < prices.length; i++) {
+    const close = closes[i];
+    const ma = ema[i], at = atr[i], r = rsi[i];
+    const upper = ma + at * atrMult;
+    const lower = ma - at * atrMult;
+    const roc20 = i >= 20 ? ((close - closes[i - 20]) / closes[i - 20]) * 100 : 0;
+
+    if (position > 0) {
+      if (close > highest) highest = close;
+      const pnl = ((close - entryPrice) / entryPrice) * 100;
+      let exit = false;
+
+      // 1. 고정 손절
+      if (pnl <= -slPct) exit = true;
+      // 2. ATR 손절
+      else if (close <= entryPrice - at * 2.5) exit = true;
+      // 3. 트레일링 (5% 이상 수익 시)
+      else if (pnl > 5 && close <= highest * 0.92) exit = true;
+      // 4. 밴드+RSI 이탈
+      else if (close < lower && r < 40) exit = true;
+
+      if (exit) {
+        const proceeds = position * close * (1 - commission);
+        trades.push({ pnl, holdDays: i - holdStart });
+        capital = proceeds + capital;
+        position = 0;
+      }
+    } else {
+      const buySignal = close > upper && roc20 > 0 && r > 35 && r < 75;
+      const reentry = close > ma && r < 35 && rsi[i - 1] < 30;
+
+      if (buySignal || reentry) {
+        const invest = capital * 0.95;
+        position = invest * (1 - commission) / close;
+        entryPrice = close;
+        highest = close;
+        holdStart = i;
+        capital -= invest;
+      }
+    }
+
+    const equity = position > 0 ? capital + position * close : capital;
+    peak = Math.max(peak, equity);
+    const dd = ((equity - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((equity / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+
+  if (position > 0) {
+    const lc = closes[closes.length - 1];
+    capital += position * lc * (1 - commission);
+    trades.push({ pnl: ((lc - entryPrice) / entryPrice) * 100, holdDays: prices.length - holdStart });
+  }
+
+  return computeStats(prices.slice(Math.max(startIdx - 1, 0)), equityCurve, drawdownCurve, trades, capital, initialCapital, maxDD,
+    "PTJ v4.1 Bot", "BTC", "CryptoCompare (실제 데이터)");
+}
+
+// === Legacy Seykota v1 (EMA100 + ATR band) ===
 function runSeykotaEMA(
   prices: PriceBar[],
   emaPeriod: number = 100,
@@ -2088,12 +2309,14 @@ function runKISRsiMacd(
 // --- Default param values per bot strategy ---
 function getBotDefaults(strategyId: string): string[] {
   switch (strategyId) {
+    case "bot-seykota-v2": return ["15", "60", "20"];
+    case "bot-ptj-v4": return ["100", "0.8", "7"];
+    case "bot-rotation": return ["60", "2", "2"];
+    case "bot-alpha-v5": return ["45", "55", "5"];
+    // legacy
     case "bot-seykota-ema": return ["100", "1.5", "14"];
     case "bot-ptj-200ma": return ["200", "1.5", "14"];
-    case "bot-kis-rsi-macd": return ["12/26/9", "20", "7"];
     case "bot-bybit-v6-hybrid": return ["5", "2.0", "4.0"];
-    case "bot-22b-engine": return ["3.0", "1.5", "12"];
-    case "bot-bybit-funding-arb": return ["0.03", "70", "15"];
     default: return ["0.5", "80", "5"];
   }
 }
@@ -2254,18 +2477,22 @@ export default function BacktestPage() {
         let backResult: BacktestResult;
 
         switch (selectedStrategy) {
+          case "bot-seykota-v2":
           case "bot-seykota-ema": {
-            const emaPeriod = parseInt(paramValues[0]) || 100;
-            const atrMult = parseFloat(paramValues[1]) || 1.5;
-            const atrPeriod = parseInt(paramValues[2]) || 14;
-            backResult = runSeykotaEMA(prices, emaPeriod, atrMult, atrPeriod, 0.001, capital);
+            // v2.1: EMA 15/60 크로스 + ADX + RSI + ATR 동적SL
+            const fastEma = parseInt(paramValues[0]) || 15;
+            const slowEma = parseInt(paramValues[1]) || 60;
+            const adxMin = parseInt(paramValues[2]) || 20;
+            backResult = runSeykotaV2(prices, fastEma, slowEma, adxMin, 0.001, capital);
             break;
           }
+          case "bot-ptj-v4":
           case "bot-ptj-200ma": {
-            const emaPeriod = parseInt(paramValues[0]) || 200;
-            const atrMult = parseFloat(paramValues[1]) || 1.5;
-            const atrPeriod = parseInt(paramValues[2]) || 14;
-            backResult = runPTJ200MA(prices, emaPeriod, atrMult, atrPeriod, 0.001, capital);
+            // v4.1: EMA100 + ATR*0.8 + 모멘텀 + 3단계 청산
+            const emaPeriod = parseInt(paramValues[0]) || 100;
+            const atrMult = parseFloat(paramValues[1]) || 0.8;
+            const slPct = parseFloat(paramValues[2]) || 7;
+            backResult = runPTJv4(prices, emaPeriod, atrMult, slPct, 0.001, capital);
             break;
           }
           case "bot-22b-engine": {
