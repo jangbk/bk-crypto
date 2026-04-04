@@ -1320,16 +1320,62 @@ export default function BotPerformancePage() {
 
 function MarketRegimeGuide() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [pwInput, setPwInput] = useState("");
+  const [pwError, setPwError] = useState(false);
+  const REGIME_PW = "jbk123";
+
+  const handleUnlock = () => {
+    if (pwInput === REGIME_PW) {
+      setIsUnlocked(true);
+      setIsOpen(true);
+      setPwError(false);
+    } else {
+      setPwError(true);
+    }
+  };
+
   return (
     <section className="mt-6 rounded-lg border border-border bg-card p-4">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (isUnlocked) {
+            setIsOpen(!isOpen);
+          } else if (!isOpen) {
+            setIsOpen(true);
+          } else {
+            setIsOpen(false);
+          }
+        }}
         className="w-full flex items-center justify-between font-semibold text-left"
       >
-        <span>📊 장세별 매매 전략 (Alpha v4 + RSI MeanRev)</span>
-        <span className="text-muted-foreground text-sm">{isOpen ? "접기 ▲" : "펼치기 ▼"}</span>
+        <span>{isUnlocked ? "📊 장세별 매매 전략 (Alpha v4 + RSI MeanRev)" : "🔒 장세별 매매 전략"}</span>
+        <span className="text-muted-foreground text-sm">
+          {isUnlocked ? (isOpen ? "접기 ▲" : "펼치기 ▼") : "비밀번호 필요"}
+        </span>
       </button>
-      {isOpen && (
+
+      {isOpen && !isUnlocked && (
+        <div className="mt-4 flex items-center gap-2">
+          <input
+            type="password"
+            value={pwInput}
+            onChange={(e) => { setPwInput(e.target.value); setPwError(false); }}
+            onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
+            placeholder="비밀번호 입력"
+            className={`rounded border px-3 py-1.5 text-sm bg-background ${pwError ? "border-red-500" : "border-border"}`}
+          />
+          <button
+            onClick={handleUnlock}
+            className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90"
+          >
+            확인
+          </button>
+          {pwError && <span className="text-xs text-red-500">비밀번호가 틀렸습니다</span>}
+        </div>
+      )}
+
+      {isOpen && isUnlocked && (
         <div className="mt-4 space-y-4 text-sm">
           {/* 시스템 구조도 */}
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
