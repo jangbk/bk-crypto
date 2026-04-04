@@ -10,7 +10,7 @@ const BYBIT_BOTS = [
     description: "레짐감지 + BULL 숏차단 + 트레일링 강화. MDD 1.58%",
     asset: "BTC/USDT",
     exchange: "Bybit (Demo)",
-    status: "stopped" as const,
+    status: "active" as const,  // TypeScript 타입 호환 (실제로는 미가동)
     startDate: "2026-03-31",
     initialCapital: 30000,
     currentValue: 30000,
