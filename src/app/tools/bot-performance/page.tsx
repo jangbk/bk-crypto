@@ -295,6 +295,77 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     monthlyReturns: [],
     recentTrades: [],
   },
+  {
+    id: "mcdavidd-v2",
+    name: "McDavidd v2 Bot",
+    description: "McGinley + BB 내부 진입 + VFI + ATR 동적 SL/TP — DaviddTech 전략 기반 BTC",
+    strategyDetail: {
+      summary: "DaviddTech YouTube 채널의 McDavidd 전략을 BTC/USDT에 최적화. McGinley Dynamic MA가 BB 내부에서 상향 크로스할 때 VFI(거래량 방향)가 매수세를 확인하면 진입. ATR 기반 동적 SL/TP로 변동성에 자동 적응. P1(상승장) +48.76%, P2(하락장) +10.17% 기록.",
+      regimes: [
+        { name: "📈 롱 진입", condition: "McGinley 상향 크로스 + BB 내부 + VFI > 0 & Green > Orange", action: "전액 매수 (ATR SL/TP 자동 설정)" },
+        { name: "🔴 ATR 손절", condition: "가격 < 진입가 − ATR × 1.5", action: "전량 매도" },
+        { name: "✅ ATR 익절", condition: "가격 > 진입가 + ATR × 4.0 (P1 최적값)", action: "전량 매도 (수익 확정)" },
+        { name: "⏸️ 대기", condition: "VFI 중립 또는 McGinley 방향 불명확", action: "현금 보유" },
+      ],
+      entryConditions: [
+        { label: "Baseline", value: "McGinley Dynamic MA (period 14)" },
+        { label: "진입 트리거", value: "BB 내부에서 McGinley 상향 크로스" },
+        { label: "거래량 확인", value: "VFI > 0 & Green Line > Orange Line" },
+        { label: "SL", value: "ATR × 1.5 (동적, 변동성 자동 반영)" },
+        { label: "TP (최적)", value: "ATR × 4.0 (P1 그리드 서치 최적값)" },
+        { label: "수수료", value: "0.1% (Binance BTC/USDT 기준)" },
+      ],
+      riskManagement: [
+        { label: "방향", value: "롱(매수)만 — 현물 전략" },
+        { label: "SL 방식", value: "ATR × 1.5 동적 손절 (고정 % 아님)" },
+        { label: "TP 방식", value: "ATR × 4.0 목표 (R:R = 2.7:1)" },
+        { label: "MDD 경고", value: "-25% 초과 시 포지션 50% 축소 권장" },
+      ],
+      backtestResults: [
+        { period: "P1: 2025.01~08 (상승장) 1h", returnPct: "+48.76%", winRate: "39.7%", sharpe: "3.37", mdd: "-25.68%" },
+        { period: "P2: 2025.09~26.03 (하락장) 1h", returnPct: "+10.17%", winRate: "34.9%", sharpe: "—", mdd: "-31.98%" },
+        { period: "그리드 서치 최적 (P1 1h)", returnPct: "+77.85%", winRate: "39.6%", sharpe: "3.37", mdd: "-24.68%" },
+      ],
+      liveExpectation: {
+        pythonReturn: "P1 +48.76%, P2 +10.17% (GARCH 시뮬레이션 기반)",
+        websiteReturn: "백테스트 도구에서 확인 가능",
+        expectedReturn: "연간 30~60% 목표 (실데이터 검증 후 조정)",
+        reasons: [
+          "McGinley Dynamic: 일반 EMA보다 시장 속도에 민감하게 반응 → 추세 초기 진입",
+          "BB 내부 진입: BB 돌파 방식보다 신호 다수 + 노이즈 적음",
+          "VFI 필터: 거래량 방향이 뒷받침되는 진입만 허용 → 가짜 신호 차단",
+          "ATR 동적 SL/TP: 변동성 클 때 넓게, 작을 때 좁게 자동 조절",
+          "P1 상승장 +48.76%, P2 하락장도 +10.17% — 양방향 수익",
+        ],
+        caveats: [
+          "현재 개발/백테스트 단계 — 실데이터(Binance) 검증 후 실전 전환",
+          "MDD -25~32% — 포지션 사이징으로 실제 위험 축소 필요",
+          "승률 35~40% — 낮지만 R:R 2.7:1로 기댓값 양수",
+          "4h, 1d 타임프레임은 성능 열세 — 1h 권장",
+        ],
+      },
+    },
+    asset: "BTC/USDT",
+    exchange: "Binance (백테스트)",
+    status: "stopped" as const,
+    startDate: "2026-04-07",
+    initialCapital: 10000,
+    currentValue: 10000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
 ];
 
 /** 금액을 한국식으로 포맷 (억/만원 단위) */
@@ -326,7 +397,7 @@ function formatUSD(value: number): string {
 }
 
 function isUSDBot(id: string): boolean {
-  const usdBots = ["bybit-alpha-v4", "bybit-rotation"];
+  const usdBots = ["bybit-alpha-v4", "bybit-rotation", "mcdavidd-v2"];
   return usdBots.includes(id);
 }
 
@@ -490,7 +561,7 @@ export default function BotPerformancePage() {
   // Calculate aggregated stats — Live / Demo Testing / In Development 3단계 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
   const demoBotIds = ["bybit-rotation"];  // Demo Testing: 실전 검증 중 (실가격, 가상자금)
-  const devBotIds = ["bybit-alpha-v4"];  // In Development
+  const devBotIds = ["bybit-alpha-v4", "mcdavidd-v2"];  // In Development
   const realBots = strategies.filter((b) => !demoBotIds.includes(b.id) && !devBotIds.includes(b.id));
   const demoBots = strategies.filter((b) => demoBotIds.includes(b.id));
   const devBots = strategies.filter((b) => devBotIds.includes(b.id));

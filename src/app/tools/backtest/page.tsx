@@ -149,6 +149,18 @@ const STRATEGIES: Strategy[] = [
     ],
     isBotStrategy: true,
   },
+  {
+    id: "bot-mcdavidd-v2",
+    name: "🤖 McDavidd v2 (개발 중)",
+    description: "McGinley + BB 내부 진입 + VFI + ATR 동적 SL/TP. P1 +48.76%, P2 +10.17%, Calmar 3.15",
+    params: ["McGinley 기간", "ATR SL 배수", "ATR TP 배수"],
+    paramHints: [
+      "McGinley Dynamic MA 기간. 14가 최적 (EMA보다 속도 적응적)",
+      "손절 = 진입가 ± ATR × 배수. 1.5가 P1 최적값",
+      "익절 = 진입가 ± ATR × 배수. 4.0이 P1 최적값 (R:R 2.7:1)",
+    ],
+    isBotStrategy: true,
+  },
 ];
 
 const KR_STOCK_ASSETS: { label: string; value: string; symbol: string }[] = [
@@ -1886,6 +1898,121 @@ function calcADX(prices: PriceBar[], period: number = 14): number[] {
   return adx;
 }
 
+// === McDavidd v2: McGinley + BB 내부 진입 + VFI + ATR 동적 SL/TP ===
+// DaviddTech 전략 기반. P1 +48.76% (1h), P2 +10.17%
+function runMcDaviddV2(
+  prices: PriceBar[],
+  mgPeriod: number = 14,
+  atrSlMult: number = 1.5,
+  atrTpMult: number = 4.0,
+  commission: number = 0.001,
+  initialCapital: number = 10000,
+): BacktestResult {
+  const closes = prices.map(p => p.close);
+  const highs  = prices.map(p => p.high);
+  const lows   = prices.map(p => p.low);
+  const n = closes.length;
+
+  // McGinley Dynamic MA
+  const mg: number[] = new Array(n).fill(0);
+  mg[0] = closes[0];
+  for (let i = 1; i < n; i++) {
+    const prev = mg[i - 1], c = closes[i];
+    const denom = prev > 0 ? Math.max(mgPeriod * Math.pow(c / prev, 4), 1e-10) : mgPeriod;
+    mg[i] = prev + (c - prev) / denom;
+  }
+
+  // Bollinger Bands (BB 내부 확인용)
+  const bbPeriod = 20, bbMult = 2.0;
+  const bbUpper: number[] = new Array(n).fill(0);
+  const bbLower: number[] = new Array(n).fill(0);
+  for (let i = bbPeriod - 1; i < n; i++) {
+    const slice = closes.slice(i - bbPeriod + 1, i + 1);
+    const mean = slice.reduce((a, b) => a + b, 0) / bbPeriod;
+    const std  = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2, 0) / bbPeriod);
+    bbUpper[i] = mean + bbMult * std;
+    bbLower[i] = mean - bbMult * std;
+  }
+
+  // ATR
+  const atr = calcATR(prices, 14);
+
+  // VFI (Volume Flow Indicator 간소화: 상승 거래량 vs 하락 거래량 비율)
+  const vfiBull: boolean[] = new Array(n).fill(false);
+  const vfiSpan = 20;
+  for (let i = vfiSpan; i < n; i++) {
+    let upSum = 0, dnSum = 0;
+    for (let j = i - vfiSpan + 1; j <= i; j++) {
+      const ret = (closes[j] - closes[j - 1]) / closes[j - 1];
+      if (ret > 0) upSum += Math.abs(ret);
+      else         dnSum += Math.abs(ret);
+    }
+    vfiBull[i] = upSum > dnSum;
+  }
+
+  const warmup = Math.max(bbPeriod, vfiSpan, 14) + 1;
+  let capital = initialCapital;
+  let position = 0, entryPrice = 0, slPrice = 0, tpPrice = 0;
+  const equityCurve: number[] = [100];
+  const trades: { pnl: number; holdDays: number }[] = [];
+  let peak = capital, maxDD = 0;
+  const drawdownCurve: number[] = [0];
+  let holdStart = 0;
+
+  for (let i = warmup; i < n; i++) {
+    const close = closes[i];
+    const at    = atr[i] || close * 0.02;
+
+    // 청산 체크 (SL/TP)
+    if (position > 0) {
+      if (lows[i] <= slPrice || highs[i] >= tpPrice) {
+        const exitPx = lows[i] <= slPrice ? slPrice : tpPrice;
+        const proceeds = position * exitPx * (1 - commission);
+        trades.push({ pnl: ((exitPx - entryPrice) / entryPrice) * 100, holdDays: i - holdStart });
+        capital += proceeds;
+        position = 0;
+      }
+    }
+
+    // 진입 체크 (포지션 없을 때)
+    if (position === 0) {
+      const insideBB   = close < bbUpper[i] && close > bbLower[i];
+      const mgCrossUp  = closes[i - 1] <= mg[i - 1] && close > mg[i];
+      const vfiBullish = vfiBull[i];
+
+      if (insideBB && mgCrossUp && vfiBullish) {
+        const invest = capital * 0.95;
+        position     = (invest * (1 - commission)) / close;
+        entryPrice   = close;
+        slPrice      = close - atrSlMult * at;
+        tpPrice      = close + atrTpMult * at;
+        holdStart    = i;
+        capital     -= invest;
+      }
+    }
+
+    const equity = position > 0 ? capital + position * close : capital;
+    peak = Math.max(peak, equity);
+    const dd = ((equity - peak) / peak) * 100;
+    maxDD = Math.min(maxDD, dd);
+    equityCurve.push((equity / initialCapital) * 100);
+    drawdownCurve.push(dd);
+  }
+
+  // 미청산 포지션 마감
+  if (position > 0) {
+    const lc = closes[n - 1];
+    capital += position * lc * (1 - commission);
+    trades.push({ pnl: ((lc - entryPrice) / entryPrice) * 100, holdDays: n - holdStart });
+  }
+
+  return computeStats(
+    prices.slice(Math.max(warmup - 1, 0)), equityCurve, drawdownCurve,
+    trades, capital, initialCapital, maxDD,
+    "McDavidd v2 Bot", "BTC", "CryptoCompare (실제 데이터)"
+  );
+}
+
 // === Seykota v2.1: EMA 15/60 크로스 + ADX>20 + RSI 40-70 + ATR 동적SL ===
 function runSeykotaV2(
   prices: PriceBar[],
@@ -2326,6 +2453,7 @@ function getBotDefaults(strategyId: string): string[] {
     case "bot-ptj-v4": return ["100", "0.8", "7"];
     case "bot-rotation": return ["60", "2", "2"];
     case "bot-alpha-v5": return ["45", "55", "5"];
+    case "bot-mcdavidd-v2": return ["14", "1.5", "4.0"];
     // legacy
     case "bot-seykota-ema": return ["100", "1.5", "14"];
     case "bot-ptj-200ma": return ["200", "1.5", "14"];
@@ -2641,6 +2769,13 @@ export default function BacktestPage() {
             const k = parseFloat(paramValues[0]) || 0.5;
             const investRatio = parseFloat(paramValues[1]) || 80;
             backResult = runVolatilityBreakout(prices, k, investRatio, capital);
+            break;
+          }
+          case "bot-mcdavidd-v2": {
+            const mgPrd  = parseInt(paramValues[0])  || 14;
+            const slMult = parseFloat(paramValues[1]) || 1.5;
+            const tpMult = parseFloat(paramValues[2]) || 4.0;
+            backResult = runMcDaviddV2(prices, mgPrd, slMult, tpMult, 0.001, capital);
             break;
           }
           case "trend-following": {
