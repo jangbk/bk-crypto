@@ -121,7 +121,7 @@ export async function GET() {
     if (smcLive) {
       strategies.push({
         id: "luxalgo-smc-hybrid",
-        name: "LuxAlgo SMC Hybrid v1.2",
+        name: "LuxAlgo SMC Hybrid v1.3",
         description: "Market Structure(BOS/CHoCH) + EMA + Order Block — 4H Long & Short",
         asset: "BTC/USDT",
         exchange: "Bybit (Demo)",
