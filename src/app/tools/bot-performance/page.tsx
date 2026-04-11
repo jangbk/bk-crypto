@@ -72,10 +72,10 @@ interface StrategyDetail {
 const FALLBACK_STRATEGIES: BotStrategy[] = [
   {
     id: "seykota-ema",
-    name: "Seykota EMA v3.4 Bot",
-    description: "EMA 15/60 + MA200 하락장 필터 + ADX + RSI + ATR 동적손절 — ChatGPT 4차 리뷰 완료",
+    name: "Seykota EMA v3.5 Bot",
+    description: "EMA 15/60 + MA200 하락장 필터 + ADX + RSI + ATR 동적손절 — ChatGPT 5차 리뷰 완료",
     strategyDetail: {
-      summary: "Ed Seykota의 추세추종 철학을 v3.4로 업그레이드. ChatGPT 4차 리뷰(21건 수정) 완료. 포지션 복구 시 진입가 보존(reconcile) + 티커 변경 감지, 실제 체결가 사용(UUID 조회 3회 재시도), 마감 일봉 기준 진입 신호, 멀티코인 전체 잔고 스캔 + 다중 보유 경고, INVEST_RATIO 반영, RSI NaN 방지, ATR Wilder 통일. 12년(2013~2026) 백테스트 +23,367%, PF 7.89.",
+      summary: "Ed Seykota의 추세추종 철학을 v3.5로 업그레이드. ChatGPT 5차 리뷰(25건 수정) 완료. 포지션 복구 시 진입가 보존(reconcile) + 티커 변경 감지, 실제 체결가 사용(UUID 조회 3회 재시도), 마감 일봉 기준 진입 신호, 멀티코인 전체 잔고 스캔 + 다중 보유 경고, INVEST_RATIO 반영, RSI NaN 방지, ATR Wilder 통일. 12년(2013~2026) 백테스트 +23,367%, PF 7.89.",
       regimes: [
         { name: "📈 매수: Golden Cross", condition: "EMA15 > EMA60 크로스 + ADX > 15 + RSI 35~75 + MA200 위", action: "INVEST_RATIO(95%) 매수" },
         { name: "📈 매수: Pullback", condition: "상승추세 중 EMA15 터치 후 반등 + ADX/RSI 필터", action: "INVEST_RATIO 매수 (눌림목)" },
@@ -129,7 +129,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
           "12년 PF 7.89: $1 손실당 $7.89 수익 — 압도적 손익비",
           "Avg Win +61.9% vs Avg Loss -10.3%: 승률 57%로도 장기 복리 성장",
           "2017 불장 +285%, 2021 불장 +157% — 대세 상승장에서 극적 수익",
-          "ChatGPT 4차 리뷰 완료: 21건 버그 수정 (체결가, 포지션복구, 티커전환, 마감봉, 다중보유 등)",
+          "ChatGPT 5차 리뷰 완료: 25건 버그 수정 (체결가, 포지션복구, 티커전환, 마감봉, 다중보유, 주문통합 등)",
         ],
         caveats: [
           "최근 6개월~1년 거래 0건 — MA200 하락장 필터 작동 중 (현금 보유)",
