@@ -142,7 +142,7 @@ export async function getCoinoneBotData() {
 
     const botStrategy = {
       id: "ptj-200ma",
-      name: "PTJ Trading v4.6 Bot",
+      name: "PTJ Trading v4.7 Bot",
       description: "EMA100 + ATR 밴드 + MA200 하락장 필터 + RSI + ROC20 + 3단계 청산",
       asset: "BTC/KRW",
       exchange: "Coinone",
