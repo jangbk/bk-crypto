@@ -1,11 +1,10 @@
-// LuxAlgo EMA Trend v3.3 — Production-Ready
-// Fixed: entryPrice→position_avg_price, state reset, exit separation,
-//        webhook order-fill alignment, pullback wick logic
-// Reviewed by: Genspark AI, Gemini, ChatGPT (2 rounds), Claude
+// LuxAlgo EMA Trend v3.4 — Production-Ready (Final)
+// All 5 AI reviews applied: Genspark, Gemini, ChatGPT (3 rounds), Claude
+// Fixes: order-fill alerts, frozenATR consistency, explicit qty, split exit types
 // BTCUSDT 4H | Bybit Perpetual
 
 //@version=6
-strategy("LuxAlgo EMA Trend v3.3", overlay=true,
+strategy("LuxAlgo EMA Trend v3.4", overlay=true,
      default_qty_type=strategy.percent_of_equity, default_qty_value=70,
      commission_type=strategy.commission.percent, commission_value=0.055,
      slippage=3, initial_capital=10000, currency=currency.USD,
@@ -33,7 +32,7 @@ rsiHigh        = input.float(70, "RSI High", group="Filter")
 adxLen         = input.int(14, "ADX Period", group="Filter")
 adxMin         = input.float(25, "ADX Minimum", group="Filter")
 chopLen        = input.int(14, "Chop Index Length", group="Filter")
-chopMax        = input.float(61.8, "Chop Max (횡보 기준)", step=0.5, group="Filter")
+chopMax        = input.float(61.8, "Chop Max", step=0.5, group="Filter")
 
 webhookSecret  = input.string("luxalgo-smc-2026", "Webhook Secret", group="Webhook")
 
@@ -52,12 +51,10 @@ atrVal = ta.atr(atrPeriod)
 rsiVal = ta.rsi(close, rsiLen)
 [diPlus, diMinus, adxVal] = ta.dmi(adxLen, adxLen)
 
-// EMA 200 slope (percentage)
 etSlopePct = (et - et[10]) / et[10] * 100
 etRising  = etSlopePct > 0.1
 etFalling = etSlopePct < -0.1
 
-// Chop Index — sideways filter
 chopHigh = ta.highest(high, chopLen)
 chopLow  = ta.lowest(low, chopLen)
 chopRange = chopHigh - chopLow
@@ -65,20 +62,17 @@ chopCI   = chopRange > 0 ? 100 * math.log10(math.sum(ta.tr, chopLen) / chopRange
 isTrending = chopCI < chopMax
 
 // ══════════════════════════════════════════════════════════════
-// STATE MANAGEMENT — Clean lifecycle
+// STATE — Clean lifecycle
 // ══════════════════════════════════════════════════════════════
 
 var bool lastWasWin = true
 var bool exitPlaced = false
-var float frozenATR = na       // ATR at entry time (intentional freeze)
-var int   posDir = 0           // 1=long, -1=short, 0=flat
+var float frozenATR = na
 
-// Detect closed trade — cleaner idiom (ChatGPT suggestion)
 if ta.change(strategy.closedtrades) > 0
     lastWasWin := strategy.closedtrades.profit(strategy.closedtrades - 1) > 0
     exitPlaced := false
-    frozenATR  := na           // fix: reset state on close
-    posDir     := 0
+    frozenATR  := na
 
 // ══════════════════════════════════════════════════════════════
 // ENTRY CONDITIONS
@@ -87,86 +81,84 @@ if ta.change(strategy.closedtrades) > 0
 crossUp = ta.crossover(ef, es)
 crossDn = ta.crossunder(ef, es)
 
-// Trend alignment
 bullTrend = close > et and ef > et and etRising
 bearTrend = close < et and ef < et and etFalling
 
-// Pullback: wick interaction with EMA (fix: was close-cross, now wick-touch + bounce)
-// Wick touches EMA89 but close bounces back = genuine pullback rejection
 pullbackLong  = lastWasWin and bullTrend and ef > es and low <= es and close > es and close > open and (close - open) > (high - low) * 0.5
 pullbackShort = lastWasWin and bearTrend and ef < es and high >= es and close < es and close < open and (open - close) > (high - low) * 0.5
 
-// Filters
 rsiOk = rsiVal > rsiLow and rsiVal < rsiHigh
 adxOk = adxVal > adxMin
 
-// Final conditions
 longCond  = inRange and (crossUp or pullbackLong) and bullTrend and rsiOk and adxOk and isTrending and strategy.position_size == 0
 shortCond = inRange and (crossDn or pullbackShort) and bearTrend and rsiOk and adxOk and isTrending and strategy.position_size == 0
 
 // ══════════════════════════════════════════════════════════════
-// EXECUTION — Fix: use position_avg_price, separate exit logic
+// EXECUTION — order-fill alerts via alert_message (fix: was condition-only)
 // ══════════════════════════════════════════════════════════════
 
-// ATR to mintick points
-atrPoints(mult) =>
-    math.round((mult * atrVal) / syminfo.mintick)
+// Helper: frozenATR to mintick points (fix: was using live atrVal)
+frozenPoints(mult) =>
+    not na(frozenATR) ? math.round((mult * frozenATR) / syminfo.mintick) : na
 
-// ── Entry ──
+// ── Entry with alert_message (fires on actual fill, not just condition) ──
 if longCond
-    strategy.entry("Long", strategy.long, comment="L-Entry")
     frozenATR := atrVal
     exitPlaced := false
-    posDir := 1
+    entryReason = crossUp ? "cross" : "pullback"
+    strategy.entry("Long", strategy.long, comment="L-Entry",
+         alert_message='{"secret":"' + webhookSecret + '","action":"long","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.##") + ',"sl":' + str.tostring(close - slMult * atrVal, "#.##") + ',"tp":' + str.tostring(close + tpMult * atrVal, "#.##") + ',"qty_percent":70,"reason":"' + entryReason + '"}')
 
 if shortCond
-    strategy.entry("Short", strategy.short, comment="S-Entry")
     frozenATR := atrVal
     exitPlaced := false
-    posDir := -1
+    entryReason = crossDn ? "cross" : "pullback"
+    strategy.entry("Short", strategy.short, comment="S-Entry",
+         alert_message='{"secret":"' + webhookSecret + '","action":"short","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.##") + ',"sl":' + str.tostring(close + slMult * atrVal, "#.##") + ',"tp":' + str.tostring(close - tpMult * atrVal, "#.##") + ',"qty_percent":70,"reason":"' + entryReason + '"}')
 
-// ── Exit placement: use strategy.position_avg_price (fix: was close) ──
-// Placed once after position is confirmed
+// ── Exit placement: position_avg_price + frozenATR (fully consistent) ──
 if strategy.position_size > 0 and not exitPlaced and not na(frozenATR)
-    avgPx = strategy.position_avg_price  // true filled price
+    avgPx = strategy.position_avg_price
     slPrice = avgPx - slMult * frozenATR
     tpPrice = avgPx + tpMult * frozenATR
-    tPoints = useTrail ? atrPoints(trailMult) : na
-    tOff    = useTrail ? atrPoints(trailOffsetMult) : na
+    tPoints = useTrail ? frozenPoints(trailMult) : na
+    tOff    = useTrail ? frozenPoints(trailOffsetMult) : na
 
     strategy.exit("L-Exit", "Long", stop=slPrice, limit=tpPrice,
          trail_points=tPoints, trail_offset=tOff,
-         comment_loss="L-SL", comment_profit="L-TP", comment_trailing="L-Trail")
+         comment_loss="L-SL", comment_profit="L-TP", comment_trailing="L-Trail",
+         alert_loss='{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","exit_type":"sl","comment":"Stop Loss"}',
+         alert_profit='{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","exit_type":"tp","comment":"Take Profit"}',
+         alert_trailing='{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","exit_type":"trail","comment":"Trailing Stop"}')
     exitPlaced := true
 
 if strategy.position_size < 0 and not exitPlaced and not na(frozenATR)
     avgPx = strategy.position_avg_price
     slPrice = avgPx + slMult * frozenATR
     tpPrice = avgPx - tpMult * frozenATR
-    tPoints = useTrail ? atrPoints(trailMult) : na
-    tOff    = useTrail ? atrPoints(trailOffsetMult) : na
+    tPoints = useTrail ? frozenPoints(trailMult) : na
+    tOff    = useTrail ? frozenPoints(trailOffsetMult) : na
 
     strategy.exit("S-Exit", "Short", stop=slPrice, limit=tpPrice,
          trail_points=tPoints, trail_offset=tOff,
-         comment_loss="S-SL", comment_profit="S-TP", comment_trailing="S-Trail")
+         comment_loss="S-SL", comment_profit="S-TP", comment_trailing="S-Trail",
+         alert_loss='{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","exit_type":"sl","comment":"Stop Loss"}',
+         alert_profit='{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","exit_type":"tp","comment":"Take Profit"}',
+         alert_trailing='{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","exit_type":"trail","comment":"Trailing Stop"}')
     exitPlaced := true
 
 // ── Trend Reversal Exit ──
 if strategy.position_size > 0 and ta.crossunder(ef, es) and close < es
-    strategy.close("Long", comment="Trend-Rev")
+    strategy.close("Long", comment="Trend-Rev",
+         alert_message='{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","exit_type":"trend_rev","comment":"EMA reversal close long"}')
     exitPlaced := false
     frozenATR := na
-    posDir := 0
 
 if strategy.position_size < 0 and ta.crossover(ef, es) and close > es
-    strategy.close("Short", comment="Trend-Rev")
+    strategy.close("Short", comment="Trend-Rev",
+         alert_message='{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","exit_type":"trend_rev","comment":"EMA reversal close short"}')
     exitPlaced := false
     frozenATR := na
-    posDir := 0
-
-// Sync posDir with actual position
-if strategy.position_size == 0
-    posDir := 0
 
 // ══════════════════════════════════════════════════════════════
 // PLOTS
@@ -182,7 +174,6 @@ bgcolor(bullTrend ? color.new(#00C853, 96) : bearTrend ? color.new(#FF1744, 96) 
 plotshape(longCond, "Long", shape.labelup, location.belowbar, #00C853, text="L", textcolor=color.white, size=size.small)
 plotshape(shortCond, "Short", shape.labeldown, location.abovebar, #FF1744, text="S", textcolor=color.white, size=size.small)
 
-// SL/TP reference from actual fill price
 avgPx = strategy.position_avg_price
 plot(strategy.position_size > 0 and not na(frozenATR) ? avgPx - slMult * frozenATR : na, "SL", color.red, style=plot.style_linebr, linewidth=1)
 plot(strategy.position_size > 0 and not na(frozenATR) ? avgPx + tpMult * frozenATR : na, "TP", #00C853, style=plot.style_linebr, linewidth=1)
@@ -195,7 +186,7 @@ plot(strategy.position_size < 0 and not na(frozenATR) ? avgPx - tpMult * frozenA
 
 var table tbl = table.new(position.top_right, 2, 8, bgcolor=color.new(#0d1117, 85), border_width=1)
 if barstate.islast
-    table.cell(tbl, 0, 0, "EMA Trend v3.3", text_color=#e94560, text_size=size.small)
+    table.cell(tbl, 0, 0, "EMA Trend v3.4", text_color=#e94560, text_size=size.small)
     table.cell(tbl, 1, 0, bullTrend ? "BULL" : bearTrend ? "BEAR" : "FLAT", text_color=bullTrend ? #00C853 : bearTrend ? #FF1744 : color.gray, text_size=size.small)
     table.cell(tbl, 0, 1, "EMA Cross", text_color=color.gray, text_size=size.tiny)
     table.cell(tbl, 1, 1, ef > es ? "BULL" : "BEAR", text_color=ef > es ? #00C853 : #FF1744, text_size=size.tiny)
@@ -212,27 +203,3 @@ if barstate.islast
     posStr = strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT"
     table.cell(tbl, 0, 7, "Position", text_color=color.gray, text_size=size.tiny)
     table.cell(tbl, 1, 7, posStr, text_color=strategy.position_size > 0 ? #00C853 : strategy.position_size < 0 ? #FF1744 : color.gray, text_size=size.tiny)
-
-// ══════════════════════════════════════════════════════════════
-// WEBHOOK ALERTS — Aligned with order fills, distinguishable exit types
-// ══════════════════════════════════════════════════════════════
-
-// Entry alerts (condition-based — fires when signal occurs)
-if longCond
-    slP = str.tostring(close - slMult * atrVal, "#.##")
-    tpP = str.tostring(close + tpMult * atrVal, "#.##")
-    alert('{"secret":"' + webhookSecret + '","action":"long","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.##") + ',"sl":' + slP + ',"tp":' + tpP + ',"qty_pct":0.7,"comment":"EMA ' + (crossUp ? 'cross' : 'pullback') + ' long"}', alert.freq_once_per_bar_close)
-
-if shortCond
-    slP = str.tostring(close + slMult * atrVal, "#.##")
-    tpP = str.tostring(close - tpMult * atrVal, "#.##")
-    alert('{"secret":"' + webhookSecret + '","action":"short","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.##") + ',"sl":' + slP + ',"tp":' + tpP + ',"qty_pct":0.7,"comment":"EMA ' + (crossDn ? 'cross' : 'pullback') + ' short"}', alert.freq_once_per_bar_close)
-
-// Exit alerts — distinguishable types (fix: was generic "close")
-if strategy.position_size == 0 and strategy.position_size[1] > 0
-    exitType = ta.crossunder(ef[1], es[1]) ? "trend_rev" : "sl_tp_trail"
-    alert('{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.##") + ',"exit_type":"' + exitType + '","comment":"Close long — ' + exitType + '"}', alert.freq_once_per_bar_close)
-
-if strategy.position_size == 0 and strategy.position_size[1] < 0
-    exitType = ta.crossover(ef[1], es[1]) ? "trend_rev" : "sl_tp_trail"
-    alert('{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.##") + ',"exit_type":"' + exitType + '","comment":"Close short — ' + exitType + '"}', alert.freq_once_per_bar_close)
