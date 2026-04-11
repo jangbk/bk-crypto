@@ -168,8 +168,8 @@ export async function getBithumbBotData() {
 
     const botStrategy = {
       id: "seykota-ema",
-      name: "Seykota EMA Bot",
-      description: "EMA 100 + ATR 동적밴드 추세추종 전략",
+      name: "Seykota EMA v3.4 Bot",
+      description: "EMA 15/60 + MA200 하락장 필터 + ADX + RSI + ATR 동적손절 — ChatGPT 4차 리뷰 완료",
       asset: "BTC/KRW",
       exchange: "Bithumb",
       status: "active" as const,
