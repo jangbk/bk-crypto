@@ -1,10 +1,11 @@
-// LuxAlgo EMA Trend v3.1 — Bug-Fixed & Reviewed
+// LuxAlgo EMA Trend v3.2 — Bug-Fixed + Chop Index
 // Fixed: strategy.exit() duplication, trail_offset, lastWasWin logic
-// Reviewed by: Genspark AI, Gemini, Claude
+// Added: Chop Index (sideways filter), RSI relaxed (30~70)
+// Reviewed by: Genspark AI, Gemini, ChatGPT, Claude
 // BTCUSDT 4H | Bybit Perpetual
 
 //@version=6
-strategy("LuxAlgo EMA Trend v3.1", overlay=true,
+strategy("LuxAlgo EMA Trend v3.2", overlay=true,
      default_qty_type=strategy.percent_of_equity, default_qty_value=70,
      commission_type=strategy.commission.percent, commission_value=0.055,
      slippage=3, initial_capital=10000, currency=currency.USD,
@@ -27,10 +28,12 @@ trailMult      = input.float(2.5, "Trail Activate × ATR", step=0.5, group="Risk
 trailOffset    = input.float(1.0, "Trail Offset × ATR", step=0.25, group="Risk")
 
 rsiLen         = input.int(14, "RSI Period", group="Filter")
-rsiLow         = input.float(35, "RSI Low", group="Filter")
-rsiHigh        = input.float(65, "RSI High", group="Filter")
+rsiLow         = input.float(30, "RSI Low (과매도 차단)", group="Filter")
+rsiHigh        = input.float(70, "RSI High (과매수 차단)", group="Filter")
 adxLen         = input.int(14, "ADX Period", group="Filter")
 adxMin         = input.float(25, "ADX Minimum", group="Filter")
+chopLen        = input.int(14, "Chop Index Length", minval=5, maxval=30, group="Filter")
+chopMax        = input.float(61.8, "Chop Max (횡보 기준)", minval=50, maxval=70, step=0.5, group="Filter")
 
 webhookSecret  = input.string("luxalgo-smc-2026", "Webhook Secret", group="Webhook")
 
@@ -53,6 +56,14 @@ rsiVal = ta.rsi(close, rsiLen)
 etSlopePct = (et - et[10]) / et[10] * 100
 etRising  = etSlopePct > 0.1   // 0.1% 이상 상승
 etFalling = etSlopePct < -0.1
+
+// Chop Index — 횡보장 감지 (높을수록 횡보, 낮을수록 추세)
+// 100 * LOG10(SUM(ATR, chopLen)) / (HIGHEST - LOWEST) / LOG10(chopLen)
+chopHigh = ta.highest(high, chopLen)
+chopLow  = ta.lowest(low, chopLen)
+chopRange = chopHigh - chopLow
+chopCI   = chopRange > 0 ? 100 * math.log10(math.sum(ta.tr, chopLen) / chopRange) / math.log10(chopLen) : 50
+isTrending = chopCI < chopMax  // Chop < 61.8 = 추세장, > 61.8 = 횡보장
 
 // ══════════════════════════════════════════════════════════════
 // TRADE TRACKING — Proper last trade result (fix: was netprofit comparison)
@@ -87,9 +98,9 @@ pullbackShort = lastWasWin and bearTrend and ef < es and ta.crossunder(close, es
 rsiOk = rsiVal > rsiLow and rsiVal < rsiHigh
 adxOk = adxVal > adxMin
 
-// Final conditions — only when flat
-longCond  = inRange and (crossUp or pullbackLong) and bullTrend and rsiOk and adxOk and strategy.position_size == 0
-shortCond = inRange and (crossDn or pullbackShort) and bearTrend and rsiOk and adxOk and strategy.position_size == 0
+// Final conditions — only when flat + trending (not choppy)
+longCond  = inRange and (crossUp or pullbackLong) and bullTrend and rsiOk and adxOk and isTrending and strategy.position_size == 0
+shortCond = inRange and (crossDn or pullbackShort) and bearTrend and rsiOk and adxOk and isTrending and strategy.position_size == 0
 
 // ══════════════════════════════════════════════════════════════
 // EXECUTION — Fix: entry + exit placed ONCE, not every bar
@@ -169,9 +180,9 @@ plot(strategy.position_size < 0 and not na(entryPrice) ? entryPrice - tpMult * e
 // INFO TABLE
 // ══════════════════════════════════════════════════════════════
 
-var table tbl = table.new(position.top_right, 2, 7, bgcolor=color.new(#0d1117, 85), border_width=1)
+var table tbl = table.new(position.top_right, 2, 8, bgcolor=color.new(#0d1117, 85), border_width=1)
 if barstate.islast
-    table.cell(tbl, 0, 0, "EMA Trend v3.1", text_color=#e94560, text_size=size.small)
+    table.cell(tbl, 0, 0, "EMA Trend v3.2", text_color=#e94560, text_size=size.small)
     table.cell(tbl, 1, 0, bullTrend ? "BULL" : bearTrend ? "BEAR" : "FLAT", text_color=bullTrend ? #00C853 : bearTrend ? #FF1744 : color.gray, text_size=size.small)
     table.cell(tbl, 0, 1, "EMA Cross", text_color=color.gray, text_size=size.tiny)
     table.cell(tbl, 1, 1, ef > es ? "BULL" : "BEAR", text_color=ef > es ? #00C853 : #FF1744, text_size=size.tiny)
@@ -183,9 +194,11 @@ if barstate.islast
     table.cell(tbl, 1, 4, str.tostring(rsiVal, "#.0"), text_color=rsiOk ? color.white : color.red, text_size=size.tiny)
     table.cell(tbl, 0, 5, "ATR", text_color=color.gray, text_size=size.tiny)
     table.cell(tbl, 1, 5, str.tostring(atrVal, "#.0"), text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 0, 6, "Chop", text_color=color.gray, text_size=size.tiny)
+    table.cell(tbl, 1, 6, str.tostring(chopCI, "#.0") + (isTrending ? " TREND" : " CHOP"), text_color=isTrending ? #00C853 : color.orange, text_size=size.tiny)
     posStr = strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT"
-    table.cell(tbl, 0, 6, "Position", text_color=color.gray, text_size=size.tiny)
-    table.cell(tbl, 1, 6, posStr, text_color=strategy.position_size > 0 ? #00C853 : strategy.position_size < 0 ? #FF1744 : color.gray, text_size=size.tiny)
+    table.cell(tbl, 0, 7, "Position", text_color=color.gray, text_size=size.tiny)
+    table.cell(tbl, 1, 7, posStr, text_color=strategy.position_size > 0 ? #00C853 : strategy.position_size < 0 ? #FF1744 : color.gray, text_size=size.tiny)
 
 // ══════════════════════════════════════════════════════════════
 // WEBHOOK ALERTS — Fixed: decimal precision
