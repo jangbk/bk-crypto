@@ -148,6 +148,31 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     recentTrades: [],
   },
   {
+    id: "ptj-200ma",
+    name: "PTJ 200MA Bot",
+    description: "200MA + 50MA 모멘텀 전략 — Paul Tudor Jones 추세추종",
+    asset: "BTC/KRW",
+    exchange: "Coinone",
+    status: "active" as const,
+    startDate: "2026-01-20",
+    initialCapital: 2500000,
+    currentValue: 2500000,
+    totalReturn: 0,
+    monthlyReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitTrades: 0,
+    lossTrades: 0,
+    avgWin: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    dailyPnL: [],
+    monthlyReturns: [],
+    recentTrades: [],
+  },
+  {
     id: "bybit-alpha-v4",
     name: "Alpha v5 Bot",
     description: "레짐감지 + BULL 숏차단 + 트레일링 강화 — BTC 선물 3x",
@@ -636,7 +661,7 @@ export default function BotPerformancePage() {
     localStorage.setItem(SELECTED_BOT_KEY, id);
   }
   const [isLive, setIsLive] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   // 투자금 수동 오버라이드
