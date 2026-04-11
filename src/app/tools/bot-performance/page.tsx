@@ -675,7 +675,7 @@ export default function BotPerformancePage() {
     let cancelled = false;
 
     async function fetchBotData() {
-      setIsLoading(true);
+      // 갱신 중에도 기존 데이터 유지 — setStrategies를 먼저 비우지 않음
       try {
         const res = await fetch("/api/bots/summary");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
