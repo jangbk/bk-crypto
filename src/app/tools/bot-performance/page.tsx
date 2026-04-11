@@ -199,8 +199,9 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
       backtestResults: [
         { period: "BTC 전체 (2013~2026)", returnPct: "+28,239%", winRate: "50.0%", sharpe: "—", mdd: "-45.2%" },
         { period: "ETH 전체 (2016~2026)", returnPct: "+22,859%", winRate: "43.6%", sharpe: "—", mdd: "-56.7%" },
-        { period: "P1: 2025.01~08", returnPct: "-10.93%", winRate: "0%", sharpe: "—", mdd: "1건 SL" },
-        { period: "P2: 2025.09~26.03", returnPct: "+16.52%", winRate: "100%", sharpe: "—", mdd: "1건 TRAIL" },
+        { period: "P1: 2025.01~08", returnPct: "-10.93%", winRate: "0/1", sharpe: "—", mdd: "SL (142M→126M)" },
+        { period: "P2: 2025.09~26.03", returnPct: "+16.52%", winRate: "1/1", sharpe: "—", mdd: "TRAIL (133M→155M)" },
+        { period: "P1+P2 복리 순합계", returnPct: "+3.41%", winRate: "1/2", sharpe: "—", mdd: "(1-10.93%)×(1+16.52%)" },
         { period: "PF", returnPct: "BTC 4.23 / ETH 3.68", winRate: "AvgWin +44~50% / AvgLoss -10%", sharpe: "—", mdd: "—" },
       ],
       liveExpectation: {
