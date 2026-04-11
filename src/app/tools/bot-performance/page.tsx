@@ -468,7 +468,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   },
   {
     id: "luxalgo-smc-hybrid",
-    name: "LuxAlgo SMC Hybrid v1",
+    name: "LuxAlgo SMC Hybrid v1.2",
     description: "Market Structure(BOS/CHoCH) + EMA 추세 + Order Block + 4H 정밀 진입 — Long & Short",
     strategyDetail: {
       summary: "LuxAlgo Smart Money Concepts를 Pine Script로 직접 구현한 하이브리드 전략. Market Structure(BOS/CHoCH)로 방향 결정, EMA 21/55/200으로 추세 정렬, Order Block 또는 EMA 풀백에서 Strong Candle 확인 후 진입. ATR 기반 동적 SL/TP + 2R 달성 시 트레일링 활성화. 15개월 백테스트에서 +30.05% 수익, MDD -14.08%, Sharpe 1.28 달성.",
