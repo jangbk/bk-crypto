@@ -1,0 +1,176 @@
+// LuxAlgo EMA Trend Webhook v3 — Clean TradingView-Native Version
+// Uses strategy.exit() for SL/TP — no manual position management bugs
+// Entry: EMA crossover ONLY (no pullback re-entry problem)
+// Backtest: EMA 13/89/200 | BTCUSDT 4H | Bybit Perpetual
+
+//@version=6
+strategy("LuxAlgo EMA Trend v3", overlay=true,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=75,
+     commission_type=strategy.commission.percent, commission_value=0.055,
+     slippage=1, initial_capital=10000, currency=currency.USD,
+     pyramiding=0, calc_on_every_tick=false,
+     process_orders_on_close=false, margin_long=100, margin_short=100)
+
+// ══════════════════════════════════════════════════════════════
+// INPUTS
+// ══════════════════════════════════════════════════════════════
+
+emaFastLen     = input.int(13, "EMA Fast", group="EMA")
+emaSlowLen     = input.int(89, "EMA Slow", group="EMA")
+emaTrendLen    = input.int(200, "EMA Trend", group="EMA")
+
+atrPeriod      = input.int(14, "ATR Period", group="Risk")
+slMult         = input.float(2.0, "SL × ATR", step=0.5, group="Risk")
+tpMult         = input.float(8.0, "TP × ATR", step=0.5, group="Risk")
+useTrail       = input.bool(true, "Use Trailing Stop", group="Risk")
+trailMult      = input.float(2.5, "Trail × ATR", step=0.5, group="Risk")
+
+rsiLen         = input.int(14, "RSI Period", group="Filter")
+rsiLow         = input.float(35, "RSI Low", group="Filter")
+rsiHigh        = input.float(65, "RSI High", group="Filter")
+adxLen         = input.int(14, "ADX Period", group="Filter")
+adxMin         = input.float(18, "ADX Minimum", group="Filter")
+
+webhookSecret  = input.string("luxalgo-smc-2026", "Webhook Secret", group="Webhook")
+
+startDate      = input.time(timestamp("2025-01-01"), "Start", group="Date")
+endDate        = input.time(timestamp("2027-12-31"), "End", group="Date")
+inRange        = time >= startDate and time <= endDate
+
+// ══════════════════════════════════════════════════════════════
+// INDICATORS
+// ══════════════════════════════════════════════════════════════
+
+ef = ta.ema(close, emaFastLen)
+es = ta.ema(close, emaSlowLen)
+et = ta.ema(close, emaTrendLen)
+atrVal = ta.atr(atrPeriod)
+rsiVal = ta.rsi(close, rsiLen)
+[diPlus, diMinus, adxVal] = ta.dmi(adxLen, adxLen)
+
+// EMA 200 slope (trending confirmation)
+etSlope = et - et[10]
+etRising  = etSlope > 0
+etFalling = etSlope < 0
+
+// ══════════════════════════════════════════════════════════════
+// ENTRY CONDITIONS — Crossover + Safe Pullback
+// ══════════════════════════════════════════════════════════════
+
+crossUp = ta.crossover(ef, es)
+crossDn = ta.crossunder(ef, es)
+
+// Track last trade result for pullback gating
+var bool lastWasWin = true  // Allow pullback initially
+if strategy.position_size == 0 and strategy.position_size[1] != 0
+    lastWasWin := strategy.netprofit > strategy.netprofit[1]
+
+// Strong trend: price + fast EMA above/below trend EMA + EMA200 sloping
+bullTrend = close > et and ef > et and etRising
+bearTrend = close < et and ef < et and etFalling
+
+// Pullback: only after a WIN (prevents loss cascade)
+// Requires bounce candle (close > open for long, close < open for short)
+pullbackLong  = lastWasWin and bullTrend and ef > es and low <= es * 1.005 and close > es and close > open
+pullbackShort = lastWasWin and bearTrend and ef < es and high >= es * 0.995 and close < es and close < open
+
+// Filters
+rsiOk = rsiVal > rsiLow and rsiVal < rsiHigh
+adxOk = adxVal > adxMin
+
+// Final: (crossover OR safe pullback) + trend + filters
+longCond  = inRange and (crossUp or pullbackLong) and bullTrend and rsiOk and adxOk and strategy.position_size <= 0
+shortCond = inRange and (crossDn or pullbackShort) and bearTrend and rsiOk and adxOk and strategy.position_size >= 0
+
+// ══════════════════════════════════════════════════════════════
+// EXECUTION — TradingView Native strategy.exit()
+// ══════════════════════════════════════════════════════════════
+
+if longCond
+    // Close any existing short first
+    if strategy.position_size < 0
+        strategy.close("Short", comment="Reverse→Long")
+
+    strategy.entry("Long", strategy.long)
+
+    slPrice = close - slMult * atrVal
+    tpPrice = close + tpMult * atrVal
+    trailPoints = useTrail ? trailMult * atrVal / syminfo.mintick : na
+
+    strategy.exit("Long Exit", "Long",
+         stop=slPrice,
+         limit=tpPrice,
+         trail_points=trailPoints,
+         trail_offset=trailPoints)
+
+if shortCond
+    if strategy.position_size > 0
+        strategy.close("Long", comment="Reverse→Short")
+
+    strategy.entry("Short", strategy.short)
+
+    slPrice = close + slMult * atrVal
+    tpPrice = close - tpMult * atrVal
+    trailPoints = useTrail ? trailMult * atrVal / syminfo.mintick : na
+
+    strategy.exit("Short Exit", "Short",
+         stop=slPrice,
+         limit=tpPrice,
+         trail_points=trailPoints,
+         trail_offset=trailPoints)
+
+// ── Trend Exit: close if EMA cross reverses ──
+if strategy.position_size > 0 and ta.crossunder(ef, es)
+    strategy.close("Long", comment="Trend Exit")
+
+if strategy.position_size < 0 and ta.crossover(ef, es)
+    strategy.close("Short", comment="Trend Exit")
+
+// ══════════════════════════════════════════════════════════════
+// PLOTS
+// ══════════════════════════════════════════════════════════════
+
+pFast = plot(ef, "EMA 13", color=color.new(#FF9800, 10), linewidth=2)
+pSlow = plot(es, "EMA 89", color=color.new(#2196F3, 10), linewidth=2)
+plot(et, "EMA 200", color=color.new(color.gray, 30), linewidth=2)
+
+fill(pFast, pSlow, color=ef > es ? color.new(#00C853, 90) : color.new(#FF1744, 90))
+bgcolor(bullTrend ? color.new(#00C853, 96) : bearTrend ? color.new(#FF1744, 96) : na)
+
+plotshape(longCond, "Long", shape.labelup, location.belowbar, #00C853, text="L", textcolor=color.white, size=size.small)
+plotshape(shortCond, "Short", shape.labeldown, location.abovebar, #FF1744, text="S", textcolor=color.white, size=size.small)
+
+// ══════════════════════════════════════════════════════════════
+// INFO TABLE
+// ══════════════════════════════════════════════════════════════
+
+var table tbl = table.new(position.top_right, 2, 7, bgcolor=color.new(#0d1117, 85), border_width=1)
+if barstate.islast
+    table.cell(tbl, 0, 0, "EMA Trend v3", text_color=#e94560, text_size=size.small)
+    table.cell(tbl, 1, 0, bullTrend ? "BULL" : bearTrend ? "BEAR" : "FLAT", text_color=bullTrend ? #00C853 : bearTrend ? #FF1744 : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 1, "EMA Cross", text_color=color.gray, text_size=size.tiny)
+    table.cell(tbl, 1, 1, ef > es ? "BULL" : "BEAR", text_color=ef > es ? #00C853 : #FF1744, text_size=size.tiny)
+    table.cell(tbl, 0, 2, "EMA200 Slope", text_color=color.gray, text_size=size.tiny)
+    table.cell(tbl, 1, 2, etRising ? "UP" : etFalling ? "DOWN" : "FLAT", text_color=etRising ? #00C853 : etFalling ? #FF1744 : color.gray, text_size=size.tiny)
+    table.cell(tbl, 0, 3, "ADX", text_color=color.gray, text_size=size.tiny)
+    table.cell(tbl, 1, 3, str.tostring(adxVal, "#.0"), text_color=adxOk ? color.white : color.red, text_size=size.tiny)
+    table.cell(tbl, 0, 4, "RSI", text_color=color.gray, text_size=size.tiny)
+    table.cell(tbl, 1, 4, str.tostring(rsiVal, "#.0"), text_color=rsiOk ? color.white : color.red, text_size=size.tiny)
+    table.cell(tbl, 0, 5, "ATR", text_color=color.gray, text_size=size.tiny)
+    table.cell(tbl, 1, 5, str.tostring(atrVal, "#.0"), text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 0, 6, "Position", text_color=color.gray, text_size=size.tiny)
+    posStr = strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT"
+    table.cell(tbl, 1, 6, posStr, text_color=strategy.position_size > 0 ? #00C853 : strategy.position_size < 0 ? #FF1744 : color.gray, text_size=size.tiny)
+
+// ══════════════════════════════════════════════════════════════
+// WEBHOOK ALERTS
+// ══════════════════════════════════════════════════════════════
+
+if longCond
+    alert('{"secret":"' + webhookSecret + '","action":"long","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close) + ',"sl":' + str.tostring(math.round(close - slMult * atrVal)) + ',"tp":' + str.tostring(math.round(close + tpMult * atrVal)) + ',"comment":"EMA crossover long"}', alert.freq_once_per_bar_close)
+
+if shortCond
+    alert('{"secret":"' + webhookSecret + '","action":"short","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close) + ',"sl":' + str.tostring(math.round(close + slMult * atrVal)) + ',"tp":' + str.tostring(math.round(close - tpMult * atrVal)) + ',"comment":"EMA crossover short"}', alert.freq_once_per_bar_close)
+
+if strategy.position_size == 0 and strategy.position_size[1] != 0
+    alert('{"secret":"' + webhookSecret + '","action":"close","ticker":"' + syminfo.ticker + '","price":' + str.tostring(close) + ',"comment":"Position closed"}', alert.freq_once_per_bar_close)

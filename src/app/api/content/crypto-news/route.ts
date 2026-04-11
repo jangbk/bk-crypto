@@ -3,6 +3,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import Anthropic from "@anthropic-ai/sdk";
+import { ollamaChat } from "@/lib/ollama";
 
 // ---------------------------------------------------------------------------
 // RSS Feed Sources
@@ -191,37 +192,49 @@ async function fetchFeed(url: string): Promise<string> {
 async function summarizeArticles(
   articles: Article[]
 ): Promise<Map<string, string>> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || articles.length === 0) return new Map();
+  if (articles.length === 0) return new Map();
 
-  try {
-    const client = new Anthropic({ apiKey });
+  const listText = articles
+    .map((a, i) => `${i + 1}. [${a.title}] — ${a.excerpt}`)
+    .join("\n");
 
-    const listText = articles
-      .map((a, i) => `${i + 1}. [${a.title}] — ${a.excerpt}`)
-      .join("\n");
-
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 4096,
-      messages: [
-        {
-          role: "user",
-          content: `아래는 크립토/금융 뉴스 기사 ${articles.length}개의 제목과 설명입니다. 각 기사를 한국어로 3줄 이내로 요약해주세요.
+  const prompt = `아래는 크립토/금융 뉴스 기사 ${articles.length}개의 제목과 설명입니다. 각 기사를 한국어로 3줄 이내로 요약해주세요.
 
 반드시 아래 JSON 배열 형식으로만 응답하세요. 다른 텍스트는 포함하지 마세요:
 ["1번 기사 요약", "2번 기사 요약", ...]
 
 기사 목록:
-${listText}`,
-        },
-      ],
-    });
+${listText}`;
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") return new Map();
+  try {
+    // 1차: Gemma 4 로컬 (무료)
+    let rawText: string | null = null;
 
-    let jsonStr = textBlock.text.trim();
+    const ollamaResult = await ollamaChat({ prompt, maxTokens: 4096, temperature: 0.5 });
+    if (ollamaResult) {
+      rawText = ollamaResult.text;
+      console.log("[crypto-news] Gemma 4 로컬 사용 (무료)");
+    }
+
+    // 2차: Claude 폴백 (유료)
+    if (!rawText) {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) return new Map();
+
+      const client = new Anthropic({ apiKey });
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 4096,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const textBlock = response.content.find((b) => b.type === "text");
+      if (!textBlock || textBlock.type !== "text") return new Map();
+      rawText = textBlock.text;
+      console.log("[crypto-news] Claude 폴백 사용 (유료)");
+    }
+
+    let jsonStr = rawText.trim();
     const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) jsonStr = jsonMatch[1].trim();
 

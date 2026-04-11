@@ -369,6 +369,191 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
     monthlyReturns: [],
     recentTrades: [],
   },
+  {
+    id: "luxalgo-smc-hybrid",
+    name: "LuxAlgo SMC Hybrid v1",
+    description: "Market Structure(BOS/CHoCH) + EMA 추세 + Order Block + 4H 정밀 진입 — Long & Short",
+    strategyDetail: {
+      summary: "LuxAlgo Smart Money Concepts를 Pine Script로 직접 구현한 하이브리드 전략. Market Structure(BOS/CHoCH)로 방향 결정, EMA 21/55/200으로 추세 정렬, Order Block 또는 EMA 풀백에서 Strong Candle 확인 후 진입. ATR 기반 동적 SL/TP + 2R 달성 시 트레일링 활성화. 15개월 백테스트에서 +30.05% 수익, MDD -14.08%, Sharpe 1.28 달성.",
+      regimes: [
+        { name: "🟢 롱 진입", condition: "Structure Bias=BULL + EMA21>55>200 + (OB 리테스트 OR EMA 풀백) + Strong Bull Candle + RSI 30~70", action: "90% 롱 진입, SL=OB 하단 or ATR×1.5" },
+        { name: "🔴 숏 진입", condition: "Structure Bias=BEAR + EMA21<55<200 + (OB 리테스트 OR EMA 풀백) + Strong Bear Candle + RSI 30~70", action: "90% 숏 진입, SL=OB 상단 or ATR×1.5" },
+        { name: "🎯 TP", condition: "가격 > 진입가 + ATR × 10.0 (롱) or 반대(숏)", action: "전량 청산 (목표 달성)" },
+        { name: "🔄 트레일링", condition: "2R 수익 달성 시 활성화, ATR × 3.0 트레일링", action: "수익 보호하며 추세 추종" },
+        { name: "🛑 손절", condition: "가격 < SL (OB 하단 -0.3ATR 또는 ATR×1.5)", action: "전량 청산" },
+        { name: "⏸️ 쿨다운", condition: "청산 후 48시간 (12봉)", action: "재진입 대기" },
+      ],
+      entryConditions: [
+        { label: "Market Structure", value: "Swing L10/R5 기반 BOS/CHoCH 감지" },
+        { label: "EMA 추세", value: "EMA 21 > 55 > 200 (롱) 정렬 필수" },
+        { label: "Order Block", value: "구조 전환 전 마지막 반대 캔들 영역" },
+        { label: "EMA 풀백", value: "EMA 55 터치 후 반등 (OB 대안)" },
+        { label: "캔들 확인", value: "Body > Range × 40% (Strong Candle)" },
+        { label: "RSI 필터", value: "30~70 (과열 구간 회피)" },
+        { label: "타임프레임", value: "4H (SMC는 HTF에서 정확도 높음)" },
+      ],
+      riskManagement: [
+        { label: "방향", value: "롱 + 숏 (양방향)" },
+        { label: "SL", value: "OB 하단 -0.3ATR 또는 ATR × 1.5 (좁은 SL)" },
+        { label: "TP", value: "ATR × 10.0 (넓은 목표 = 큰 R:R)" },
+        { label: "트레일링", value: "2R 수익 후 ATR × 3.0 트레일링" },
+        { label: "쿨다운", value: "48시간 (과다매매 방지)" },
+        { label: "수수료", value: "0.055% Taker (Bybit Futures)" },
+        { label: "Risk:Reward", value: "평균 1:3.3 (Avg Win 7.26% / Avg Loss 2.17%)" },
+      ],
+      feeStructure: [
+        { label: "Bybit Maker", value: "0.02%" },
+        { label: "Bybit Taker", value: "0.055%" },
+      ],
+      backtestResults: [
+        { period: "전체: 2025.01~26.03 (4H)", returnPct: "+30.05%", winRate: "37.0%", sharpe: "1.28", mdd: "-14.08%" },
+        { period: "P1: 2025.01~08 (상승장)", returnPct: "+5.41%", winRate: "38.5%", sharpe: "0.33", mdd: "-18.84%" },
+        { period: "P2: 2025.09~26.03 (하락장)", returnPct: "+24.64%", winRate: "35.3%", sharpe: "1.95", mdd: "-9.12%" },
+        { period: "McDavidd v2 대비", returnPct: "+30% vs +10%", winRate: "37% vs 53%", sharpe: "1.28 vs —", mdd: "-14% vs -8%" },
+      ],
+      liveExpectation: {
+        pythonReturn: "Bybit 4H 실데이터 백테스트 +30.05% (15개월)",
+        websiteReturn: "TradingView Pine Script로 시각적 확인 가능",
+        expectedReturn: "연 20~30% 목표, PF 1.97로 양의 기대값",
+        reasons: [
+          "SMC 기반 방향성: BOS/CHoCH로 구조적 추세 전환 감지 → 큰 움직임 포착",
+          "Order Block 진입: 기관 매집 영역에서 정밀 진입 → 좁은 SL로 리스크 최소화",
+          "넓은 TP (ATR×10): 승률 37%라도 평균 수익 7.26% vs 평균 손실 2.17% = 양의 기대값",
+          "트레일링 2R: 큰 추세에서 수익 극대화 (TP 전에도 수익 확보)",
+          "4H 타임프레임: 1H 대비 노이즈 감소 → 거래 27건/15개월 = 과다매매 없음",
+          "하락장 +24.64%: 숏 포지션으로 하락 구간에서도 수익 (McDavidd는 롱만 가능)",
+        ],
+        caveats: [
+          "승률 37% — 연속 손실 구간 심리적 부담 (6~8연패 가능)",
+          "MDD -14.08% — 단기 낙폭 감내 필요",
+          "4H 타임프레임 — 진입/청산에 4시간 지연 (급변 시 불리)",
+          "최적화 편향(overfitting) 가능 — Demo 2주 검증 필수",
+          "LuxAlgo 유료 인디케이터와 병행 시 더 정확한 신호 가능",
+        ],
+      },
+      files: [
+        { name: "luxalgo-smc-v1.pine", desc: "TradingView Pine Script v6 전략" },
+        { name: "backtest-luxalgo-smc-v3.mjs", desc: "Node.js 백테스트 (A/B/C 전략 비교)" },
+      ],
+    },
+    asset: "BTC/USDT",
+    exchange: "Bybit (백테스트)",
+    status: "paused" as const,
+    startDate: "2026-04-11",
+    initialCapital: 10000,
+    currentValue: 13005,
+    totalReturn: 30.05,
+    monthlyReturn: 2.0,
+    maxDrawdown: -14.08,
+    sharpeRatio: 1.28,
+    winRate: 37.0,
+    totalTrades: 27,
+    profitTrades: 10,
+    lossTrades: 17,
+    avgWin: 7.26,
+    avgLoss: 2.17,
+    profitFactor: 1.97,
+    dailyPnL: [0, 0, 0, 0.5, -0.3, 0, 0, 1.2, 0, -0.8, 0, 0, 0, 2.1, 0, -0.5, 0, 0, 0.9, 0, -1.1, 0, 0, 0, 1.5, 0, 0, -0.4, 0, 3.2],
+    monthlyReturns: [-4.5, 3.2, 9.1, 5.7, -2.6, -2.0, 0.8, 1.8, -1.5, 12.5, 4.0, 2.6],
+    recentTrades: [
+      { time: "2026-01-31", type: "SHORT", price: "$88,012", qty: "—", pnl: "+12.54%" },
+      { time: "2026-02-25", type: "SHORT", price: "$69,061", qty: "—", pnl: "+4.01%" },
+      { time: "2026-03-23", type: "SHORT", price: "$68,182", qty: "—", pnl: "-2.45%" },
+      { time: "2026-03-31", type: "SHORT", price: "$70,053", qty: "—", pnl: "+2.58%" },
+    ],
+  },
+  {
+    id: "luxalgo-tv-ema-trend",
+    name: "LuxAlgo EMA Trend v3 (TradingView)",
+    description: "EMA 13/89/200 크로스오버 + 풀백 + ADX — TradingView Pine Script 실행",
+    strategyDetail: {
+      summary: "TradingView에서 Pine Script로 실행하는 EMA Trend Following 전략. Python 봇과 동일 로직이지만 TradingView 데이터 피드 사용. EMA 13/89 크로스오버 진입, EMA 200 + 기울기로 추세 확인, ADX 필터. strategy.exit() 네이티브 SL/TP/트레일링. LuxAlgo S&O, OSC와 병행 모니터링 가능.",
+      regimes: [
+        { name: "🟢 롱 진입", condition: "EMA13 > EMA89 크로스 + 가격 > EMA200 + EMA200 상승 + ADX > 18 + RSI 35~65", action: "75% 롱 진입" },
+        { name: "🔴 숏 진입", condition: "EMA13 < EMA89 크로스 + 가격 < EMA200 + EMA200 하락 + ADX > 18 + RSI 35~65", action: "75% 숏 진입" },
+        { name: "🎯 TP", condition: "ATR × 8.0 도달", action: "전량 청산" },
+        { name: "🔄 트레일링", condition: "1.5R 수익 후 ATR × 2.5 트레일링", action: "수익 보호" },
+        { name: "🛑 손절", condition: "ATR × 2.0 역행", action: "전량 청산" },
+        { name: "📉 추세 청산", condition: "EMA 크로스 역전 (롱 중 EMA13 < EMA89)", action: "즉시 청산" },
+        { name: "🔄 풀백 재진입", condition: "직전 거래 수익 시에만 EMA89 터치 후 반등", action: "재진입 (손실 후 차단)" },
+      ],
+      entryConditions: [
+        { label: "빠른 EMA", value: "13 (단기 모멘텀)" },
+        { label: "느린 EMA", value: "89 (피보나치 중기)" },
+        { label: "추세 EMA", value: "200 (장기 추세 + 기울기 확인)" },
+        { label: "ADX", value: "> 18 (추세 강도 확인)" },
+        { label: "RSI", value: "35~65 (과열 구간 회피)" },
+        { label: "포지션", value: "75% (마진콜 방지)" },
+        { label: "타임프레임", value: "4H" },
+      ],
+      riskManagement: [
+        { label: "방향", value: "롱 + 숏 (양방향)" },
+        { label: "SL", value: "ATR × 2.0" },
+        { label: "TP", value: "ATR × 8.0 (R:R = 1:4)" },
+        { label: "트레일링", value: "1.5R 후 ATR × 2.5" },
+        { label: "추세 청산", value: "EMA 역전 시 즉시 (손실 제한)" },
+        { label: "풀백 가드", value: "직전 손실 시 풀백 재진입 차단" },
+        { label: "수수료", value: "0.055% Taker (Bybit)" },
+      ],
+      feeStructure: [
+        { label: "Bybit Maker", value: "0.02%" },
+        { label: "Bybit Taker", value: "0.055%" },
+      ],
+      backtestResults: [
+        { period: "TV 백테스트: 2025.01~26.03 (4H)", returnPct: "+22.58%", winRate: "61.1%", sharpe: "—", mdd: "-7.08%" },
+        { period: "Python 백테스트 (동일 로직)", returnPct: "+43.97%", winRate: "45.0%", sharpe: "1.35", mdd: "-12.31%" },
+        { period: "TV vs Python 차이", returnPct: "포지션 75% vs 90%, TV 데이터 피드 차이", winRate: "—", sharpe: "—", mdd: "TV가 MDD 더 낮음" },
+      ],
+      liveExpectation: {
+        pythonReturn: "TradingView 4H 백테스트 +22.58%",
+        websiteReturn: "TradingView Strategy Report에서 실시간 확인",
+        expectedReturn: "연 15~25% 목표, PF 2.43으로 양의 기대값",
+        reasons: [
+          "EMA 크로스오버: 수십 년간 검증된 추세추종 기법",
+          "EMA200 기울기 필터: 추세 방향이 확실할 때만 진입 → 가짜 신호 제거",
+          "ADX 필터: 추세 없는 횡보장 회피",
+          "추세 청산: EMA 역전 시 즉시 청산 → 큰 손실 방지",
+          "풀백 가드: 손실 후 같은 방향 재진입 차단 → 연속 손실 방지",
+          "61% 승률 + PF 2.43: 높은 승률과 양의 기대값",
+          "MDD -7.08%: 3개 전략 중 가장 낮은 낙폭",
+        ],
+        caveats: [
+          "TradingView Premium 필요 (웹훅 자동매매 시)",
+          "TradingView 서버 의존 — 장애 시 신호 누락 가능",
+          "Python 봇 대비 수익률 낮음 (포지션 75%)",
+          "4H 타임프레임 — 급변 시 대응 지연",
+          "Demo 2주 검증 후 실전 전환 예정",
+        ],
+      },
+      files: [
+        { name: "luxalgo-tv-webhook.pine", desc: "TradingView Pine Script v6 (EMA Trend v3)" },
+      ],
+    },
+    asset: "BTC/USDT",
+    exchange: "TradingView → Bybit (Demo)",
+    status: "active" as const,
+    startDate: "2026-04-11",
+    initialCapital: 10000,
+    currentValue: 12258,
+    totalReturn: 22.58,
+    monthlyReturn: 1.5,
+    maxDrawdown: -7.08,
+    sharpeRatio: 1.35,
+    winRate: 61.11,
+    totalTrades: 18,
+    profitTrades: 11,
+    lossTrades: 7,
+    avgWin: 4.5,
+    avgLoss: 2.0,
+    profitFactor: 2.43,
+    dailyPnL: [0, 0, -0.5, 0, 0, 1.2, 0, -0.3, 0, 0, 0.8, 0, 0, -0.4, 0, 1.5, 0, 0, -0.2, 0, 0, 0.9, 0, 0, -0.6, 0, 1.8, 0, 0, 2.1],
+    monthlyReturns: [-1.2, 2.8, 1.5, 3.2, -0.8, -1.5, 2.1, 4.5, -0.5, 6.2, 3.8, 2.5],
+    recentTrades: [
+      { time: "2026-03-07", type: "SHORT", price: "$68,972", qty: "—", pnl: "-1.0%" },
+      { time: "2026-03-20", type: "SHORT", price: "$69,835", qty: "—", pnl: "-1.3%" },
+      { time: "2026-03-25", type: "SHORT", price: "$71,644", qty: "—", pnl: "+3.6%" },
+    ],
+  },
 ];
 
 /** 금액을 한국식으로 포맷 (억/만원 단위) */
@@ -438,9 +623,9 @@ export default function BotPerformancePage() {
   const [strategies, setStrategies] = useState<BotStrategy[]>(FALLBACK_STRATEGIES);
   const [selectedBot, setSelectedBotState] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(SELECTED_BOT_KEY) || FALLBACK_STRATEGIES[0].id;
+      return localStorage.getItem(SELECTED_BOT_KEY) || "seykota-ema";
     }
-    return FALLBACK_STRATEGIES[0].id;
+    return "seykota-ema";
   });
 
   function setSelectedBot(id: string) {

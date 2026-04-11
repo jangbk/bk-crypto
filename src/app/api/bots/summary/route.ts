@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBithumbBotData } from "../bithumb/route";
 import { getCoinoneBotData } from "../coinone/route";
+import { getBybitSMCData } from "../bybit-smc/route";
 
 // Bybit Demo 봇 — Alpha v5 체제
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,8 +38,8 @@ const BYBIT_BOTS: any[] = [
 const FALLBACK_STRATEGIES = [
   {
     id: "seykota-ema",
-    name: "Seykota EMA v1 Bot",
-    description: "EMA 100 + ATR 동적밴드 추세추종 전략",
+    name: "Seykota EMA v2.1 Bot",
+    description: "EMA 15/60 + ADX + RSI 필터 + ATR 동적손절 — 레짐 감지 추세추종",
     asset: "BTC/KRW",
     exchange: "Bithumb",
     status: "active" as const,
@@ -62,8 +63,8 @@ const FALLBACK_STRATEGIES = [
   },
   {
     id: "ptj-200ma",
-    name: "PTJ 200MA v1 Bot",
-    description: "200MA + 50MA 모멘텀 전략",
+    name: "PTJ 200MA Bot",
+    description: "200MA + 50MA 모멘텀 전략 — Paul Tudor Jones 추세추종",
     asset: "BTC/KRW",
     exchange: "Coinone",
     status: "active" as const,
@@ -113,6 +114,41 @@ export async function GET() {
 
   // Bybit 봇 추가 (별도 API 없이 정적 데이터)
   strategies.push(...BYBIT_BOTS);
+
+  // SMC Hybrid 봇 — 실시간 잔고/포지션 오버레이
+  try {
+    const smcLive = await getBybitSMCData();
+    if (smcLive) {
+      strategies.push({
+        id: "luxalgo-smc-hybrid",
+        name: "LuxAlgo SMC Hybrid v1",
+        description: "Market Structure(BOS/CHoCH) + EMA + Order Block — 4H Long & Short",
+        asset: "BTC/USDT",
+        exchange: "Bybit (Demo)",
+        status: "active" as const,
+        startDate: "2026-04-11",
+        initialCapital: 10000,
+        currentValue: smcLive.walletBalance + (smcLive.unrealisedPnl || 0),
+        totalReturn: ((smcLive.walletBalance + (smcLive.unrealisedPnl || 0) - 10000) / 10000) * 100,
+        monthlyReturn: 0,
+        maxDrawdown: -14.08,
+        sharpeRatio: 1.28,
+        winRate: 37.0,
+        totalTrades: 0,
+        profitTrades: 0,
+        lossTrades: 0,
+        avgWin: 7.26,
+        avgLoss: 2.17,
+        profitFactor: 1.97,
+        dailyPnL: [] as number[],
+        monthlyReturns: [] as number[],
+        recentTrades: [] as Array<{ time: string; type: string; price: string; qty: string; pnl: string }>,
+        _live: true,
+      });
+    }
+  } catch (e) {
+    console.warn("SMC bot data fetch failed:", e);
+  }
 
   return NextResponse.json(
     { strategies, timestamp: new Date().toISOString() },

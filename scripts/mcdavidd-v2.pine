@@ -1,0 +1,175 @@
+// This Pine Script™ is subject to the terms of the Mozilla Public License 2.0
+// https://www.mozilla.org/en-US/MPL/2.0/
+// McDavidd v2 — McGinley + BB + VFI + EMA200 + ADX + RSI + Trailing Stop
+// Based on DaviddTech strategy, improved with trend filters
+// Timeframe: 1H recommended | Asset: BTCUSDT
+
+//@version=6
+strategy("McDavidd v2", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=95, commission_type=strategy.commission.percent, commission_value=0.1, slippage=1, initial_capital=10000, currency=currency.USD)
+
+// ══════════════════════════════════════════
+// Inputs
+// ══════════════════════════════════════════
+mgPeriod    = input.int(14, "McGinley Period", minval=5, maxval=50)
+bbPeriod    = input.int(20, "BB Period", minval=10, maxval=50)
+bbMult      = input.float(2.0, "BB Multiplier", minval=0.5, maxval=4.0, step=0.1)
+vfiSpan     = input.int(30, "VFI Span", minval=10, maxval=60)
+emaPeriod   = input.int(200, "EMA Trend Filter Period", minval=50, maxval=300)
+adxPeriod   = input.int(14, "ADX Period", minval=5, maxval=30)
+adxMin      = input.float(20.0, "ADX Minimum", minval=5.0, maxval=40.0, step=1.0)
+rsiPeriod   = input.int(14, "RSI Period", minval=5, maxval=30)
+rsiMax      = input.float(70.0, "RSI Max (overbought)", minval=50.0, maxval=85.0, step=1.0)
+atrPeriod   = input.int(14, "ATR Period", minval=5, maxval=30)
+slMult      = input.float(3.0, "SL ATR Multiplier", minval=0.5, maxval=5.0, step=0.5)
+tpMult      = input.float(5.0, "TP ATR Multiplier", minval=1.0, maxval=10.0, step=0.5)
+trailMult   = input.float(2.0, "Trailing ATR Mult (after TP)", minval=0.5, maxval=5.0, step=0.5)
+
+// Date filter
+startDate   = input.time(timestamp("2025-01-01"), "Start Date")
+endDate     = input.time(timestamp("2026-04-01"), "End Date")
+inDateRange = time >= startDate and time <= endDate
+
+// ══════════════════════════════════════════
+// McGinley Dynamic MA
+// ══════════════════════════════════════════
+var float mg = na
+if bar_index == 0
+    mg := close
+else
+    denom = mg > 0 ? math.max(mgPeriod * math.pow(close / mg, 4), 1e-10) : mgPeriod
+    mg := mg + (close - mg) / denom
+
+// ══════════════════════════════════════════
+// Bollinger Bands
+// ══════════════════════════════════════════
+bbBasis = ta.sma(close, bbPeriod)
+bbDev   = bbMult * ta.stdev(close, bbPeriod)
+bbUp    = bbBasis + bbDev
+bbLo    = bbBasis - bbDev
+insideBB = close < bbUp and close > bbLo
+
+// ══════════════════════════════════════════
+// VFI (Volume Flow Indicator — simplified)
+// Uses actual volume when available, falls back to price-based proxy
+// ══════════════════════════════════════════
+// Method 1: Real volume-weighted VFI
+vfiUpVol = math.sum(close > close[1] ? volume : 0, vfiSpan)
+vfiDnVol = math.sum(close < close[1] ? volume : 0, vfiSpan)
+vfiBullVol = vfiUpVol > vfiDnVol
+
+// Method 2: Price-change proxy (fallback when volume is 0)
+vfiUpPx = math.sum(close > close[1] ? math.abs(close - close[1]) / close[1] : 0, vfiSpan)
+vfiDnPx = math.sum(close < close[1] ? math.abs(close - close[1]) / close[1] : 0, vfiSpan)
+vfiBullPx = vfiUpPx > vfiDnPx
+
+// Auto-select: use volume if available, else price proxy
+hasVolume = volume > 0
+vfiBull = hasVolume ? vfiBullVol : vfiBullPx
+
+// ══════════════════════════════════════════
+// Trend Filters
+// ══════════════════════════════════════════
+ema200  = ta.ema(close, emaPeriod)
+rsiVal  = ta.rsi(close, rsiPeriod)
+
+// ADX calculation
+[diPlus, diMinus, adxVal] = ta.dmi(adxPeriod, adxPeriod)
+
+// ATR
+atrVal = ta.atr(atrPeriod)
+
+// ══════════════════════════════════════════
+// Entry Conditions
+// ══════════════════════════════════════════
+mgCrossUp   = close[1] <= mg[1] and close > mg
+aboveEMA    = close > ema200
+rsiOk       = rsiVal < rsiMax
+adxOk       = adxVal > adxMin
+
+longCondition = inDateRange and insideBB and mgCrossUp and vfiBull and aboveEMA and rsiOk and adxOk
+
+// ══════════════════════════════════════════
+// Strategy Execution
+// ══════════════════════════════════════════
+var float entryPx = na
+var float slLevel = na
+var float tpLevel = na
+var bool  trailingMode = false
+var float trailSL = na
+
+if longCondition and strategy.position_size == 0
+    entryPx := close
+    slLevel := close - slMult * atrVal
+    tpLevel := close + tpMult * atrVal
+    trailingMode := false
+    trailSL := na
+    strategy.entry("Long", strategy.long)
+
+// Manage position
+if strategy.position_size > 0
+    // Check if TP hit — switch to trailing
+    if not trailingMode and high >= tpLevel
+        trailingMode := true
+        trailSL := close - trailMult * atrVal
+
+    if trailingMode
+        // Update trailing stop (only moves up)
+        newTrail = close - trailMult * atrVal
+        if newTrail > trailSL
+            trailSL := newTrail
+        // Exit on trailing stop hit
+        if low <= trailSL
+            strategy.close("Long", comment="TRAIL")
+            trailingMode := false
+    else
+        // Fixed SL
+        if low <= slLevel
+            strategy.close("Long", comment="SL")
+
+// Reset on flat
+if strategy.position_size == 0
+    trailingMode := false
+
+// ══════════════════════════════════════════
+// Plots
+// ══════════════════════════════════════════
+plot(mg, "McGinley", color=color.new(color.orange, 0), linewidth=2)
+plot(ema200, "EMA200", color=color.new(color.gray, 30), linewidth=1)
+plot(bbUp, "BB Upper", color=color.new(color.blue, 60))
+plot(bbLo, "BB Lower", color=color.new(color.blue, 60))
+p1 = plot(bbUp, display=display.none)
+p2 = plot(bbLo, display=display.none)
+fill(p1, p2, color=color.new(color.blue, 90))
+
+// Entry/Exit markers
+plotshape(longCondition and strategy.position_size == 0, "Buy", shape.triangleup, location.belowbar, color.new(color.green, 0), size=size.small)
+
+// SL/TP levels
+plot(strategy.position_size > 0 and not trailingMode ? slLevel : na, "SL", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=1)
+plot(strategy.position_size > 0 and not trailingMode ? tpLevel : na, "TP", color=color.new(color.green, 0), style=plot.style_linebr, linewidth=1)
+plot(strategy.position_size > 0 and trailingMode ? trailSL : na, "Trail SL", color=color.new(color.purple, 0), style=plot.style_linebr, linewidth=2)
+
+// VFI indicator background
+bgcolor(vfiBull ? color.new(color.green, 95) : color.new(color.red, 95))
+
+// ══════════════════════════════════════════
+// Info Table
+// ══════════════════════════════════════════
+var table infoTable = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 80), border_width=1)
+if barstate.islast
+    table.cell(infoTable, 0, 0, "McDavidd v2", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 0, "Status", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 0, 1, "McGinley", text_color=color.gray, text_size=size.tiny)
+    table.cell(infoTable, 1, 1, str.tostring(mg, "#.0"), text_color=color.orange, text_size=size.tiny)
+    table.cell(infoTable, 0, 2, "EMA200", text_color=color.gray, text_size=size.tiny)
+    table.cell(infoTable, 1, 2, str.tostring(ema200, "#.0"), text_color=aboveEMA ? color.green : color.red, text_size=size.tiny)
+    table.cell(infoTable, 0, 3, "ADX", text_color=color.gray, text_size=size.tiny)
+    table.cell(infoTable, 1, 3, str.tostring(adxVal, "#.0"), text_color=adxOk ? color.green : color.red, text_size=size.tiny)
+    table.cell(infoTable, 0, 4, "RSI", text_color=color.gray, text_size=size.tiny)
+    table.cell(infoTable, 1, 4, str.tostring(rsiVal, "#.0"), text_color=rsiOk ? color.green : color.red, text_size=size.tiny)
+    table.cell(infoTable, 0, 5, "VFI", text_color=color.gray, text_size=size.tiny)
+    table.cell(infoTable, 1, 5, vfiBull ? "BULL" : "BEAR", text_color=vfiBull ? color.green : color.red, text_size=size.tiny)
+    table.cell(infoTable, 0, 6, "BB Inside", text_color=color.gray, text_size=size.tiny)
+    table.cell(infoTable, 1, 6, insideBB ? "YES" : "NO", text_color=insideBB ? color.green : color.red, text_size=size.tiny)
+    table.cell(infoTable, 0, 7, "ATR", text_color=color.gray, text_size=size.tiny)
+    table.cell(infoTable, 1, 7, str.tostring(atrVal, "#.0"), text_color=color.white, text_size=size.tiny)

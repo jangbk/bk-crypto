@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ollamaChat } from "@/lib/ollama";
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6시간 캐시
@@ -6,25 +7,10 @@ const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6시간 캐시
 let cachedData: { data: unknown; timestamp: number } | null = null;
 
 async function fetchLatestPolicies() {
-  const apiKey = ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-
   const today = new Date().toISOString().split("T")[0];
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey!,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 8000,
-      system: `You are a crypto regulation analyst. Today is ${today}. Respond ONLY with valid JSON, no markdown.`,
-      messages: [{
-        role: "user",
-        content: `현재 시점(${today}) 기준으로 글로벌 암호화폐 정책/규제 최신 현황을 JSON으로 제공하라.
+  const systemPrompt = `You are a crypto regulation analyst. Today is ${today}. Respond ONLY with valid JSON, no markdown.`;
+  const userPrompt = `현재 시점(${today}) 기준으로 글로벌 암호화폐 정책/규제 최신 현황을 JSON으로 제공하라.
 
 반드시 이 형식으로:
 {
@@ -91,8 +77,41 @@ async function fetchLatestPolicies() {
 미국 정책 8개 이상, 글로벌 규제 8개국 이상, 영향도 카드 4개, 최근 뉴스 10개 이상 포함.
 법안(bills)은 미국, 한국, EU 등 주요국에서 상정/진행 중인 암호화폐 관련 법안 10개 이상 포함.
 각 법안의 진행 단계(상정→위원회→본회의→양원→서명)를 progress 0-100으로 표시.
-가장 최신 정보를 반영하되, 확인되지 않은 루머는 제외하라.`
-      }],
+가장 최신 정보를 반영하되, 확인되지 않은 루머는 제외하라.`;
+
+  // 1차: Gemma 4 로컬 (무료)
+  const ollamaResult = await ollamaChat({
+    prompt: userPrompt,
+    system: systemPrompt,
+    maxTokens: 8000,
+    temperature: 0.5,
+  });
+
+  if (ollamaResult) {
+    try {
+      console.log("[crypto-policy] Gemma 4 로컬 사용 (무료)");
+      return JSON.parse(ollamaResult.text.replace(/```(?:json)?|```/g, "").trim());
+    } catch {
+      console.error("[crypto-policy] Gemma JSON parse 실패, Claude 폴백");
+    }
+  }
+
+  // 2차: Claude 폴백 (유료)
+  const apiKey = ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 8000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
     }),
   });
 
@@ -102,6 +121,7 @@ async function fetchLatestPolicies() {
   }
   const data = await res.json();
   const text = data.content?.[0]?.text || "";
+  console.log("[crypto-policy] Claude 폴백 사용 (유료)");
 
   try {
     return JSON.parse(text.replace(/```(?:json)?|```/g, "").trim());

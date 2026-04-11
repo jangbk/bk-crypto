@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { ollamaChat } from "@/lib/ollama";
 
 const SYSTEM_PROMPT = `당신은 경제뉴스 및 투자 기사 분석 전문가입니다. 경제뉴스, 신문기사, X(트위터) 게시물 등을 받아 투자 관점에서 분석하고 구조화된 가이드를 생성합니다.
 
@@ -109,20 +110,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          status: "error",
-          message:
-            "ANTHROPIC_API_KEY가 설정되지 않았습니다. .env.local에 추가해주세요.",
-        },
-        { status: 500 }
-      );
-    }
-
-    const client = new Anthropic({ apiKey });
-
     // Truncate if too long
     const maxChars = 100000;
     const truncatedText =
@@ -136,33 +123,63 @@ export async function POST(request: Request) {
 ${truncatedText}
 ---`;
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 4096,
+    // 1차: Gemma 4 로컬 (무료)
+    let rawText: string | null = null;
+    let provider = "claude";
+
+    const ollamaResult = await ollamaChat({
+      prompt: userMessage,
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
+      maxTokens: 4096,
+      temperature: 0.7,
     });
 
-    // Extract text from response
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      return NextResponse.json(
-        { status: "error", message: "AI 응답을 생성하지 못했습니다." },
-        { status: 500 }
-      );
+    if (ollamaResult) {
+      rawText = ollamaResult.text;
+      provider = "gemma4";
+      console.log("[news/analyze] Gemma 4 로컬 사용 (무료)");
+    }
+
+    // 2차: Claude 폴백 (유료)
+    if (!rawText) {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json(
+          { status: "error", message: "AI 서비스를 사용할 수 없습니다. (Ollama 미실행, ANTHROPIC_API_KEY 미설정)" },
+          { status: 500 }
+        );
+      }
+
+      const client = new Anthropic({ apiKey });
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userMessage }],
+      });
+
+      const textBlock = response.content.find((b) => b.type === "text");
+      if (!textBlock || textBlock.type !== "text") {
+        return NextResponse.json(
+          { status: "error", message: "AI 응답을 생성하지 못했습니다." },
+          { status: 500 }
+        );
+      }
+      rawText = textBlock.text;
+      console.log("[news/analyze] Claude 폴백 사용 (유료)");
     }
 
     // Parse JSON from response
     let parsed;
     try {
-      let jsonStr = textBlock.text.trim();
+      let jsonStr = rawText.trim();
       const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonMatch) {
         jsonStr = jsonMatch[1].trim();
       }
       parsed = JSON.parse(jsonStr);
     } catch {
-      console.error("Failed to parse AI response:", textBlock.text);
+      console.error("Failed to parse AI response:", rawText);
       return NextResponse.json(
         { status: "error", message: "AI 응답 파싱에 실패했습니다." },
         { status: 500 }
@@ -171,6 +188,7 @@ ${truncatedText}
 
     return NextResponse.json({
       status: "ok",
+      provider,
       title: articleTitle,
       summary: parsed.summary || "",
       investmentGuide: parsed.investmentGuide || "",
