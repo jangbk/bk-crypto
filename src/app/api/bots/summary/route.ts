@@ -38,8 +38,8 @@ const BYBIT_BOTS: any[] = [
 const FALLBACK_STRATEGIES = [
   {
     id: "seykota-ema",
-    name: "Seykota EMA v2.1 Bot",
-    description: "EMA 15/60 + ADX + RSI 필터 + ATR 동적손절 — 레짐 감지 추세추종",
+    name: "Seykota EMA v3.4 Bot",
+    description: "EMA 15/60 + MA200 하락장 필터 + ADX + RSI + ATR 동적손절 — ChatGPT 4차 리뷰 완료",
     asset: "BTC/KRW",
     exchange: "Bithumb",
     status: "active" as const,
