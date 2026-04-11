@@ -310,7 +310,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   },
   {
     id: "bybit-rotation",
-    name: "Crypto Rotation v2.3 (레짐 적응형)",
+    name: "Crypto Rotation v2.4 (레짐 적응형)",
     description: "5코인 모멘텀 로테이션 + BULL/BEAR/SIDEWAYS 자동 전환 — Bybit 선물",
     strategyDetail: {
       summary: "KIS Rotation v3의 듀얼 모멘텀(월간 리밸런싱)과 Alpha v6의 레짐 감지(BULL/BEAR/SIDEWAYS/DANGER)를 합체한 봇. BTC MA50/MA200/ROC30으로 시장 레짐을 판단하고, 레짐별로 투입 비율·레버리지·방향을 자동 전환합니다. 5코인 유니버스에서 60일 모멘텀 상위 코인에 집중 투자하며, 레짐 전환 시 즉시 전량 청산 후 새 전략으로 리밸런싱. 멀티 타임프레임(15분+1시간+4시간) Chart AI가 보조 신호를 제공합니다.",
