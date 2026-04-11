@@ -675,7 +675,7 @@ export default function BotPerformancePage() {
     setSelectedBotState(id);
     localStorage.setItem(SELECTED_BOT_KEY, id);
   }
-  const [isLive, setIsLive] = useState(false);
+  const [isLive, setIsLive] = useState(true);  // API 성공 기대값으로 시작 (깜빡임 방지)
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
