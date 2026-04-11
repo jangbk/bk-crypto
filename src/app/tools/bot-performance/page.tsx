@@ -164,7 +164,7 @@ const FALLBACK_STRATEGIES: BotStrategy[] = [
   },
   {
     id: "ptj-200ma",
-    name: "PTJ Trading v4.7 Bot",
+    name: "PTJ Trading v4.8 Bot",
     description: "EMA100 + ATR 밴드 + MA200 하락장 필터 + RSI + ROC20 + 3단계 청산 — ChatGPT 5차 리뷰 완료",
     strategyDetail: {
       summary: "Paul Tudor Jones의 200MA 추세추종을 EMA100 + ATR 밴드 돌파 전략으로 발전. ChatGPT 5차 리뷰 완료(v4.2→v4.7, 총 20건+ 수정). basis_unknown 평단 불명 격리, 다중 보유 즉시 중지, 마감봉 1회 분석, INVEST_RATIO 반영. 12년 백테스트 BTC +28,239%, ETH +22,859%.",
