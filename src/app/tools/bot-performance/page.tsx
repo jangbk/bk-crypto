@@ -848,8 +848,8 @@ export default function BotPerformancePage() {
 
   // Calculate aggregated stats — Live / Demo Testing / In Development 3단계 분리
   // totalTrades === 0인 봇은 수익 계산에서 제외 (거래 없으면 수익 0)
-  const demoBotIds = ["bybit-rotation", "luxalgo-smc-hybrid", "luxalgo-tv-ema-trend"];  // Demo Testing: 실전 검증 중 (실가격, 가상자금)
-  const devBotIds = ["bybit-alpha-v4", "mcdavidd-v2"];  // In Development
+  const demoBotIds = ["bybit-rotation", "luxalgo-tv-ema-trend"];  // Demo Testing: 실전 검증 중 (실가격, 가상자금)
+  const devBotIds = ["bybit-alpha-v4", "mcdavidd-v2", "luxalgo-smc-hybrid"];  // In Development
   const realBots = strategies.filter((b) => !demoBotIds.includes(b.id) && !devBotIds.includes(b.id));
   const demoBots = strategies.filter((b) => demoBotIds.includes(b.id));
   const devBots = strategies.filter((b) => devBotIds.includes(b.id));
