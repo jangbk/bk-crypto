@@ -68,6 +68,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Backtest Chart", href: "/tools/backtest-chart" },
       { label: "Trading Agents", href: "/tools/trading-agents" },
       { label: "Investment Guide", href: "/tools/investment-guide" },
+      { label: "Surge Screener", href: "/tools/surge-screener" },
     ],
   },
   {
