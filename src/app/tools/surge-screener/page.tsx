@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp,
   TrendingDown,
@@ -14,6 +15,7 @@ import {
   Volume2,
   Gauge,
 } from "lucide-react";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 
 /* ── Types (Python dataclass 구조와 일치) ────────── */
 interface CryptoResult {
@@ -82,27 +84,21 @@ function GradeBadge({ grade }: { grade: string }) {
 
 /* ── Main Page ───────────────────────────────────── */
 export default function CryptoSurgeScreenerPage() {
-  const [data, setData] = useState<CryptoResult[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: queryData, isLoading: loading, error: queryError, refetch } = useQuery({
+    queryKey: ["surge-screener"],
+    queryFn: async () => {
+      const r = await fetch("/api/tools/surge-screener");
+      const j = await r.json();
+      if (!j.success) throw new Error(j.error || "Failed to load");
+      return { data: (j.data ?? []) as CryptoResult[], analyzedAt: (j.meta?.analyzedAt ?? "") as string };
+    },
+  });
+
+  const data = queryData?.data ?? [];
+  const analyzedAt = queryData?.analyzedAt ?? "";
+
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [gradeFilter, setGradeFilter] = useState<string>("ALL");
-  const [analyzedAt, setAnalyzedAt] = useState("");
-
-  useEffect(() => {
-    fetch("/api/tools/surge-screener")
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.success) {
-          setData(j.data ?? []);
-          setAnalyzedAt(j.meta?.analyzedAt ?? "");
-        } else {
-          setError(j.error || "Failed to load");
-        }
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
 
   const filtered = useMemo(() => {
     if (gradeFilter === "ALL") return data;
@@ -136,7 +132,7 @@ export default function CryptoSurgeScreenerPage() {
         )}
       </div>
 
-      {error && <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
+      {queryError && <QueryErrorBox message={queryError.message} onRetry={() => refetch()} />}
 
       {/* Filters */}
       {data.length > 0 && (
@@ -290,7 +286,7 @@ export default function CryptoSurgeScreenerPage() {
       )}
 
       {/* Empty state */}
-      {!loading && data.length === 0 && !error && (
+      {!loading && data.length === 0 && !queryError && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
           <BarChart3 className="mb-3 h-12 w-12 text-muted-foreground/40" />
           <p className="text-lg font-semibold text-muted-foreground">Data pending</p>

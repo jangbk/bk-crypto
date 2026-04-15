@@ -1,33 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Wifi, WifiOff } from "lucide-react";
 import { getChartsBySection, getCategoriesForSection } from "@/data/chart-catalog";
 import ChartCard from "@/components/charts/ChartCard";
 
 export default function TradFiChartsPage() {
   const categories = getCategoriesForSection("tradfi");
-  const [dataSource, setDataSource] = useState<string>("loading");
 
-  useEffect(() => {
-    async function fetchSparklines() {
+  const { data: dataSource = "loading" } = useQuery<string>({
+    queryKey: ["tradfi-charts-source"],
+    queryFn: async () => {
       try {
         const res = await fetch("/api/tradfi/quotes?type=index");
         if (!res.ok) throw new Error("API error");
         const json = await res.json();
         if (json.data && json.data.length > 0) {
-          setDataSource(json.source === "yahoo" ? "Yahoo Finance (실시간)" : "기본 프리뷰");
-        } else {
-          setDataSource("기본 프리뷰");
+          return json.source === "yahoo" ? "Yahoo Finance (실시간)" : "기본 프리뷰";
         }
+        return "기본 프리뷰";
       } catch {
-        setDataSource("기본 프리뷰");
+        return "기본 프리뷰";
       }
-    }
-    fetchSparklines();
-    const iv = setInterval(fetchSparklines, 60_000);
-    return () => clearInterval(iv);
-  }, []);
+    },
+    refetchInterval: 60_000,
+  });
 
   return (
     <div className="p-4 sm:p-6 space-y-6">

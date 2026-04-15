@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Grid3X3, Clock, Loader2, RefreshCw } from "lucide-react";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import * as d3 from "d3";
 
 // ---------------------------------------------------------------------------
@@ -79,42 +81,25 @@ function formatMarketCap(value: number): string {
 // Component
 // ---------------------------------------------------------------------------
 export default function CryptoHeatmapPage() {
-  const [coins, setCoins] = useState<CoinData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: coins = [], isLoading: loading, error, dataUpdatedAt, refetch } = useQuery({
+    queryKey: ["crypto", "heatmap"],
+    queryFn: async () => {
+      const res = await fetch("/api/crypto/heatmap");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      return (json.data ?? []) as CoinData[];
+    },
+    refetchInterval: 120_000,
+  });
+
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+
   const [timeframe, setTimeframe] = useState<Timeframe>("24h");
   const [sectorFilter, setSectorFilter] = useState("All");
   const [hoveredCoin, setHoveredCoin] = useState<CoinData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/crypto/heatmap");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (json.data) {
-        setCoins(json.data);
-        setLastUpdated(new Date());
-      }
-    } catch (e) {
-      if (coins.length === 0) {
-        setError(e instanceof Error ? e.message : "데이터를 불러올 수 없습니다.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [coins.length]);
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 120_000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
 
   // Resize observer
   useEffect(() => {
@@ -246,7 +231,7 @@ export default function CryptoHeatmapPage() {
         </select>
 
         <button
-          onClick={fetchData}
+          onClick={() => refetch()}
           disabled={loading}
           className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
         >
@@ -292,15 +277,11 @@ export default function CryptoHeatmapPage() {
         style={{ minHeight: 400 }}
       >
         {error && coins.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3" style={{ height: dimensions.height }}>
-            <p className="text-muted-foreground">{error}</p>
-            <button
-              onClick={fetchData}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              다시 시도
-            </button>
+          <div className="flex items-center justify-center" style={{ height: dimensions.height }}>
+            <QueryErrorBox
+              message={error instanceof Error ? error.message : "데이터를 불러올 수 없습니다."}
+              onRetry={() => refetch()}
+            />
           </div>
         ) : loading && coins.length === 0 ? (
           <div className="flex items-center justify-center" style={{ height: dimensions.height }}>

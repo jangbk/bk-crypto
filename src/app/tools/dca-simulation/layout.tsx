@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: { absolute: "BK CRYPTO" },
+  title: "DCA 시뮬레이션",
   description: "DCA 시뮬레이션 - 적립식 투자 수익률 분석",
 };
 

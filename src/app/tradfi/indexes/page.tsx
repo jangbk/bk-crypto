@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { BarChart3, TrendingUp, TrendingDown, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 
 interface IndexData {
   symbol: string;
@@ -40,46 +41,48 @@ const FALLBACK_INDEXES: IndexData[] = [
   { name: "KOSPI", symbol: "^KS11", price: 2584.2, change: -0.52, changeAbs: -13.5, high52w: 2842, low52w: 2284, pe: 12.4 },
 ];
 
+interface IndexQueryResult {
+  indexes: IndexData[];
+  dataSource: string;
+  updatedAt: string;
+}
+
 export default function IndexesPage() {
-  const [indexes, setIndexes] = useState<IndexData[]>(FALLBACK_INDEXES);
-  const [dataSource, setDataSource] = useState<string>("loading");
-  const [isLoading, setIsLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const { data: queryData, isLoading, refetch } = useQuery<IndexQueryResult>({
+    queryKey: ["tradfi-indexes"],
+    queryFn: async () => {
+      let indexes = FALLBACK_INDEXES;
+      let dataSource = "fallback";
 
-  const fetchIndexes = useCallback(async () => {
-    try {
-      const res = await fetch("/api/tradfi/quotes?type=index");
-      if (!res.ok) throw new Error("API error");
-      const json = await res.json();
-      if (json.data && json.data.length > 0) {
-        const mapped: IndexData[] = json.data.map((d: { symbol: string; name: string; price: number; change: number; changeAbs: number; high52w: number; low52w: number; pe: number }) => ({
-          symbol: d.symbol,
-          name: d.name,
-          price: d.price || 0,
-          change: d.change || 0,
-          changeAbs: d.changeAbs || 0,
-          high52w: d.high52w || 0,
-          low52w: d.low52w || 0,
-          pe: d.pe || 0,
-        }));
-        setIndexes(mapped);
-        setDataSource(json.source === "yahoo" ? "yahoo" : "sample");
-      } else {
-        setDataSource("fallback");
+      try {
+        const res = await fetch("/api/tradfi/quotes?type=index");
+        if (!res.ok) throw new Error("API error");
+        const json = await res.json();
+        if (json.data && json.data.length > 0) {
+          indexes = json.data.map((d: { symbol: string; name: string; price: number; change: number; changeAbs: number; high52w: number; low52w: number; pe: number }) => ({
+            symbol: d.symbol,
+            name: d.name,
+            price: d.price || 0,
+            change: d.change || 0,
+            changeAbs: d.changeAbs || 0,
+            high52w: d.high52w || 0,
+            low52w: d.low52w || 0,
+            pe: d.pe || 0,
+          }));
+          dataSource = json.source === "yahoo" ? "yahoo" : "sample";
+        }
+      } catch {
+        // fallback
       }
-    } catch {
-      setDataSource("fallback");
-    } finally {
-      setIsLoading(false);
-      setUpdatedAt(new Date().toISOString());
-    }
-  }, []);
 
-  useEffect(() => {
-    fetchIndexes();
-    const iv = setInterval(fetchIndexes, 60_000);
-    return () => clearInterval(iv);
-  }, [fetchIndexes]);
+      return { indexes, dataSource, updatedAt: new Date().toISOString() };
+    },
+    refetchInterval: 60_000,
+  });
+
+  const indexes = queryData?.indexes ?? FALLBACK_INDEXES;
+  const dataSource = queryData?.dataSource ?? "loading";
+  const updatedAt = queryData?.updatedAt ?? null;
 
   const gainers = indexes.filter((i) => i.change > 0).length;
   const losers = indexes.filter((i) => i.change < 0).length;
@@ -113,7 +116,7 @@ export default function IndexesPage() {
               )}
             </span>
             <button
-              onClick={fetchIndexes}
+              onClick={() => refetch()}
               disabled={isLoading}
               className="p-1.5 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground disabled:opacity-50"
               title="새로고침"

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   Newspaper,
   Send,
@@ -93,32 +95,41 @@ export default function NewsAnalysisPage() {
   const [syncProgress, setSyncProgress] = useState("");
   const { toast } = useToast();
 
-  // Load from localStorage first, then sync from Notion
+  // Hydrate from localStorage
   useEffect(() => {
     const local = loadAnalyses();
     setAnalyses(local);
     if (local.length > 0) setExpandedId(local[0].id);
     setHydrated(true);
-
-    // Notion에서 불러오기 (기기 간 동기화)
-    fetch("/api/notion/news-analyses")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.status === "ok" && data.analyses?.length > 0) {
-          const notionItems: NewsAnalysis[] = data.analyses;
-          const notionTitles = new Set(notionItems.map((a) => a.title));
-          // localStorage에만 있는 항목
-          const localOnly = local.filter((a) => !notionTitles.has(a.title));
-          const merged = [...notionItems, ...localOnly];
-          setAnalyses(merged);
-          if (merged.length > 0) setExpandedId(merged[0].id);
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-          } catch { /* ignore */ }
-        }
-      })
-      .catch(() => { /* Notion 로드 실패 시 localStorage 유지 */ });
   }, []);
+
+  // Sync from Notion (기기 간 동기화)
+  const { data: notionAnalyses } = useQuery<NewsAnalysis[] | null>({
+    queryKey: ["notion-news-analyses"],
+    queryFn: async () => {
+      const r = await fetch("/api/notion/news-analyses");
+      const data = await r.json();
+      if (data.status === "ok" && data.analyses?.length > 0) {
+        return data.analyses as NewsAnalysis[];
+      }
+      return null;
+    },
+    enabled: hydrated,
+  });
+
+  // Merge Notion data when it arrives
+  useEffect(() => {
+    if (!notionAnalyses || !hydrated) return;
+    const local = loadAnalyses();
+    const notionTitles = new Set(notionAnalyses.map((a) => a.title));
+    const localOnly = local.filter((a) => !notionTitles.has(a.title));
+    const merged = [...notionAnalyses, ...localOnly];
+    setAnalyses(merged);
+    if (merged.length > 0) setExpandedId(merged[0].id);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    } catch { /* ignore */ }
+  }, [notionAnalyses, hydrated]);
 
   // Save to localStorage
   const saveAnalyses = useCallback((data: NewsAnalysis[]) => {

@@ -2,28 +2,30 @@ import Link from "next/link";
 
 const FOOTER_LINKS = [
   {
-    title: "Platform",
+    title: "플랫폼",
     links: [
-      { label: "Dashboard", href: "/dashboard" },
-      { label: "Charts", href: "/charts" },
-      { label: "Screener", href: "/crypto/screener" },
-      { label: "Heatmap", href: "/crypto/heatmap" },
+      { label: "대시보드", href: "/dashboard" },
+      { label: "차트", href: "/charts" },
+      { label: "스크리너", href: "/crypto/screener" },
+      { label: "히트맵", href: "/crypto/heatmap" },
+      { label: "AI 감성분석", href: "/crypto/sentiment-analysis" },
     ],
   },
   {
-    title: "Tools",
+    title: "도구",
     links: [
-      { label: "DCA Simulation", href: "/tools/dca-simulation" },
-      { label: "Exit Strategies", href: "/tools/exit-strategies" },
-      { label: "Portfolio Theory", href: "/tools/modern-portfolio-theory" },
-      { label: "Weighted Risk", href: "/tools/weighted-risk" },
+      { label: "DCA 시뮬레이션", href: "/tools/dca-simulation" },
+      { label: "출구 전략", href: "/tools/exit-strategies" },
+      { label: "포트폴리오 이론", href: "/tools/modern-portfolio-theory" },
+      { label: "백테스트", href: "/tools/backtest" },
     ],
   },
   {
-    title: "Content",
+    title: "콘텐츠",
     links: [
-      { label: "Crypto News", href: "/content/crypto-news" },
-      { label: "Crypto Channels", href: "/content/premium-videos" },
+      { label: "AI 뉴스 분석", href: "/content/news-analysis" },
+      { label: "크립토 뉴스", href: "/content/crypto-news" },
+      { label: "영상 요약", href: "/content/video-summaries" },
     ],
   },
 ];

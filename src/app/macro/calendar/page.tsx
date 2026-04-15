@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Calendar, ChevronLeft, ChevronRight, Clock, AlertTriangle, Info, ChevronDown, TrendingUp, TrendingDown, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import { startOfWeek, endOfWeek, addWeeks, format } from "date-fns";
 
 // ---------------------------------------------------------------------------
@@ -240,17 +242,17 @@ export default function MacroCalendarPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
-  const [events, setEvents] = useState<CalendarEvent[]>(FALLBACK_EVENTS);
-  const [dataSource, setDataSource] = useState<string>("loading");
-  const [isLoading, setIsLoading] = useState(true);
-
   // Week range based on weekOffset
   const weekStart = useMemo(() => startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 }), [weekOffset]);
   const weekEnd = useMemo(() => endOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 }), [weekOffset]);
   const weekLabel = `${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`;
 
-  useEffect(() => {
-    async function fetchCalendar() {
+  const { data: calendarData, isLoading, refetch } = useQuery({
+    queryKey: ["macro-calendar"],
+    queryFn: async () => {
+      let events = FALLBACK_EVENTS;
+      let dataSource = "fallback";
+
       try {
         const res = await fetch("/api/macro/calendar");
         if (!res.ok) throw new Error("API error");
@@ -271,25 +273,22 @@ export default function MacroCalendarPage() {
               category: "economic" as EventCategory,
             };
           });
-          // Merge with non-economic fallback events (crypto, stock, korea)
           const nonEconomicFallback = FALLBACK_EVENTS.filter((fe) => fe.category !== "economic");
           mapped.push(...nonEconomicFallback);
-
-          setEvents(mapped);
-          setDataSource(json.source === "forexfactory" ? "ForexFactory (실시간)" : "sample");
-        } else {
-          setDataSource("fallback");
+          events = mapped;
+          dataSource = json.source === "forexfactory" ? "ForexFactory (실시간)" : "sample";
         }
       } catch {
-        setDataSource("fallback");
-      } finally {
-        setIsLoading(false);
+        // fallback
       }
-    }
-    fetchCalendar();
-    const iv = setInterval(fetchCalendar, 60_000);
-    return () => clearInterval(iv);
-  }, []);
+
+      return { events, dataSource };
+    },
+    refetchInterval: 60_000,
+  });
+
+  const events = calendarData?.events ?? FALLBACK_EVENTS;
+  const dataSource = calendarData?.dataSource ?? "loading";
 
   const filteredEvents = events.filter((e) => {
     if (categoryFilter !== "all" && e.category !== categoryFilter) return false;

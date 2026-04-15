@@ -177,9 +177,76 @@ export interface ReleaseNote {
   tags: string[];
 }
 
+// Dashboard / API response types
+export interface CryptoAsset {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  current_price: number;
+  price_change_percentage_24h: number;
+  price_change_percentage_7d_in_currency: number;
+  market_cap: number;
+  total_volume: number;
+  sparkline_in_7d: { price: number[] };
+}
+
+export interface MarketCapData {
+  data: Array<[number, number]>;
+  trendline?: { slope: number; intercept: number; r2: number };
+}
+
+export interface DominanceData {
+  withStables: { data: Array<[number, number]>; current: number };
+  withoutStables: { data: Array<[number, number]>; current: number };
+}
+
+export interface MacroData {
+  data: Array<{ date: string; value: string }>;
+  label: string;
+  unit: string;
+}
+
+export interface RiskData {
+  risks: Record<string, { risk: number; label: string }>;
+}
+
+export interface RecessionRiskData {
+  risk: number;
+  components: Array<{ label: string; value: number; color: string }>;
+}
+
+export interface FearGreedData {
+  value: number;
+  classification: string;
+}
+
+export interface CalendarEvent {
+  name: string;
+  date: string;
+  prev: string;
+  forecast: string;
+  importance: "high" | "medium" | "low";
+}
+
+export interface LatestVideoData {
+  videoId: string;
+  title: string;
+  thumbnail: string;
+  author: string;
+  published: string;
+  link: string;
+}
+
 // Navigation
+export interface NavChild {
+  label: string;
+  href: string;
+  group?: string;
+}
+
 export interface NavItem {
   label: string;
   href: string;
-  children?: NavItem[];
+  children?: NavChild[];
 }

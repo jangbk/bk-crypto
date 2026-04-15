@@ -1,6 +1,17 @@
 export default function DashboardLoading() {
   return (
     <div className="p-4 sm:p-6 animate-pulse" role="status" aria-label="대시보드 로딩 중">
+      {/* Hero Bar skeleton */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <div className="h-3 w-10 rounded bg-muted" />
+            <div className="h-6 w-24 rounded bg-muted" />
+            <div className="h-3 w-14 rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
         {/* Main Content */}
         <div className="space-y-6">

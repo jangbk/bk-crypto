@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 /* ══════════════════════════════════════════════════
    AGENT REGISTRY
@@ -410,6 +411,11 @@ function DecisionCard({ decision, regime, score, lang="ko" }: { decision: any; r
    MAIN
 ══════════════════════════════════════════════════ */
 export default function TradingAgentsPage() {
+  const { data: marketQuery } = useQuery({
+    queryKey: ["trading-agents-market"],
+    queryFn: fetchMarketData,
+  });
+
   const [market, setMarket]               = useState<{ usd: { price: number; change: number; mcap: number; vol: number }; krw: { price: number; change: number }; live: boolean } | null>(null);
   const [regime, setRegime]               = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -425,8 +431,8 @@ export default function TradingAgentsPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchMarketData().then(d => { setMarket(d); setRegime(detectRegime(d.usd?.change)); });
-  }, []);
+    if (marketQuery) { setMarket(marketQuery); setRegime(detectRegime(marketQuery.usd?.change)); }
+  }, [marketQuery]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth", block:"nearest" }); }, [reports, finalDecision, activeStep, weightedScore]);
 

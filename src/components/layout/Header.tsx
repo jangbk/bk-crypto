@@ -10,7 +10,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { SearchDialog } from "./SearchDialog";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { UserDropdown } from "./UserDropdown";
-import type { NavItem } from "@/lib/types";
+import type { NavItem, NavChild } from "@/lib/types";
 
 function Logo() {
   return (
@@ -94,24 +94,63 @@ function NavDropdown({
           aria-hidden="true"
         />
       </button>
-      {open && item.children && (
-        <div
-          className="absolute left-0 top-full z-50 mt-0.5 min-w-[200px] rounded-lg border border-border bg-card py-1.5 shadow-lg animate-fade-in"
-          role="menu"
-        >
-          {item.children.map((child) => (
-            <Link
-              key={child.href}
-              href={child.href}
-              className="block px-4 py-2 text-sm text-card-foreground hover:bg-muted transition-colors"
-              role="menuitem"
-              onClick={() => setOpen(false)}
+      {open && item.children && (() => {
+        const hasGroups = item.children.some((c) => c.group);
+        if (!hasGroups) {
+          return (
+            <div
+              className="absolute left-0 top-full z-50 mt-0.5 min-w-[200px] rounded-lg border border-border bg-card py-1.5 shadow-lg animate-fade-in"
+              role="menu"
             >
-              {child.label}
-            </Link>
-          ))}
-        </div>
-      )}
+              {item.children.map((child) => (
+                <Link
+                  key={child.href}
+                  href={child.href}
+                  className="block px-4 py-2 text-sm text-card-foreground hover:bg-muted transition-colors"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  {child.label}
+                </Link>
+              ))}
+            </div>
+          );
+        }
+        // Grouped menu
+        const groups: Record<string, NavChild[]> = {};
+        for (const child of item.children) {
+          const g = child.group || "Other";
+          (groups[g] ??= []).push(child);
+        }
+        const groupEntries = Object.entries(groups);
+        return (
+          <div
+            className="absolute left-0 top-full z-50 mt-0.5 min-w-[480px] rounded-lg border border-border bg-card p-3 shadow-lg animate-fade-in"
+            role="menu"
+          >
+            <div className={`grid gap-4 ${groupEntries.length >= 3 ? "grid-cols-3" : `grid-cols-${groupEntries.length}`}`}>
+              {groupEntries.map(([groupName, children]) => (
+                <div key={groupName}>
+                  <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {groupName}
+                  </div>
+                  {children.map((child) => (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      className="block rounded-md px-2 py-1.5 text-sm text-card-foreground hover:bg-muted transition-colors"
+                      role="menuitem"
+                      onClick={() => setOpen(false)}
+                    >
+                      {child.label}
+                    </Link>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -270,26 +309,63 @@ function MobileNav({
                       aria-hidden="true"
                     />
                   </button>
-                  {isExpanded && (
-                    <div className="ml-3 border-l border-border pl-3 py-1">
-                      {item.children.map((child) => (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          onClick={onClose}
-                          className={cn(
-                            "block rounded-lg px-3 py-2 text-sm transition-colors",
-                            pathname === child.href
-                              ? "text-primary font-medium"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                          aria-current={pathname === child.href ? "page" : undefined}
-                        >
-                          {child.label}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+                  {isExpanded && (() => {
+                    const hasGroups = item.children!.some((c) => c.group);
+                    if (!hasGroups) {
+                      return (
+                        <div className="ml-3 border-l border-border pl-3 py-1">
+                          {item.children!.map((child) => (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={onClose}
+                              className={cn(
+                                "block rounded-lg px-3 py-2 text-sm transition-colors",
+                                pathname === child.href
+                                  ? "text-primary font-medium"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                              aria-current={pathname === child.href ? "page" : undefined}
+                            >
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
+                      );
+                    }
+                    const groups: Record<string, NavChild[]> = {};
+                    for (const child of item.children!) {
+                      const g = child.group || "Other";
+                      (groups[g] ??= []).push(child);
+                    }
+                    return (
+                      <div className="ml-3 border-l border-border pl-3 py-1">
+                        {Object.entries(groups).map(([groupName, children]) => (
+                          <div key={groupName} className="mt-2 first:mt-0">
+                            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {groupName}
+                            </div>
+                            {children.map((child) => (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                onClick={onClose}
+                                className={cn(
+                                  "block rounded-lg px-3 py-2 text-sm transition-colors",
+                                  pathname === child.href
+                                    ? "text-primary font-medium"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                                aria-current={pathname === child.href ? "page" : undefined}
+                              >
+                                {child.label}
+                              </Link>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             }

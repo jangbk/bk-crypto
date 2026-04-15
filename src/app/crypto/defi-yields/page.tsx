@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   ArrowUpDown,
   ArrowUp,
@@ -112,32 +114,21 @@ export default function DefiYieldsPage() {
   const [sortField, setSortField] = useState<SortField>("tvl");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [guideOpen, setGuideOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [isLive, setIsLive] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [pools, setPools] = useState<DefiPool[]>(FALLBACK_DATA);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: apiData, isLoading: loading, isError, refetch } = useQuery({
+    queryKey: ["crypto", "defi-yields"],
+    queryFn: async () => {
       const res = await fetch("/api/crypto/defi-yields");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.error) throw new Error("API error");
-      setPools(data.pools);
-      setIsLive(true);
-      setUpdatedAt(data.updatedAt);
-    } catch {
-      setPools(FALLBACK_DATA);
-      setIsLive(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data;
+    },
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const pools: DefiPool[] = apiData?.pools?.length > 0 ? apiData.pools : FALLBACK_DATA;
+  const isLive = !!apiData?.pools?.length;
+  const updatedAt: string | null = apiData?.updatedAt ?? null;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -236,7 +227,7 @@ export default function DefiYieldsPage() {
               )}
             </div>
             <button
-              onClick={fetchData}
+              onClick={() => refetch()}
               disabled={loading}
               className="self-start p-2 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground transition-colors disabled:opacity-50"
               title="새로고침"
@@ -329,6 +320,9 @@ export default function DefiYieldsPage() {
             <span className="ml-3 text-muted-foreground">DefiLlama 데이터 로딩중...</span>
           </div>
         )}
+
+        {/* Error */}
+        {isError && <div className="mb-8"><QueryErrorBox onRetry={() => refetch()} /></div>}
 
         {!loading && (
           <>

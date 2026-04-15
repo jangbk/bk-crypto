@@ -37,11 +37,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: {
-    default: "BK CRYPTO",
-    template: "BK CRYPTO",
+    default: "BK CRYPTO - 종합 투자 분석 플랫폼",
+    template: "%s | BK CRYPTO",
   },
   description:
-    "Comprehensive investment analysis platform covering crypto, macro economics, traditional finance, and quantitative tools.",
+    "크립토, 매크로, 전통 금융을 아우르는 종합 투자 분석 플랫폼. 실시간 시장 데이터, 리스크 분석, AI 뉴스, 백테스트, DCA 시뮬레이션.",
   keywords: [
     "crypto",
     "bitcoin",

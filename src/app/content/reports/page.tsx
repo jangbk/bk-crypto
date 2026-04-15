@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   FileText,
   Calendar,
@@ -17,6 +18,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,41 +71,34 @@ const riskLabels: Record<string, string> = { low: "낮음", medium: "보통", hi
 // Page
 // ---------------------------------------------------------------------------
 export default function ReportsPage() {
-  const [reports, setReports] = useState<Report[]>([]);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [isLive, setIsLive] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: queryData, isLoading: loading, refetch } = useQuery({
+    queryKey: ["content-reports"],
+    queryFn: async () => {
       const res = await fetch("/api/content/reports");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.error || !data.reports?.length) throw new Error("No reports");
-      setReports(data.reports);
-      setSelectedReport((prev) => {
-        if (prev) {
-          const found = data.reports.find((r: Report) => r.id === prev.id);
-          if (found) return found;
-        }
-        return data.reports[0];
-      });
-      setIsLive(true);
-      setUpdatedAt(data.updatedAt);
-    } catch {
-      setIsLive(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data as { reports: Report[]; updatedAt?: string };
+    },
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const reports = queryData?.reports ?? [];
+  const isLive = reports.length > 0;
+  const updatedAt = queryData?.updatedAt ?? null;
+
+  // Keep selectedReport in sync with fetched data
+  const effectiveSelected = (() => {
+    if (!reports.length) return null;
+    if (selectedReport) {
+      const found = reports.find((r) => r.id === selectedReport.id);
+      if (found) return found;
+    }
+    return reports[0];
+  })();
 
   const filtered = reports.filter((r) => {
     if (filter !== "all" && r.category !== filter) return false;
@@ -128,14 +123,12 @@ export default function ReportsPage() {
   if (!isLive || reports.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-3">
-        <WifiOff className="h-10 w-10 text-muted-foreground/50" />
-        <p className="text-sm text-muted-foreground">리포트 데이터를 불러올 수 없습니다</p>
-        <button onClick={fetchData} className="text-sm text-primary hover:underline">다시 시도</button>
+        <QueryErrorBox message="리포트 데이터를 불러올 수 없습니다" onRetry={() => refetch()} />
       </div>
     );
   }
 
-  if (!selectedReport) return null;
+  if (!effectiveSelected) return null;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -156,7 +149,7 @@ export default function ReportsPage() {
                 )}
               </span>
               <button
-                onClick={fetchData}
+                onClick={() => refetch()}
                 disabled={loading}
                 className="p-1.5 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground disabled:opacity-50"
                 title="새로고침"
@@ -203,7 +196,7 @@ export default function ReportsPage() {
               key={report.id}
               onClick={() => setSelectedReport(report)}
               className={`w-full text-left p-4 border-b border-border/50 hover:bg-muted/30 transition-colors ${
-                selectedReport.id === report.id ? "bg-muted/40 border-l-2 border-l-primary" : ""
+                effectiveSelected.id === report.id ? "bg-muted/40 border-l-2 border-l-primary" : ""
               }`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -247,21 +240,21 @@ export default function ReportsPage() {
         <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className={`text-xs font-medium px-2 py-0.5 rounded ${categoryColor[selectedReport.category]}`}>
-                {categoryLabel[selectedReport.category]}
+              <span className={`text-xs font-medium px-2 py-0.5 rounded ${categoryColor[effectiveSelected.category]}`}>
+                {categoryLabel[effectiveSelected.category]}
               </span>
-              <span className="text-xs text-muted-foreground">{selectedReport.date}</span>
+              <span className="text-xs text-muted-foreground">{effectiveSelected.date}</span>
               <span className="flex items-center gap-1 text-xs">
-                {sentimentIcon(selectedReport.overallSentiment)}
-                <span className={selectedReport.overallSentiment === "bullish" ? "text-green-400" : selectedReport.overallSentiment === "bearish" ? "text-red-400" : "text-yellow-400"}>
-                  {sentimentLabel(selectedReport.overallSentiment)}
+                {sentimentIcon(effectiveSelected.overallSentiment)}
+                <span className={effectiveSelected.overallSentiment === "bullish" ? "text-green-400" : effectiveSelected.overallSentiment === "bearish" ? "text-red-400" : "text-yellow-400"}>
+                  {sentimentLabel(effectiveSelected.overallSentiment)}
                 </span>
               </span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded ${riskColors[selectedReport.riskLevel]}`}>
-                리스크: {riskLabels[selectedReport.riskLevel]}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded ${riskColors[effectiveSelected.riskLevel]}`}>
+                리스크: {riskLabels[effectiveSelected.riskLevel]}
               </span>
             </div>
-            <h2 className="text-lg font-bold">{selectedReport.title}</h2>
+            <h2 className="text-lg font-bold">{effectiveSelected.title}</h2>
           </div>
         </div>
 
@@ -270,7 +263,7 @@ export default function ReportsPage() {
           <div className="max-w-4xl mx-auto p-6 space-y-6">
             {/* Summary */}
             <div className="rounded-xl bg-muted/20 border border-border p-4">
-              <p className="text-sm text-foreground/90 leading-relaxed">{selectedReport.summary}</p>
+              <p className="text-sm text-foreground/90 leading-relaxed">{effectiveSelected.summary}</p>
             </div>
 
             {/* Key Metrics */}
@@ -279,7 +272,7 @@ export default function ReportsPage() {
                 <DollarSign className="w-4 h-4 text-blue-400" /> 핵심 지표
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {selectedReport.keyMetrics.map((m) => (
+                {effectiveSelected.keyMetrics.map((m) => (
                   <div key={m.label} className="rounded-lg border border-border bg-card p-3">
                     <p className="text-[10px] text-muted-foreground uppercase">{m.label}</p>
                     <div className="flex items-baseline gap-2 mt-1">
@@ -296,7 +289,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Sections */}
-            {selectedReport.sections.map((section, i) => (
+            {effectiveSelected.sections.map((section, i) => (
               <div key={i} className="rounded-xl border border-border bg-card p-5">
                 <h3 className="text-base font-semibold text-foreground flex items-center gap-2 mb-3">
                   {section.sentiment && sentimentIcon(section.sentiment)}
@@ -314,7 +307,7 @@ export default function ReportsPage() {
                 <CheckCircle className="w-4 h-4 text-green-400" /> 액션 아이템
               </h3>
               <ul className="space-y-2">
-                {selectedReport.actionItems.map((item, i) => (
+                {effectiveSelected.actionItems.map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
                     <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold">
                       {i + 1}

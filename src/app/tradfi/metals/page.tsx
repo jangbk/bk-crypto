@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Gem, TrendingUp, TrendingDown, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 
 interface Metal {
   name: string;
@@ -32,64 +34,68 @@ const FALLBACK_METALS: Metal[] = [
   { name: "Aluminum", symbol: "ALI=F", price: 2684.2, change: 0.34, changeAbs: 9.1, unit: "MT", high52w: 2842, low52w: 2184 },
 ];
 
+interface MetalsQueryResult {
+  metals: Metal[];
+  dataSource: string;
+  btcPrice: number | null;
+  sp500Price: number | null;
+  updatedAt: string;
+}
+
 export default function MetalsPage() {
-  const [metals, setMetals] = useState<Metal[]>(FALLBACK_METALS);
-  const [dataSource, setDataSource] = useState<string>("loading");
-  const [isLoading, setIsLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [btcPrice, setBtcPrice] = useState<number | null>(null);
-  const [sp500Price, setSp500Price] = useState<number | null>(null);
+  const { data: queryData, isLoading, refetch } = useQuery<MetalsQueryResult>({
+    queryKey: ["tradfi-metals"],
+    queryFn: async () => {
+      const [metalsRes, btcRes, sp500Res] = await Promise.allSettled([
+        fetch("/api/tradfi/quotes?type=metal").then((r) => r.json()),
+        fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", { signal: AbortSignal.timeout(6000) }).then((r) => r.json()),
+        fetch("/api/macro/indicators?indicator=sp500", { signal: AbortSignal.timeout(6000) }).then((r) => r.json()),
+      ]);
 
-  const fetchAll = useCallback(async () => {
-    const [metalsRes, btcRes, sp500Res] = await Promise.allSettled([
-      fetch("/api/tradfi/quotes?type=metal").then((r) => r.json()),
-      fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", { signal: AbortSignal.timeout(6000) }).then((r) => r.json()),
-      fetch("/api/macro/indicators?indicator=sp500", { signal: AbortSignal.timeout(6000) }).then((r) => r.json()),
-    ]);
+      let metals = FALLBACK_METALS;
+      let dataSource = "fallback";
+      let btcPrice: number | null = null;
+      let sp500Price: number | null = null;
 
-    if (metalsRes.status === "fulfilled") {
-      const json = metalsRes.value;
-      if (json.data && json.data.length > 0) {
-        const mapped: Metal[] = json.data.map((d: { symbol: string; name: string; price: number; change: number; changeAbs: number; unit?: string; high52w: number; low52w: number }) => ({
-          symbol: d.symbol,
-          name: d.name,
-          price: d.price,
-          change: d.change,
-          changeAbs: d.changeAbs,
-          unit: d.unit || "oz",
-          high52w: d.high52w,
-          low52w: d.low52w,
-        }));
-        setMetals(mapped);
-        setDataSource(json.source === "yahoo" ? "yahoo" : "sample");
-      } else {
-        setDataSource("fallback");
+      if (metalsRes.status === "fulfilled") {
+        const json = metalsRes.value;
+        if (json.data && json.data.length > 0) {
+          metals = json.data.map((d: { symbol: string; name: string; price: number; change: number; changeAbs: number; unit?: string; high52w: number; low52w: number }) => ({
+            symbol: d.symbol,
+            name: d.name,
+            price: d.price,
+            change: d.change,
+            changeAbs: d.changeAbs,
+            unit: d.unit || "oz",
+            high52w: d.high52w,
+            low52w: d.low52w,
+          }));
+          dataSource = json.source === "yahoo" ? "yahoo" : "sample";
+        }
       }
-    } else {
-      setDataSource("fallback");
-    }
 
-    if (btcRes.status === "fulfilled" && btcRes.value?.bitcoin?.usd) {
-      setBtcPrice(btcRes.value.bitcoin.usd);
-    }
-
-    if (sp500Res.status === "fulfilled" && sp500Res.value?.data) {
-      const spData = sp500Res.value.data;
-      if (Array.isArray(spData) && spData.length > 0) {
-        const lastVal = parseFloat(spData[spData.length - 1].value);
-        if (!isNaN(lastVal)) setSp500Price(lastVal);
+      if (btcRes.status === "fulfilled" && btcRes.value?.bitcoin?.usd) {
+        btcPrice = btcRes.value.bitcoin.usd;
       }
-    }
 
-    setIsLoading(false);
-    setUpdatedAt(new Date().toISOString());
-  }, []);
+      if (sp500Res.status === "fulfilled" && sp500Res.value?.data) {
+        const spData = sp500Res.value.data;
+        if (Array.isArray(spData) && spData.length > 0) {
+          const lastVal = parseFloat(spData[spData.length - 1].value);
+          if (!isNaN(lastVal)) sp500Price = lastVal;
+        }
+      }
 
-  useEffect(() => {
-    fetchAll();
-    const iv = setInterval(fetchAll, 60_000);
-    return () => clearInterval(iv);
-  }, [fetchAll]);
+      return { metals, dataSource, btcPrice, sp500Price, updatedAt: new Date().toISOString() };
+    },
+    refetchInterval: 60_000,
+  });
+
+  const metals = queryData?.metals ?? FALLBACK_METALS;
+  const dataSource = queryData?.dataSource ?? "loading";
+  const updatedAt = queryData?.updatedAt ?? null;
+  const btcPrice = queryData?.btcPrice ?? null;
+  const sp500Price = queryData?.sp500Price ?? null;
 
   // Dynamic ratios
   const gold = metals.find((m) => m.name === "Gold");
@@ -158,7 +164,7 @@ export default function MetalsPage() {
               )}
             </span>
             <button
-              onClick={fetchAll}
+              onClick={() => refetch()}
               disabled={isLoading}
               className="p-1.5 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground disabled:opacity-50"
               title="새로고침"

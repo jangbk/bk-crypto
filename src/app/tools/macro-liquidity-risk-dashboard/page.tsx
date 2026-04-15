@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Loader2,
   TrendingUp,
@@ -21,6 +22,7 @@ import {
   ChevronUp,
   Briefcase,
 } from "lucide-react";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import GaugeChart from "@/components/ui/GaugeChart";
 
 // ---------------------------------------------------------------------------
@@ -258,28 +260,18 @@ function generateLiquidityAnalysis(data: LiquidityData): {
 // Page
 // ---------------------------------------------------------------------------
 export default function MacroLiquidityRiskDashboard() {
-  const [data, setData] = useState<LiquidityData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const { data, isLoading: loading, error: queryError, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ["macro-liquidity-risk"],
+    queryFn: async () => {
+      const res = await fetch("/api/macro/liquidity-risk");
+      if (!res.ok) throw new Error("Failed to fetch liquidity risk data");
+      return (await res.json()) as LiquidityData;
+    },
+    refetchInterval: 60_000,
+  });
+
+  const updatedAt = dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : null;
   const [showMethodology, setShowMethodology] = useState(false);
-
-  const fetchData = useCallback(() => {
-    setLoading(true);
-    fetch("/api/macro/liquidity-risk")
-      .then((res) => res.json())
-      .then((d) => {
-        setData(d);
-        setUpdatedAt(new Date().toISOString());
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-    const iv = setInterval(fetchData, 60_000);
-    return () => clearInterval(iv);
-  }, [fetchData]);
 
   const analysis = useMemo(
     () => (data ? generateLiquidityAnalysis(data) : null),
@@ -295,12 +287,20 @@ export default function MacroLiquidityRiskDashboard() {
     );
   }
 
+  if (queryError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <QueryErrorBox message={queryError.message} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <WifiOff className="h-10 w-10 text-muted-foreground/50" />
         <p className="text-sm text-muted-foreground">데이터를 불러올 수 없습니다</p>
-        <button onClick={fetchData} className="text-sm text-primary hover:underline">
+        <button onClick={() => refetch()} className="text-sm text-primary hover:underline">
           다시 시도
         </button>
       </div>
@@ -342,7 +342,7 @@ export default function MacroLiquidityRiskDashboard() {
               )}
             </span>
             <button
-              onClick={fetchData}
+              onClick={() => refetch()}
               disabled={loading}
               className="p-1.5 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground disabled:opacity-50"
               title="새로고침"

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   Activity,
   TrendingUp,
@@ -114,40 +116,23 @@ function formatPrice(n: number): string {
 export default function OptionsFlowPage() {
   const [asset, setAsset] = useState<Asset>("BTC");
   const [guideOpen, setGuideOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [isLive, setIsLive] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
-  // API data state
-  const [apiData, setApiData] = useState<ApiResponse | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: apiData, isLoading: loading, isError, refetch } = useQuery<ApiResponse>({
+    queryKey: ["crypto", "options-flow"],
+    queryFn: async () => {
       const res = await fetch("/api/crypto/options-flow");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ApiResponse = await res.json();
+      const data = await res.json();
       if ("error" in data) throw new Error("API returned error");
-      setApiData(data);
-      setIsLive(true);
-      setUpdatedAt(data.updatedAt);
-    } catch {
-      setIsLive(false);
-      setApiData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data;
+    },
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const isLive = !!apiData;
+  const updatedAt: string | null = apiData?.updatedAt ?? null;
 
   // Derive display data from API or fallback
-  const summary = apiData
-    ? apiData[asset].summary
-    : FALLBACK_SUMMARY[asset];
-
+  const summary = apiData ? apiData[asset].summary : FALLBACK_SUMMARY[asset];
   const expiryData = apiData ? apiData[asset].expiryData : [];
   const strikeData = apiData ? apiData[asset].strikeData : [];
 
@@ -197,7 +182,7 @@ export default function OptionsFlowPage() {
           <div className="flex items-center gap-3">
             {/* Refresh */}
             <button
-              onClick={fetchData}
+              onClick={() => refetch()}
               disabled={loading}
               className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground transition-colors disabled:opacity-50"
               title="새로고침"
@@ -356,6 +341,9 @@ export default function OptionsFlowPage() {
             <span className="ml-3 text-muted-foreground">Deribit 데이터 로딩중...</span>
           </div>
         )}
+
+        {/* Error */}
+        {isError && <div className="mb-8"><QueryErrorBox onRetry={() => refetch()} /></div>}
 
         {!loading && (
           <>
@@ -749,7 +737,7 @@ export default function OptionsFlowPage() {
                   Deribit API 연결 실패 — 요약 데이터만 표시됩니다
                 </p>
                 <button
-                  onClick={fetchData}
+                  onClick={() => refetch()}
                   className="text-sm text-purple-400 hover:text-purple-300 underline"
                 >
                   다시 시도

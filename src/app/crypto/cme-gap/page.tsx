@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   TrendingUp,
   TrendingDown,
@@ -83,35 +85,23 @@ export default function CMEGapPage() {
   const [assetFilter, setAssetFilter] = useState<"all" | "BTC" | "ETH">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "filled">("all");
   const [showGuide, setShowGuide] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [isLive, setIsLive] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [gaps, setGaps] = useState<CMEGap[]>([]);
-  const [apiStats, setApiStats] = useState<ApiStats | null>(null);
-  const [currentPrices, setCurrentPrices] = useState<{ BTC: number; ETH: number }>({ BTC: 0, ETH: 0 });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: apiData, isLoading: loading, isError, refetch } = useQuery<ApiResponse>({
+    queryKey: ["crypto", "cme-gap"],
+    queryFn: async () => {
       const res = await fetch("/api/crypto/cme-gap");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ApiResponse = await res.json();
+      const data = await res.json();
       if ("error" in data) throw new Error("API error");
-      setGaps(data.gaps);
-      setApiStats(data.stats);
-      setCurrentPrices(data.currentPrices);
-      setIsLive(true);
-      setUpdatedAt(data.updatedAt);
-    } catch {
-      setIsLive(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data;
+    },
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const gaps: CMEGap[] = apiData?.gaps ?? [];
+  const apiStats: ApiStats | null = apiData?.stats ?? null;
+  const currentPrices = apiData?.currentPrices ?? { BTC: 0, ETH: 0 };
+  const isLive = !!apiData;
+  const updatedAt: string | null = apiData?.updatedAt ?? null;
 
   const filtered = useMemo(() => {
     return gaps.filter((g) => {
@@ -176,7 +166,7 @@ export default function CMEGapPage() {
           )}
         </div>
         <button
-          onClick={fetchData}
+          onClick={() => refetch()}
           disabled={loading}
           className="self-start p-2 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground transition-colors disabled:opacity-50"
           title="새로고침"
@@ -257,11 +247,14 @@ export default function CMEGapPage() {
         </div>
       )}
 
+      {/* Error */}
+      {isError && <div className="mb-6"><QueryErrorBox onRetry={() => refetch()} /></div>}
+
       {!loading && gaps.length === 0 && !isLive && (
         <div className="rounded-lg border border-border bg-card p-12 text-center">
           <WifiOff className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground mb-2">데이터를 불러올 수 없습니다</p>
-          <button onClick={fetchData} className="text-sm text-primary hover:underline">다시 시도</button>
+          <button onClick={() => refetch()} className="text-sm text-primary hover:underline">다시 시도</button>
         </div>
       )}
 

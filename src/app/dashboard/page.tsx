@@ -1,86 +1,59 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, RefreshCw, Play, ChevronRight, Lightbulb, Pencil, X, Plus, Check, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  ExternalLink,
+  RefreshCw,
+  Play,
+  ChevronRight,
+  Pencil,
+  X,
+  Plus,
+  Check,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import GaugeChart from "@/components/ui/GaugeChart";
 import SparklineChart from "@/components/ui/SparklineChart";
+import { InsightBox } from "@/components/ui/InsightBox";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   formatCurrency,
   formatPercent,
   formatCompactNumber,
 } from "@/lib/formatters";
+import {
+  getMcapInsight,
+  getDomInsight,
+  getRiskInsight,
+  getCryptoRiskInsight,
+  getRecessionInsight,
+  getMacroInsight,
+} from "@/lib/insights";
+import {
+  useCryptoPrices,
+  useCryptoRisk,
+  useRecessionRisk,
+  useFearGreed,
+  useMacroCalendar,
+  useLatestVideo,
+  useMarketCap,
+  useDominance,
+  useMacroIndicator,
+  type CryptoAsset,
+} from "@/hooks/useDashboardQueries";
 
 // Dynamic import for Lightweight Charts (needs window object)
 const LightweightChartWrapper = dynamic(
   () => import("@/components/dashboard/LightweightChartWrapper"),
-  { ssr: false, loading: () => <ChartSkeleton /> }
+  { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
-// ─── Types ───────────────────────────────────────────────────────
-interface CryptoAsset {
-  id: string;
-  symbol: string;
-  name: string;
-  image: string;
-  current_price: number;
-  price_change_percentage_24h: number;
-  price_change_percentage_7d_in_currency: number;
-  market_cap: number;
-  total_volume: number;
-  sparkline_in_7d: { price: number[] };
-}
-
-interface MarketCapData {
-  data: Array<[number, number]>;
-  trendline?: { slope: number; intercept: number; r2: number };
-}
-
-interface DominanceData {
-  withStables: { data: Array<[number, number]>; current: number };
-  withoutStables: { data: Array<[number, number]>; current: number };
-}
-
-interface MacroData {
-  data: Array<{ date: string; value: string }>;
-  label: string;
-  unit: string;
-}
-
-interface RiskData {
-  risks: Record<string, { risk: number; label: string }>;
-}
-
-interface RecessionRiskData {
-  risk: number;
-  components: Array<{ label: string; value: number; color: string }>;
-}
-
-interface FearGreedData {
-  value: number;
-  classification: string;
-}
-
-interface CalendarEvent {
-  name: string;
-  date: string;
-  prev: string;
-  forecast: string;
-  importance: "high" | "medium" | "low";
-}
-
-interface LatestVideoData {
-  videoId: string;
-  title: string;
-  thumbnail: string;
-  author: string;
-  published: string;
-  link: string;
-}
-
-// ─── Skeleton ────────────────────────────────────────────────────
+// ─── Skeletons ──────────────────────────────────────────────────
 function ChartSkeleton() {
   return (
     <div className="h-48 rounded bg-muted/50 animate-pulse flex items-center justify-center text-sm text-muted-foreground">
@@ -99,323 +72,298 @@ function TableSkeleton() {
   );
 }
 
-// ─── Insight Box ─────────────────────────────────────────────────
-function InsightBox({ text, type = "neutral" }: { text: string; type?: "bullish" | "bearish" | "neutral" | "caution" }) {
-  const colors = {
-    bullish: "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400",
-    bearish: "border-red-500/30 bg-red-500/5 text-red-700 dark:text-red-400",
-    caution: "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400",
-    neutral: "border-blue-500/30 bg-blue-500/5 text-blue-700 dark:text-blue-400",
-  };
-  return (
-    <div className={`mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs leading-relaxed ${colors[type]}`}>
-      <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-      <span>{text}</span>
-    </div>
-  );
-}
+// ─── Sorting ────────────────────────────────────────────────────
+type SortKey = "default" | "price" | "change24h" | "change7d" | "marketCap" | "volume";
 
-function getMcapInsight(tab: string, value: number): { text: string; type: "bullish" | "bearish" | "caution" | "neutral" } {
-  const t = value / 1e12;
-  const label = tab === "total" ? "전체 크립토" : tab.toUpperCase();
-  if (tab === "total") {
-    if (t >= 3) return { text: `${label} 시총 $${t.toFixed(1)}T - 시장이 과열 구간에 진입할 수 있습니다. 신규 진입 시 분할 매수를 고려하세요.`, type: "caution" };
-    if (t >= 2) return { text: `${label} 시총 $${t.toFixed(1)}T - 상승 추세이나 아직 과열은 아닙니다. 장기 관점에서 긍정적입니다.`, type: "bullish" };
-    if (t >= 1) return { text: `${label} 시총 $${t.toFixed(1)}T - 회복 구간입니다. 역사적으로 이 수준은 축적의 기회입니다.`, type: "bullish" };
-    return { text: `${label} 시총 $${t.toFixed(2)}T - 약세장 구간입니다. DCA 전략으로 장기 포지션을 구축할 좋은 시기입니다.`, type: "neutral" };
-  }
-  if (tab === "btc") {
-    if (t >= 2) return { text: `BTC 시총 $${t.toFixed(1)}T - 비트코인이 새로운 가치 영역을 탐색 중입니다. 변동성에 주의하세요.`, type: "caution" };
-    if (t >= 1) return { text: `BTC 시총 $${t.toFixed(1)}T - 건강한 성장 구간입니다. 기관 자금 유입이 시장을 지지합니다.`, type: "bullish" };
-    return { text: `BTC 시총 $${t.toFixed(2)}T - 저평가 구간입니다. 역사적으로 장기 투자자에게 유리한 진입점입니다.`, type: "bullish" };
-  }
-  const b = value / 1e9;
-  if (b >= 500) return { text: `ETH 시총 $${b.toFixed(0)}B - 이더리움 생태계가 강세입니다. DeFi/NFT 활성도를 함께 모니터링하세요.`, type: "bullish" };
-  if (b >= 200) return { text: `ETH 시총 $${b.toFixed(0)}B - 안정적 성장 구간입니다. ETH/BTC 비율 추이도 확인하세요.`, type: "neutral" };
-  return { text: `ETH 시총 $${b.toFixed(0)}B - 저평가 구간입니다. 스마트 컨트랙트 플랫폼 중 가장 큰 생태계를 보유하고 있습니다.`, type: "bullish" };
-}
-
-function getDomInsight(tab: string, withStables: number): { text: string; type: "bullish" | "bearish" | "caution" | "neutral" } {
-  if (tab === "btc") {
-    if (withStables >= 60) return { text: `BTC 도미넌스 ${withStables.toFixed(1)}% - 비트코인 독주 구간입니다. 알트코인 투자 비중을 줄이고 BTC 위주로 포지션을 유지하세요.`, type: "caution" };
-    if (withStables >= 50) return { text: `BTC 도미넌스 ${withStables.toFixed(1)}% - BTC가 시장을 주도합니다. 알트 시즌은 아직이며, 비트코인 중심 전략이 유리합니다.`, type: "neutral" };
-    if (withStables >= 40) return { text: `BTC 도미넌스 ${withStables.toFixed(1)}% - 알트코인으로 자금이 분산되고 있습니다. 알트 시즌의 초기 징후일 수 있습니다.`, type: "bullish" };
-    return { text: `BTC 도미넌스 ${withStables.toFixed(1)}% - 알트 시즌입니다! 알트코인이 BTC 대비 아웃퍼폼 중이지만, 과열 주의가 필요합니다.`, type: "caution" };
-  }
-  if (withStables >= 20) return { text: `ETH 도미넌스 ${withStables.toFixed(1)}% - 이더리움이 강세를 보이며, L2 생태계 성장이 뒷받침되고 있습니다.`, type: "bullish" };
-  if (withStables >= 15) return { text: `ETH 도미넌스 ${withStables.toFixed(1)}% - 정상 수준입니다. 이더리움의 시장 점유율이 안정적입니다.`, type: "neutral" };
-  return { text: `ETH 도미넌스 ${withStables.toFixed(1)}% - 이더리움 도미넌스가 낮습니다. L1 경쟁 심화 또는 BTC 독주 구간을 의미할 수 있습니다.`, type: "bearish" };
-}
-
-function getRiskInsight(tab: string, value: number): { text: string; type: "bullish" | "bearish" | "caution" | "neutral" } {
-  if (value >= 0.7) return { text: `${tab} 리스크 ${value.toFixed(3)} - 극도의 과열 구간입니다. 이익 실현 및 비중 축소를 강력히 고려하세요. 역사적으로 이 수준에서 대폭락이 발생했습니다.`, type: "bearish" };
-  if (value >= 0.5) return { text: `${tab} 리스크 ${value.toFixed(3)} - 과열 경고 구간입니다. 출구 전략을 준비하고, 단계적 이익 실현을 시작하는 것이 현명합니다.`, type: "caution" };
-  if (value >= 0.3) return { text: `${tab} 리스크 ${value.toFixed(3)} - 중립 구간입니다. 시장이 적정 가치 부근에 있으며, 장기 보유 전략을 유지하세요.`, type: "neutral" };
-  if (value >= 0.15) return { text: `${tab} 리스크 ${value.toFixed(3)} - 저평가 구간입니다. DCA로 포지션을 확대하기 좋은 시기입니다. 장기적으로 높은 수익률이 기대됩니다.`, type: "bullish" };
-  return { text: `${tab} 리스크 ${value.toFixed(3)} - 극도의 저평가 구간입니다! 역사적으로 최고의 매수 기회입니다. 적극적인 축적을 고려하세요.`, type: "bullish" };
-}
-
-function getCryptoRiskInsight(value: number): { text: string; type: "bullish" | "bearish" | "caution" | "neutral" } {
-  if (value >= 0.7) return { text: `크립토 리스크 ${value.toFixed(3)} - 극도의 과열! 가격·모멘텀·변동성 모두 고위험입니다. 단계적 이익 실현을 고려하세요.`, type: "bearish" };
-  if (value >= 0.5) return { text: `크립토 리스크 ${value.toFixed(3)} - 과열 경고 구간입니다. 출구 전략을 미리 준비하는 것이 현명합니다.`, type: "caution" };
-  if (value >= 0.3) return { text: `크립토 리스크 ${value.toFixed(3)} - 중립 구간입니다. 장기 보유 전략을 유지하되 추가 매수는 신중하게 접근하세요.`, type: "neutral" };
-  if (value >= 0.15) return { text: `크립토 리스크 ${value.toFixed(3)} - 저평가 구간입니다. DCA로 포지션을 확대하기 좋은 시기입니다.`, type: "bullish" };
-  return { text: `크립토 리스크 ${value.toFixed(3)} - 극도의 저평가! 역사적으로 최고의 축적 기회입니다. 적극적인 매수를 고려하세요.`, type: "bullish" };
-}
-
-function getRecessionInsight(value: number): { text: string; type: "bullish" | "bearish" | "caution" | "neutral" } {
-  if (value >= 0.6) return { text: `경기침체 리스크 ${value.toFixed(3)} - 경기 침체 가능성이 높습니다. 방어적 포지션과 현금 비중 확대를 고려하세요.`, type: "bearish" };
-  if (value >= 0.3) return { text: `경기침체 리스크 ${value.toFixed(3)} - 경기 둔화 신호가 감지됩니다. 포트폴리오 리밸런싱을 검토하세요.`, type: "caution" };
-  if (value >= 0.1) return { text: `경기침체 리스크 ${value.toFixed(3)} - 안전한 수준입니다. 경제 지표가 안정적이며 리스크 자산에 우호적입니다.`, type: "bullish" };
-  return { text: `경기침체 리스크 ${value.toFixed(3)} - 매우 안전합니다. 경기 확장 국면으로 리스크 자산 투자에 최적의 환경입니다.`, type: "bullish" };
-}
-
-function getMacroInsight(tab: string, value: number): { text: string; type: "bullish" | "bearish" | "caution" | "neutral" } {
-  if (tab === "unemployment") {
-    if (value >= 6) return { text: `실업률 ${value}% - 노동시장이 크게 악화되었습니다. 연준의 적극적 금리 인하가 예상되며, 이는 리스크 자산에 유동성을 공급할 수 있습니다.`, type: "caution" };
-    if (value >= 4.5) return { text: `실업률 ${value}% - 노동시장이 둔화되고 있습니다. 연준의 금리 인하 가능성이 높아지며, 크립토에 중기적으로 긍정적입니다.`, type: "neutral" };
-    if (value >= 3.5) return { text: `실업률 ${value}% - 노동시장이 견고합니다. 연착륙 시나리오를 지지하며, 리스크 자산에 우호적인 환경입니다.`, type: "bullish" };
-    return { text: `실업률 ${value}% - 노동시장이 과열 상태입니다. 연준이 매파적 스탠스를 유지할 수 있어 단기적으로 리스크 자산에 부담입니다.`, type: "caution" };
-  }
-  if (tab === "inflation") {
-    if (value >= 5) return { text: `인플레이션 ${value}% - 물가 상승이 심각합니다. 연준의 긴축이 예상되며, 단기적으로 크립토를 포함한 리스크 자산에 부정적입니다.`, type: "bearish" };
-    if (value >= 3) return { text: `인플레이션 ${value}% - 물가가 목표(2%)를 상회합니다. 금리 인하가 지연될 수 있으며, 시장 불확실성이 높습니다.`, type: "caution" };
-    if (value >= 2) return { text: `인플레이션 ${value}% - 물가가 목표 부근에서 안정적입니다. 연준이 완화적 정책으로 전환할 여지가 있어 리스크 자산에 긍정적입니다.`, type: "bullish" };
-    return { text: `인플레이션 ${value}% - 디스인플레이션 또는 디플레이션 우려가 있습니다. 경기 둔화 신호이며, 연준의 대규모 부양이 예상됩니다.`, type: "neutral" };
-  }
-  if (tab === "rgdp") {
-    if (value >= 3) return { text: `실질 GDP 성장률 ${value}% - 경제가 강하게 성장하고 있습니다. 리스크 자산에 긍정적이지만, 과열 위험도 모니터링하세요.`, type: "bullish" };
-    if (value >= 1) return { text: `실질 GDP 성장률 ${value}% - 경제가 안정적으로 성장 중입니다. 골디락스 환경으로 크립토에 우호적입니다.`, type: "bullish" };
-    if (value >= 0) return { text: `실질 GDP 성장률 ${value}% - 경제가 정체되고 있습니다. 경기 침체 가능성을 주시하며, 방어적 포지션을 고려하세요.`, type: "caution" };
-    return { text: `실질 GDP 성장률 ${value}% - 경기 침체 구간입니다. 연준의 대규모 완화 정책이 예상되며, 장기적으로 크립토에 긍정적일 수 있습니다.`, type: "bearish" };
-  }
-  if (value >= 5) return { text: `기준금리 ${value}% - 긴축 정점입니다. 금리 인하 전환이 가까울 수 있으며, 전환 시 크립토 시장의 강한 반등이 기대됩니다.`, type: "neutral" };
-  if (value >= 3) return { text: `기준금리 ${value}% - 제약적 수준입니다. 고금리 환경이 리스크 자산에 부담이지만, 인하 기대감이 시장을 지지할 수 있습니다.`, type: "caution" };
-  if (value >= 1) return { text: `기준금리 ${value}% - 중립적 수준입니다. 유동성이 풍부하지는 않지만, 리스크 자산이 성장할 수 있는 환경입니다.`, type: "neutral" };
-  return { text: `기준금리 ${value}% - 초저금리/양적완화 구간입니다. 유동성이 크립토 시장으로 유입되기 좋은 환경이며, 강세장의 토대가 됩니다.`, type: "bullish" };
-}
-
-// ─── Main Dashboard ──────────────────────────────────────────────
+// ─── Main Dashboard ─────────────────────────────────────────────
 export default function DashboardPage() {
-  // ─── State ──────────────────────────────────────────────────────
-  const [assets, setAssets] = useState<CryptoAsset[]>([]);
-  const [assetsLoading, setAssetsLoading] = useState(true);
+  // ─── Queries ───────────────────────────────────────────────────
+  const pricesQuery = useCryptoPrices();
+  const riskQuery = useCryptoRisk();
+  const recessionQuery = useRecessionRisk();
+  const fearGreedQuery = useFearGreed();
+  const calendarQuery = useMacroCalendar();
+  const videoQuery = useLatestVideo();
 
   const [mcapTab, setMcapTab] = useState<"total" | "btc" | "eth">("total");
-  const [mcapData, setMcapData] = useState<MarketCapData | null>(null);
-  const [mcapLoading, setMcapLoading] = useState(true);
-
   const [domTab, setDomTab] = useState<"btc" | "eth">("btc");
-  const [domData, setDomData] = useState<DominanceData | null>(null);
-  const [domLoading, setDomLoading] = useState(true);
-
   const [riskTab, setRiskTab] = useState("BTC");
   const [macroTab, setMacroTab] = useState("unemployment");
-  const [macroData, setMacroData] = useState<MacroData | null>(null);
-  const [macroLoading, setMacroLoading] = useState(true);
 
-  // NEW: Live data states
-  const [cryptoRiskData, setCryptoRiskData] = useState<RiskData | null>(null);
-  const [recessionRisk, setRecessionRisk] = useState<RecessionRiskData | null>(null);
-  const [fearGreed, setFearGreed] = useState<FearGreedData | null>(null);
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
-  const [latestVideo, setLatestVideo] = useState<LatestVideoData | null>(null);
+  const mcapQuery = useMarketCap(mcapTab);
+  const domQuery = useDominance(domTab);
+  const macroQuery = useMacroIndicator(macroTab);
 
-  // ─── Sorting ────────────────────────────────────────────────────
-  type SortKey = "default" | "price" | "change24h" | "change7d" | "marketCap" | "volume";
+  const assets = pricesQuery.data ?? [];
+
+  // ─── Sorting ───────────────────────────────────────────────────
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const handleSort = useCallback((key: SortKey) => {
-    if (key === sortKey) {
-      if (sortDir === "desc") setSortDir("asc");
-      else { setSortKey("default"); setSortDir("desc"); }
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
-  }, [sortKey, sortDir]);
+  const handleSort = useCallback(
+    (key: SortKey) => {
+      if (key === sortKey) {
+        if (sortDir === "desc") setSortDir("asc");
+        else {
+          setSortKey("default");
+          setSortDir("desc");
+        }
+      } else {
+        setSortKey(key);
+        setSortDir("desc");
+      }
+    },
+    [sortKey, sortDir],
+  );
 
-  // ─── Favorite Assets ────────────────────────────────────────────
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  // ─── Favorite Assets ──────────────────────────────────────────
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("favoriteAssetIds");
+      if (stored) {
+        const parsed = JSON.parse(stored) as string[];
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      /* ignore */
+    }
+    return [];
+  });
   const [editMode, setEditMode] = useState(false);
   const [addCoinId, setAddCoinId] = useState("");
 
-  // ─── Fetch all independent data on mount ──────────────────────
-  useEffect(() => {
-    async function fetchAll() {
-      const results = await Promise.allSettled([
-        fetch("/api/crypto/prices").then((r) => r.json()),
-        fetch("/api/crypto/risk").then((r) => r.json()),
-        fetch("/api/macro/recession-risk").then((r) => r.json()),
-        fetch("/api/crypto/fear-greed").then((r) => r.json()),
-        fetch("/api/macro/calendar").then((r) => r.json()),
-        fetch("/api/youtube/latest").then((r) => r.json()),
-      ]);
-      if (results[0].status === "fulfilled") setAssets(results[0].value.data || []);
-      if (results[1].status === "fulfilled") setCryptoRiskData(results[1].value);
-      if (results[2].status === "fulfilled") setRecessionRisk(results[2].value);
-      if (results[3].status === "fulfilled") setFearGreed(results[3].value);
-      if (results[4].status === "fulfilled") setCalendarEvents(results[4].value.events || []);
-      if (results[5].status === "fulfilled") setLatestVideo(results[5].value);
-      setAssetsLoading(false);
-    }
-    fetchAll();
-    const iv = setInterval(fetchAll, 60_000);
-    return () => clearInterval(iv);
-  }, []);
+  // Default favorites to top 10 when assets load and no stored favorites
+  const effectiveFavorites = useMemo(() => {
+    if (favoriteIds.length > 0) return favoriteIds;
+    if (assets.length > 0) return assets.slice(0, 10).map((a) => a.id);
+    return [];
+  }, [favoriteIds, assets]);
 
-  // ─── Initialize favoriteIds from localStorage or default top 10 ─
-  useEffect(() => {
-    if (assets.length === 0) return;
-    const stored = localStorage.getItem("favoriteAssetIds");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as string[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setFavoriteIds(parsed);
-          return;
-        }
-      } catch { /* ignore */ }
-    }
-    // Default: top 10 by market cap
-    const defaultIds = assets.slice(0, 10).map((a) => a.id);
-    setFavoriteIds(defaultIds);
-    localStorage.setItem("favoriteAssetIds", JSON.stringify(defaultIds));
-  }, [assets]);
-
-  // ─── Save favoriteIds to localStorage on change ────────────────
   const saveFavorites = useCallback((ids: string[]) => {
     setFavoriteIds(ids);
     localStorage.setItem("favoriteAssetIds", JSON.stringify(ids));
   }, []);
 
-  // ─── Filtered + sorted assets ───────────────────────────────────
+  // ─── Filtered + sorted assets ─────────────────────────────────
   const filteredAssets = useMemo(() => {
-    let list: CryptoAsset[];
-    if (favoriteIds.length === 0) {
-      list = assets.slice(0, 10);
-    } else {
-      list = favoriteIds
-        .map((id) => assets.find((a) => a.id === id))
-        .filter((a): a is CryptoAsset => a !== undefined);
-    }
+    const list = effectiveFavorites
+      .map((id) => assets.find((a) => a.id === id))
+      .filter((a): a is CryptoAsset => a !== undefined);
     if (sortKey === "default") return list;
-    const sorted = [...list].sort((a, b) => {
+    return [...list].sort((a, b) => {
       const getVal = (asset: CryptoAsset) => {
         switch (sortKey) {
-          case "price": return asset.current_price;
-          case "change24h": return asset.price_change_percentage_24h ?? 0;
-          case "change7d": return asset.price_change_percentage_7d_in_currency ?? 0;
-          case "marketCap": return asset.market_cap;
-          case "volume": return asset.total_volume;
-          default: return 0;
+          case "price":
+            return asset.current_price;
+          case "change24h":
+            return asset.price_change_percentage_24h ?? 0;
+          case "change7d":
+            return asset.price_change_percentage_7d_in_currency ?? 0;
+          case "marketCap":
+            return asset.market_cap;
+          case "volume":
+            return asset.total_volume;
+          default:
+            return 0;
         }
       };
       return sortDir === "desc" ? getVal(b) - getVal(a) : getVal(a) - getVal(b);
     });
-    return sorted;
-  }, [favoriteIds, assets, sortKey, sortDir]);
+  }, [effectiveFavorites, assets, sortKey, sortDir]);
 
-  // ─── Available coins for adding (not already in favorites) ─────
   const availableCoins = useMemo(() => {
-    return assets.filter((a) => !favoriteIds.includes(a.id));
-  }, [assets, favoriteIds]);
+    return assets.filter((a) => !effectiveFavorites.includes(a.id));
+  }, [assets, effectiveFavorites]);
 
-  // ─── Fetch market cap (tab-dependent) ─────────────────────────
-  useEffect(() => {
-    async function fetchMcap() {
-      setMcapLoading(true);
-      try {
-        const res = await fetch(`/api/crypto/market-cap?type=${mcapTab}`);
-        setMcapData(await res.json());
-      } catch { /* ignore */ }
-      finally { setMcapLoading(false); }
-    }
-    fetchMcap();
-  }, [mcapTab]);
-
-  // ─── Fetch dominance (tab-dependent) ──────────────────────────
-  useEffect(() => {
-    async function fetchDom() {
-      setDomLoading(true);
-      try {
-        const res = await fetch(`/api/crypto/dominance?type=${domTab}`);
-        setDomData(await res.json());
-      } catch { /* ignore */ }
-      finally { setDomLoading(false); }
-    }
-    fetchDom();
-  }, [domTab]);
-
-  // ─── Fetch macro data (tab-dependent) ─────────────────────────
-  useEffect(() => {
-    async function fetchMacro() {
-      setMacroLoading(true);
-      try {
-        const res = await fetch(`/api/macro/indicators?indicator=${macroTab}`);
-        setMacroData(await res.json());
-      } catch { /* ignore */ }
-      finally { setMacroLoading(false); }
-    }
-    fetchMacro();
-  }, [macroTab]);
-
-  // ─── Transform data for charts ────────────────────────────────
+  // ─── Derived data ─────────────────────────────────────────────
   const mcapChartData = useMemo(() => {
-    if (!mcapData?.data) return [];
-    return mcapData.data.map(([ts, val]) => ({
+    if (!mcapQuery.data?.data) return [];
+    return mcapQuery.data.data.map(([ts, val]) => ({
       time: new Date(ts).toISOString().split("T")[0],
       value: val,
     }));
-  }, [mcapData]);
+  }, [mcapQuery.data]);
 
   const domChartData = useMemo(() => {
-    if (!domData?.withStables?.data) return [];
-    return domData.withStables.data.map(([ts, val]) => ({
+    if (!domQuery.data?.withStables?.data) return [];
+    return domQuery.data.withStables.data.map(([ts, val]) => ({
       time: new Date(ts).toISOString().split("T")[0],
       value: val,
     }));
-  }, [domData]);
+  }, [domQuery.data]);
 
   const macroChartData = useMemo(() => {
-    if (!macroData?.data) return [];
-    return macroData.data.map((d) => ({
+    if (!macroQuery.data?.data) return [];
+    return macroQuery.data.data.map((d) => ({
       time: d.date,
       value: parseFloat(d.value),
     }));
-  }, [macroData]);
+  }, [macroQuery.data]);
 
-  // Latest market cap value
-  const latestMcap = mcapData?.data?.length
-    ? mcapData.data[mcapData.data.length - 1][1]
+  const latestMcap = mcapQuery.data?.data?.length
+    ? mcapQuery.data.data[mcapQuery.data.data.length - 1][1]
     : 0;
 
-  // Risk values from API (with fallback)
   const riskValues: Record<string, number> = useMemo(() => {
-    if (cryptoRiskData?.risks) {
+    if (riskQuery.data?.risks) {
       const result: Record<string, number> = {};
-      for (const [key, val] of Object.entries(cryptoRiskData.risks)) {
+      for (const [key, val] of Object.entries(riskQuery.data.risks)) {
         result[key] = val.risk;
       }
       return result;
     }
-    return { TOTAL: 0.35, BTC: 0.4, ETH: 0.38, BNB: 0.3, SOL: 0.33, XRP: 0.35, ADA: 0.3, DOGE: 0.35, LINK: 0.33 };
-  }, [cryptoRiskData]);
+    return {};
+  }, [riskQuery.data]);
 
-  // Crypto risk summary (average of all)
   const cryptoRiskSummary = useMemo(() => {
-    if (!cryptoRiskData?.risks) return 0.35;
-    const vals = Object.values(cryptoRiskData.risks).map((r) => r.risk);
+    if (!riskQuery.data?.risks) return 0.35;
+    const vals = Object.values(riskQuery.data.risks).map((r) => r.risk);
     return vals.reduce((a, b) => a + b, 0) / vals.length;
-  }, [cryptoRiskData]);
+  }, [riskQuery.data]);
 
-  // Fear & Greed normalized to 0-1
-  const fearGreedNormalized = fearGreed ? fearGreed.value / 100 : 0.35;
-  const fearGreedLabel = fearGreed?.classification || "Loading...";
+  const fearGreedNormalized = fearGreedQuery.data ? fearGreedQuery.data.value / 100 : 0.35;
+  const fearGreedLabel = fearGreedQuery.data?.classification || "Loading...";
+
+  const calendarEvents = calendarQuery.data ?? [];
+  const latestVideo = videoQuery.data ?? null;
+
+  // Hero bar data
+  const btc = assets.find((a) => a.id === "bitcoin");
+  const eth = assets.find((a) => a.id === "ethereum");
+  const fearValue = fearGreedQuery.data?.value ?? null;
+  const fearClass = fearGreedQuery.data?.classification ?? null;
+  const recessionValue = recessionQuery.data?.risk ?? null;
 
   return (
     <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
+      {/* ──── Hero Bar ──────────────────────────────────────── */}
+      <section
+        className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5"
+        aria-label="핵심 지표 요약"
+      >
+        {/* BTC */}
+        <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-amber-500/10 via-card to-card p-4 card-elevated">
+          <div className="text-xs font-medium text-muted-foreground">BTC</div>
+          <div className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums">
+            {btc ? formatCurrency(btc.current_price) : "—"}
+          </div>
+          {btc && (
+            <div
+              className={`mt-0.5 text-xs font-semibold font-mono ${
+                btc.price_change_percentage_24h >= 0 ? "text-positive glow-positive" : "text-negative glow-negative"
+              }`}
+            >
+              {formatPercent(btc.price_change_percentage_24h)}
+            </div>
+          )}
+          <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-amber-500/10 blur-2xl" />
+        </div>
+
+        {/* ETH */}
+        <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-blue-500/10 via-card to-card p-4 card-elevated">
+          <div className="text-xs font-medium text-muted-foreground">ETH</div>
+          <div className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums">
+            {eth ? formatCurrency(eth.current_price) : "—"}
+          </div>
+          {eth && (
+            <div
+              className={`mt-0.5 text-xs font-semibold font-mono ${
+                eth.price_change_percentage_24h >= 0 ? "text-positive glow-positive" : "text-negative glow-negative"
+              }`}
+            >
+              {formatPercent(eth.price_change_percentage_24h)}
+            </div>
+          )}
+          <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-blue-500/10 blur-2xl" />
+        </div>
+
+        {/* Fear & Greed */}
+        <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-purple-500/10 via-card to-card p-4 card-elevated">
+          <div className="text-xs font-medium text-muted-foreground">Fear & Greed</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-xl font-black font-mono tabular-nums">
+              {fearValue !== null ? fearValue : "—"}
+            </span>
+            {fearClass && (
+              <span
+                className={`text-xs font-semibold ${
+                  fearValue !== null && fearValue >= 60
+                    ? "text-positive"
+                    : fearValue !== null && fearValue <= 40
+                      ? "text-negative"
+                      : "text-warning"
+                }`}
+              >
+                {fearClass}
+              </span>
+            )}
+          </div>
+          {fearValue !== null && (
+            <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  fearValue >= 60
+                    ? "bg-emerald-500"
+                    : fearValue >= 40
+                      ? "bg-amber-500"
+                      : "bg-red-500"
+                }`}
+                style={{ width: `${fearValue}%` }}
+              />
+            </div>
+          )}
+          <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-purple-500/10 blur-2xl" />
+        </div>
+
+        {/* Total Market Cap */}
+        <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-cyan-500/10 via-card to-card p-4 card-elevated">
+          <div className="text-xs font-medium text-muted-foreground">Total Market Cap</div>
+          <div className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums">
+            {latestMcap > 0 ? formatCurrency(latestMcap, 0) : "—"}
+          </div>
+          <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-cyan-500/10 blur-2xl" />
+        </div>
+
+        {/* Recession Risk */}
+        <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-emerald-500/10 via-card to-card p-4 card-elevated col-span-2 sm:col-span-4 lg:col-span-1">
+          <div className="text-xs font-medium text-muted-foreground">Recession Risk</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-xl font-black font-mono tabular-nums">
+              {recessionValue !== null ? (recessionValue * 100).toFixed(1) : "—"}
+            </span>
+            {recessionValue !== null && (
+              <span
+                className={`text-xs font-semibold ${
+                  recessionValue < 0.2
+                    ? "text-positive"
+                    : recessionValue < 0.5
+                      ? "text-warning"
+                      : "text-negative"
+                }`}
+              >
+                {recessionValue < 0.2 ? "Low" : recessionValue < 0.5 ? "Medium" : "High"}
+              </span>
+            )}
+          </div>
+          {recessionValue !== null && (
+            <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  recessionValue < 0.2
+                    ? "bg-emerald-500"
+                    : recessionValue < 0.5
+                      ? "bg-amber-500"
+                      : "bg-red-500"
+                }`}
+                style={{ width: `${Math.min(recessionValue * 100, 100)}%` }}
+              />
+            </div>
+          )}
+          <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-emerald-500/10 blur-2xl" />
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
         {/* ──── Main Content ──────────────────────────────────── */}
         <div className="space-y-6">
@@ -433,22 +381,21 @@ export default function DashboardPage() {
                   {editMode ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
                 </button>
                 <button
-                  onClick={() => {
-                    setAssetsLoading(true);
-                    fetch("/api/crypto/prices")
-                      .then((r) => r.json())
-                      .then((j) => setAssets(j.data || []))
-                      .finally(() => setAssetsLoading(false));
-                  }}
+                  onClick={() => pricesQuery.refetch()}
                   className="text-muted-foreground hover:text-foreground"
                   aria-label="새로고침"
                 >
-                  <RefreshCw className={`h-4 w-4 ${assetsLoading ? "animate-spin" : ""}`} aria-hidden="true" />
+                  <RefreshCw
+                    className={`h-4 w-4 ${pricesQuery.isFetching ? "animate-spin" : ""}`}
+                    aria-hidden="true"
+                  />
                 </button>
               </div>
             </div>
-            {assetsLoading ? (
+            {pricesQuery.isLoading ? (
               <TableSkeleton />
+            ) : pricesQuery.isError ? (
+              <QueryErrorBox onRetry={() => pricesQuery.refetch()} />
             ) : (
               <>
                 <div className="overflow-x-auto max-h-[520px] overflow-y-auto relative">
@@ -457,149 +404,158 @@ export default function DashboardPage() {
                       <tr className="border-b border-border text-left text-muted-foreground">
                         <th className="pb-3 pr-4">#</th>
                         <th className="pb-3 pr-4">Name</th>
-                        {([
-                          { key: "price" as SortKey, label: "Price" },
-                          { key: "change24h" as SortKey, label: "24h %" },
-                          { key: "change7d" as SortKey, label: "7d %" },
-                          { key: "marketCap" as SortKey, label: "Market Cap" },
-                          { key: "volume" as SortKey, label: "Volume" },
-                        ]).map((col) => (
-                          <th key={col.key} className="pb-3 pr-4 text-right">
+                        {(
+                          [
+                            { key: "price" as SortKey, label: "Price", hide: "" },
+                            { key: "change24h" as SortKey, label: "24h %", hide: "" },
+                            { key: "change7d" as SortKey, label: "7d %", hide: "hidden sm:table-cell" },
+                            { key: "marketCap" as SortKey, label: "Market Cap", hide: "hidden md:table-cell" },
+                            { key: "volume" as SortKey, label: "Volume", hide: "hidden lg:table-cell" },
+                          ] as const
+                        ).map((col) => (
+                          <th key={col.key} className={`pb-3 pr-4 text-right ${col.hide}`}>
                             <button
                               onClick={() => handleSort(col.key)}
                               className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
                             >
                               {col.label}
                               {sortKey === col.key ? (
-                                sortDir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
+                                sortDir === "desc" ? (
+                                  <ArrowDown className="h-3 w-3" />
+                                ) : (
+                                  <ArrowUp className="h-3 w-3" />
+                                )
                               ) : (
                                 <ArrowUpDown className="h-3 w-3 opacity-40" />
                               )}
                             </button>
                           </th>
                         ))}
-                        <th className="pb-3 pr-4 text-center">Fiat Risk</th>
-                        <th className="pb-3 text-right">Last 7 Days</th>
+                        <th className="pb-3 pr-4 text-center hidden sm:table-cell">Fiat Risk</th>
+                        <th className="pb-3 text-right hidden md:table-cell">Last 7 Days</th>
                         {editMode && <th className="pb-3 pl-2 w-8"></th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredAssets.map((asset, i) => (
-                        <tr
-                          key={asset.id}
-                          className="border-b border-border/50 hover:bg-muted/50 transition-colors"
-                        >
-                          <td className="py-3 pr-4 text-muted-foreground">
-                            {i + 1}
-                          </td>
-                          <td className="py-3 pr-4">
-                            <Link href={`/assets/${asset.id}/risk`} className="flex items-center gap-2 hover:text-primary transition-colors">
-                              {asset.image ? (
-                                <Image
-                                  src={asset.image}
-                                  alt={asset.symbol}
-                                  width={24}
-                                  height={24}
-                                  className="h-6 w-6 rounded-full"
-                                  unoptimized
-                                />
+                      {filteredAssets.map((asset, i) => {
+                        const risk = riskValues[asset.symbol.toUpperCase()] ?? null;
+                        return (
+                          <tr
+                            key={asset.id}
+                            className="border-b border-border/50 table-row-hover transition-colors"
+                          >
+                            <td className="py-3 pr-4 text-muted-foreground">{i + 1}</td>
+                            <td className="py-3 pr-4">
+                              <Link
+                                href={`/assets/${asset.id}/risk`}
+                                className="flex items-center gap-2 hover:text-primary transition-colors"
+                              >
+                                {asset.image ? (
+                                  <Image
+                                    src={asset.image}
+                                    alt={asset.symbol}
+                                    width={24}
+                                    height={24}
+                                    className="h-6 w-6 rounded-full"
+                                    unoptimized
+                                  />
+                                ) : (
+                                  <div className="h-6 w-6 rounded-full bg-primary/20" />
+                                )}
+                                <span className="font-medium">{asset.name}</span>
+                                <span className="text-xs text-muted-foreground uppercase">
+                                  ({asset.symbol})
+                                </span>
+                              </Link>
+                            </td>
+                            <td className="py-3 pr-4 text-right font-mono">
+                              {formatCurrency(asset.current_price)}
+                            </td>
+                            <td
+                              className={`py-3 pr-4 text-right font-mono ${
+                                (asset.price_change_percentage_24h ?? 0) >= 0
+                                  ? "text-positive"
+                                  : "text-negative"
+                              }`}
+                            >
+                              {formatPercent(asset.price_change_percentage_24h ?? 0)}
+                            </td>
+                            <td
+                              className={`py-3 pr-4 text-right font-mono hidden sm:table-cell ${
+                                (asset.price_change_percentage_7d_in_currency ?? 0) >= 0
+                                  ? "text-positive"
+                                  : "text-negative"
+                              }`}
+                            >
+                              {formatPercent(asset.price_change_percentage_7d_in_currency ?? 0)}
+                            </td>
+                            <td className="py-3 pr-4 text-right font-mono hidden md:table-cell">
+                              {formatCurrency(asset.market_cap, 0)}
+                            </td>
+                            <td className="py-3 pr-4 text-right font-mono text-muted-foreground hidden lg:table-cell">
+                              {formatCompactNumber(asset.total_volume)}
+                            </td>
+                            <td className="py-3 pr-4 hidden sm:table-cell">
+                              {risk === null ? (
+                                <span className="text-xs text-muted-foreground">—</span>
                               ) : (
-                                <div className="h-6 w-6 rounded-full bg-primary/20" />
-                              )}
-                              <span className="font-medium">{asset.name}</span>
-                              <span className="text-xs text-muted-foreground uppercase">
-                                ({asset.symbol})
-                              </span>
-                            </Link>
-                          </td>
-                          <td className="py-3 pr-4 text-right font-mono">
-                            {formatCurrency(asset.current_price)}
-                          </td>
-                          <td
-                            className={`py-3 pr-4 text-right font-mono ${
-                              (asset.price_change_percentage_24h ?? 0) >= 0
-                                ? "text-positive"
-                                : "text-negative"
-                            }`}
-                          >
-                            {formatPercent(asset.price_change_percentage_24h ?? 0)}
-                          </td>
-                          <td
-                            className={`py-3 pr-4 text-right font-mono ${
-                              (asset.price_change_percentage_7d_in_currency ?? 0) >= 0
-                                ? "text-positive"
-                                : "text-negative"
-                            }`}
-                          >
-                            {formatPercent(
-                              asset.price_change_percentage_7d_in_currency ?? 0
-                            )}
-                          </td>
-                          <td className="py-3 pr-4 text-right font-mono">
-                            {formatCurrency(asset.market_cap, 0)}
-                          </td>
-                          <td className="py-3 pr-4 text-right font-mono text-muted-foreground">
-                            {formatCompactNumber(asset.total_volume)}
-                          </td>
-                          <td className="py-3 pr-4">
-                            {(() => {
-                              const risk = riskValues[asset.symbol.toUpperCase()] ?? null;
-                              if (risk === null) return <span className="text-xs text-muted-foreground">—</span>;
-                              const pct = Math.round(risk * 100);
-                              const barColor = risk < 0.3
-                                ? "bg-emerald-500"
-                                : risk < 0.5
-                                  ? "bg-yellow-500"
-                                  : risk < 0.7
-                                    ? "bg-orange-500"
-                                    : "bg-red-500";
-                              const textColor = risk < 0.3
-                                ? "text-emerald-500"
-                                : risk < 0.5
-                                  ? "text-yellow-500"
-                                  : risk < 0.7
-                                    ? "text-orange-500"
-                                    : "text-red-500";
-                              return (
                                 <div className="flex items-center gap-2 justify-center">
                                   <div className="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
-                                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                                    <div
+                                      className={`h-full rounded-full ${
+                                        risk < 0.3
+                                          ? "bg-emerald-500"
+                                          : risk < 0.5
+                                            ? "bg-yellow-500"
+                                            : risk < 0.7
+                                              ? "bg-orange-500"
+                                              : "bg-red-500"
+                                      }`}
+                                      style={{ width: `${Math.round(risk * 100)}%` }}
+                                    />
                                   </div>
-                                  <span className={`text-xs font-mono font-medium ${textColor}`}>
+                                  <span
+                                    className={`text-xs font-mono font-medium ${
+                                      risk < 0.3
+                                        ? "text-emerald-500"
+                                        : risk < 0.5
+                                          ? "text-yellow-500"
+                                          : risk < 0.7
+                                            ? "text-orange-500"
+                                            : "text-red-500"
+                                    }`}
+                                  >
                                     {risk.toFixed(2)}
                                   </span>
                                 </div>
-                              );
-                            })()}
-                          </td>
-                          <td className="py-3 text-right">
-                            {asset.sparkline_in_7d?.price ? (
-                              <SparklineChart
-                                data={asset.sparkline_in_7d.price}
-                                width={80}
-                                height={32}
-                              />
-                            ) : (
-                              <div className="inline-block h-8 w-20 rounded bg-muted" />
-                            )}
-                          </td>
-                          {editMode && (
-                            <td className="py-3 pl-2">
-                              <button
-                                onClick={() => saveFavorites(favoriteIds.filter((id) => id !== asset.id))}
-                                className="text-muted-foreground hover:text-negative transition-colors"
-                                aria-label={`${asset.name} 삭제`}
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
+                              )}
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                            <td className="py-3 text-right hidden md:table-cell">
+                              {asset.sparkline_in_7d?.price ? (
+                                <SparklineChart data={asset.sparkline_in_7d.price} width={80} height={32} />
+                              ) : (
+                                <div className="inline-block h-8 w-20 rounded bg-muted" />
+                              )}
+                            </td>
+                            {editMode && (
+                              <td className="py-3 pl-2">
+                                <button
+                                  onClick={() =>
+                                    saveFavorites(effectiveFavorites.filter((id) => id !== asset.id))
+                                  }
+                                  className="text-muted-foreground hover:text-negative transition-colors"
+                                  aria-label={`${asset.name} 삭제`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-                {/* Add coin controls (edit mode only) */}
                 {editMode && (
                   <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
                     <select
@@ -617,7 +573,7 @@ export default function DashboardPage() {
                     <button
                       onClick={() => {
                         if (addCoinId) {
-                          saveFavorites([...favoriteIds, addCoinId]);
+                          saveFavorites([...effectiveFavorites, addCoinId]);
                           setAddCoinId("");
                         }
                       }}
@@ -639,66 +595,68 @@ export default function DashboardPage() {
             <section className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Crypto Risk Indicators</h3>
-                <Link
-                  href="/crypto/indicators"
-                  className="text-muted-foreground hover:text-foreground"
-                >
+                <Link href="/crypto/indicators" className="text-muted-foreground hover:text-foreground">
                   <ExternalLink className="h-4 w-4" />
                 </Link>
               </div>
-              <div className="flex flex-col items-center py-4">
-                <GaugeChart
-                  value={cryptoRiskSummary}
-                  label="Crypto Risk Summary"
-                  size="md"
-                  subMetrics={[
-                    { label: "BTC", value: cryptoRiskData?.risks?.BTC?.risk ?? 0.4, color: "#f97316" },
-                    { label: "ETH", value: cryptoRiskData?.risks?.ETH?.risk ?? 0.35, color: "#10b981" },
-                    { label: "SOL", value: cryptoRiskData?.risks?.SOL?.risk ?? 0.3, color: "#8b5cf6" },
-                  ]}
-                />
-                <div className="mt-2 flex items-center justify-between w-full max-w-[14rem] text-[10px] text-muted-foreground">
-                  <span className="text-emerald-500 font-medium">0 = 저평가 (매수 기회)</span>
-                  <span className="text-red-500 font-medium">1 = 고평가 (과열)</span>
-                </div>
-              </div>
-              {(() => {
-                const insight = getCryptoRiskInsight(cryptoRiskSummary);
-                return <InsightBox text={insight.text} type={insight.type} />;
-              })()}
+              {riskQuery.isError ? (
+                <QueryErrorBox onRetry={() => riskQuery.refetch()} />
+              ) : (
+                <>
+                  <div className="flex flex-col items-center py-4">
+                    <GaugeChart
+                      value={cryptoRiskSummary}
+                      label="Crypto Risk Summary"
+                      size="md"
+                      subMetrics={[
+                        { label: "BTC", value: riskQuery.data?.risks?.BTC?.risk ?? 0.4, color: "#f97316" },
+                        { label: "ETH", value: riskQuery.data?.risks?.ETH?.risk ?? 0.35, color: "#10b981" },
+                        { label: "SOL", value: riskQuery.data?.risks?.SOL?.risk ?? 0.3, color: "#8b5cf6" },
+                      ]}
+                    />
+                    <div className="mt-2 flex items-center justify-between w-full max-w-[14rem] text-[10px] text-muted-foreground">
+                      <span className="text-emerald-500 font-medium">0 = 저평가 (매수 기회)</span>
+                      <span className="text-red-500 font-medium">1 = 고평가 (과열)</span>
+                    </div>
+                  </div>
+                  <InsightBox {...getCryptoRiskInsight(cryptoRiskSummary)} />
+                </>
+              )}
             </section>
 
             {/* Macro Recession Risk */}
             <section className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Macro Recession Risk</h3>
-                <Link
-                  href="/macro/indicators"
-                  className="text-muted-foreground hover:text-foreground"
-                >
+                <Link href="/macro/indicators" className="text-muted-foreground hover:text-foreground">
                   <ExternalLink className="h-4 w-4" />
                 </Link>
               </div>
-              <div className="flex flex-col items-center py-4">
-                <GaugeChart
-                  value={recessionRisk?.risk ?? 0.071}
-                  label="Recession Risk Summary"
-                  size="md"
-                  subMetrics={recessionRisk?.components ?? [
-                    { label: "Employment", value: 0.071, color: "#3b82f6" },
-                    { label: "Yield Curve", value: 0.12, color: "#ef4444" },
-                    { label: "SAHM Rule", value: 0.045, color: "#f97316" },
-                  ]}
-                />
-                <div className="mt-2 flex items-center justify-between w-full max-w-[14rem] text-[10px] text-muted-foreground">
-                  <span className="text-emerald-500 font-medium">0 = 안전 (경기 확장)</span>
-                  <span className="text-red-500 font-medium">1 = 위험 (경기 침체)</span>
-                </div>
-              </div>
-              {(() => {
-                const insight = getRecessionInsight(recessionRisk?.risk ?? 0.071);
-                return <InsightBox text={insight.text} type={insight.type} />;
-              })()}
+              {recessionQuery.isError ? (
+                <QueryErrorBox onRetry={() => recessionQuery.refetch()} />
+              ) : (
+                <>
+                  <div className="flex flex-col items-center py-4">
+                    <GaugeChart
+                      value={recessionQuery.data?.risk ?? 0.071}
+                      label="Recession Risk Summary"
+                      size="md"
+                      subMetrics={
+                        recessionQuery.data?.components ?? [
+                          { label: "Employment", value: 0.071, color: "#3b82f6" },
+                          { label: "Yield Curve", value: 0.12, color: "#ef4444" },
+                          { label: "SAHM Rule", value: 0.045, color: "#f97316" },
+                        ]
+                      }
+                    />
+                    <div className="mt-2 flex items-center justify-between w-full max-w-[14rem] text-[10px] text-muted-foreground">
+                      <span className="text-emerald-500 font-medium">0 = 안전 (경기 확장)</span>
+                      <span className="text-red-500 font-medium">1 = 위험 (경기 침체)</span>
+                    </div>
+                  </div>
+                  <InsightBox {...getRecessionInsight(recessionQuery.data?.risk ?? 0.071)} />
+                </>
+              )}
             </section>
           </div>
 
@@ -725,11 +683,12 @@ export default function DashboardPage() {
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
                 CMC: {formatCurrency(latestMcap, 0)}
-                {mcapData?.trendline &&
-                  ` - R²: ${mcapData.trendline.r2.toFixed(3)}`}
+                {mcapQuery.data?.trendline && ` - R²: ${mcapQuery.data.trendline.r2.toFixed(3)}`}
               </p>
-              {mcapLoading ? (
+              {mcapQuery.isLoading ? (
                 <ChartSkeleton />
+              ) : mcapQuery.isError ? (
+                <QueryErrorBox onRetry={() => mcapQuery.refetch()} />
               ) : (
                 <>
                   <LightweightChartWrapper
@@ -740,10 +699,7 @@ export default function DashboardPage() {
                     showGrid
                     logarithmic
                   />
-                  {latestMcap > 0 && (() => {
-                    const insight = getMcapInsight(mcapTab, latestMcap);
-                    return <InsightBox text={insight.text} type={insight.type} />;
-                  })()}
+                  {latestMcap > 0 && <InsightBox {...getMcapInsight(mcapTab, latestMcap)} />}
                 </>
               )}
             </section>
@@ -768,12 +724,14 @@ export default function DashboardPage() {
                 </div>
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
-                {domData
-                  ? `With Stables: ${domData.withStables.current.toFixed(2)}% · Without Stables: ${domData.withoutStables.current.toFixed(2)}%`
+                {domQuery.data
+                  ? `With Stables: ${domQuery.data.withStables.current.toFixed(2)}% · Without Stables: ${domQuery.data.withoutStables.current.toFixed(2)}%`
                   : "Loading..."}
               </p>
-              {domLoading ? (
+              {domQuery.isLoading ? (
                 <ChartSkeleton />
+              ) : domQuery.isError ? (
+                <QueryErrorBox onRetry={() => domQuery.refetch()} />
               ) : (
                 <>
                   <LightweightChartWrapper
@@ -783,10 +741,9 @@ export default function DashboardPage() {
                     height={200}
                     showGrid
                   />
-                  {domData && (() => {
-                    const insight = getDomInsight(domTab, domData.withStables.current);
-                    return <InsightBox text={insight.text} type={insight.type} />;
-                  })()}
+                  {domQuery.data && (
+                    <InsightBox {...getDomInsight(domTab, domQuery.data.withStables.current)} />
+                  )}
                 </>
               )}
             </section>
@@ -812,19 +769,14 @@ export default function DashboardPage() {
                 ))}
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
-                Current risk: {riskValues[riskTab]?.toFixed(3)}
+                Current risk: {riskValues[riskTab]?.toFixed(3) ?? "—"}
               </p>
               <div className="flex flex-col items-center py-4">
-                <GaugeChart
-                  value={riskValues[riskTab] ?? 0.3}
-                  label={`${riskTab} Fiat Risk`}
-                  size="lg"
-                />
+                <GaugeChart value={riskValues[riskTab] ?? 0.3} label={`${riskTab} Fiat Risk`} size="lg" />
               </div>
-              {(() => {
-                const insight = getRiskInsight(riskTab, riskValues[riskTab] ?? 0.3);
-                return <InsightBox text={insight.text} type={insight.type} />;
-              })()}
+              {riskValues[riskTab] !== undefined && (
+                <InsightBox {...getRiskInsight(riskTab, riskValues[riskTab])} />
+              )}
             </section>
 
             {/* Macro Indicators */}
@@ -850,12 +802,14 @@ export default function DashboardPage() {
                 ))}
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
-                {macroData
-                  ? `Latest: ${macroData.data[macroData.data.length - 1]?.value}${macroData.unit} (${macroData.data[macroData.data.length - 1]?.date})`
+                {macroQuery.data
+                  ? `Latest: ${macroQuery.data.data[macroQuery.data.data.length - 1]?.value}${macroQuery.data.unit} (${macroQuery.data.data[macroQuery.data.data.length - 1]?.date})`
                   : "Loading..."}
               </p>
-              {macroLoading ? (
+              {macroQuery.isLoading ? (
                 <ChartSkeleton />
+              ) : macroQuery.isError ? (
+                <QueryErrorBox onRetry={() => macroQuery.refetch()} />
               ) : (
                 <>
                   <LightweightChartWrapper
@@ -873,10 +827,11 @@ export default function DashboardPage() {
                     height={200}
                     showGrid
                   />
-                  {macroData?.data?.length && (() => {
-                    const latest = parseFloat(macroData.data[macroData.data.length - 1]?.value ?? "0");
-                    const insight = getMacroInsight(macroTab, latest);
-                    return <InsightBox text={insight.text} type={insight.type} />;
+                  {macroQuery.data?.data?.length && (() => {
+                    const latest = parseFloat(
+                      macroQuery.data.data[macroQuery.data.data.length - 1]?.value ?? "0",
+                    );
+                    return <InsightBox {...getMacroInsight(macroTab, latest)} />;
                   })()}
                 </>
               )}
@@ -889,84 +844,91 @@ export default function DashboardPage() {
           {/* Latest Video */}
           <section className="rounded-lg border border-border bg-card p-4">
             <h3 className="mb-3 font-semibold">Latest Video</h3>
-            <Link href={latestVideo?.link || "/content/video-summaries"} className="block group" target={latestVideo?.link ? "_blank" : undefined}>
-              <div className="relative aspect-video rounded-lg bg-slate-800 overflow-hidden">
-                <Image
-                  src={latestVideo?.thumbnail || "https://img.youtube.com/vi/eAzoXY1GfIo/mqdefault.jpg"}
-                  alt={latestVideo?.title || "Latest video thumbnail"}
-                  fill
-                  className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                  unoptimized
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center group-hover:bg-primary/80 transition-colors">
-                    <Play className="h-5 w-5 text-white" />
+            {videoQuery.isError ? (
+              <QueryErrorBox message="영상 정보를 불러올 수 없습니다." onRetry={() => videoQuery.refetch()} />
+            ) : (
+              <Link
+                href={latestVideo?.link || "/content/video-summaries"}
+                className="block group"
+                target={latestVideo?.link ? "_blank" : undefined}
+              >
+                <div className="relative aspect-video rounded-lg bg-slate-800 overflow-hidden">
+                  <Image
+                    src={
+                      latestVideo?.thumbnail ||
+                      "https://img.youtube.com/vi/eAzoXY1GfIo/mqdefault.jpg"
+                    }
+                    alt={latestVideo?.title || "Latest video thumbnail"}
+                    fill
+                    className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                    unoptimized
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center group-hover:bg-primary/80 transition-colors">
+                      <Play className="h-5 w-5 text-white" />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <p className="mt-2 text-sm font-medium group-hover:text-primary transition-colors line-clamp-2">
-                {latestVideo?.title || "Loading..."}
-              </p>
-              <p className="text-xs text-muted-foreground">{latestVideo?.author || "JangBK"}</p>
-            </Link>
+                <p className="mt-2 text-sm font-medium group-hover:text-primary transition-colors line-clamp-2">
+                  {latestVideo?.title || "Loading..."}
+                </p>
+                <p className="text-xs text-muted-foreground">{latestVideo?.author || "JangBK"}</p>
+              </Link>
+            )}
           </section>
 
           {/* Macro Calendar */}
           <section className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold">매크로 캘린더</h3>
-              <Link
-                href="/macro/calendar"
-                className="text-xs text-primary hover:underline"
-              >
+              <Link href="/macro/calendar" className="text-xs text-primary hover:underline">
                 더보기
               </Link>
             </div>
-            <div className="space-y-3">
-              {calendarEvents.length === 0 ? (
-                <div className="text-sm text-muted-foreground animate-pulse">로딩 중...</div>
-              ) : (
-                calendarEvents.map((event, idx) => (
-                  <div
-                    key={`${event.name}-${idx}`}
-                    className="border-b border-border/50 pb-2 last:border-0"
-                  >
+            {calendarQuery.isError ? (
+              <QueryErrorBox message="캘린더를 불러올 수 없습니다." onRetry={() => calendarQuery.refetch()} />
+            ) : calendarQuery.isLoading ? (
+              <div className="text-sm text-muted-foreground animate-pulse">로딩 중...</div>
+            ) : (
+              <div className="space-y-3">
+                {calendarEvents.map((event, idx) => (
+                  <div key={`${event.name}-${idx}`} className="border-b border-border/50 pb-2 last:border-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5">
                         <span
                           className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                            event.importance === "high"
-                              ? "bg-red-500"
-                              : "bg-yellow-500"
+                            event.importance === "high" ? "bg-red-500" : "bg-yellow-500"
                           }`}
                         />
                         <span className="text-sm font-medium">{event.name}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {event.date}
-                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">{event.date}</span>
                     </div>
                     <div className="mt-1 ml-3 text-xs text-muted-foreground">
                       이전: {event.prev}
                       {event.forecast && event.forecast !== "-" && ` · 예상: ${event.forecast}`}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* Fear & Greed */}
           <section className="rounded-lg border border-border bg-card p-4">
             <h3 className="mb-3 font-semibold">Fear & Greed Index</h3>
-            <div className="flex flex-col items-center">
-              <GaugeChart value={fearGreedNormalized} label={fearGreedLabel} size="sm" />
-              {fearGreed && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Score: {fearGreed.value}/100
-                </p>
-              )}
-            </div>
+            {fearGreedQuery.isError ? (
+              <QueryErrorBox message="Fear & Greed 데이터를 불러올 수 없습니다." onRetry={() => fearGreedQuery.refetch()} />
+            ) : (
+              <div className="flex flex-col items-center">
+                <GaugeChart value={fearGreedNormalized} label={fearGreedLabel} size="sm" />
+                {fearGreedQuery.data && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Score: {fearGreedQuery.data.value}/100
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Quick Links */}

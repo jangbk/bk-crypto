@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: { absolute: "BK CRYPTO" },
+  title: "히트맵",
   description: "암호화폐 히트맵 - 시가총액 기반 시각화",
 };
 

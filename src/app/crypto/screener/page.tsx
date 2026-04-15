@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   ArrowUpDown,
@@ -8,9 +8,10 @@ import {
   ArrowDown,
   Download,
   RefreshCw,
-  Loader2,
 } from "lucide-react";
 import SparklineChart from "@/components/ui/SparklineChart";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
+import { useCryptoPrices } from "@/hooks/useDashboardQueries";
 
 interface CoinData {
   id: string;
@@ -28,7 +29,6 @@ interface CoinData {
   atl?: number;
 }
 
-// Categories based on market cap & ecosystem
 const COIN_CATEGORIES: Record<string, string> = {
   bitcoin: "Store of Value",
   ethereum: "Smart Contract",
@@ -87,7 +87,6 @@ function riskBarBg(risk: number): string {
 }
 
 function confidenceLevel(coin: CoinData): { label: string; color: string } {
-  // Confidence based on data availability & market cap
   if (!coin.ath || !coin.atl) return { label: "Low", color: "text-gray-500" };
   if (coin.market_cap > 10e9) return { label: "High", color: "text-green-400" };
   if (coin.market_cap > 1e9) return { label: "Med", color: "text-yellow-400" };
@@ -121,34 +120,12 @@ function formatPrice(price: number): string {
 }
 
 export default function CryptoScreenerPage() {
-  const [coins, setCoins] = useState<CoinData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: rawCoins, isLoading, isError, isFetching, refetch } = useCryptoPrices();
+  const coins = (rawCoins ?? []) as CoinData[];
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("market_cap");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-
-    try {
-      const res = await fetch("/api/crypto/prices");
-      const json = await res.json();
-      if (json.data) setCoins(json.data);
-    } catch {
-      // keep existing data
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(() => fetchData(true), 60_000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -159,30 +136,23 @@ export default function CryptoScreenerPage() {
     }
   };
 
-  // BTC and ETH data for relative risk calculations
   const btcData = useMemo(() => coins.find((c) => c.id === "bitcoin"), [coins]);
   const ethData = useMemo(() => coins.find((c) => c.id === "ethereum"), [coins]);
   const btcRisk = useMemo(
     () => (btcData?.ath && btcData?.atl ? calculateLogRisk(btcData.current_price, btcData.ath, btcData.atl) : 0.5),
-    [btcData]
+    [btcData],
   );
   const ethRisk = useMemo(
     () => (ethData?.ath && ethData?.atl ? calculateLogRisk(ethData.current_price, ethData.ath, ethData.atl) : 0.5),
-    [ethData]
+    [ethData],
   );
 
   const filteredAndSorted = useMemo(() => {
     let data = [...coins];
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      data = data.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.symbol.toLowerCase().includes(q)
-      );
+      data = data.filter((c) => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));
     }
-
     data.sort((a, b) => {
       if (sortKey === "fiat_risk") {
         const aRisk = a.ath && a.atl ? calculateLogRisk(a.current_price, a.ath, a.atl) : 0.5;
@@ -193,32 +163,18 @@ export default function CryptoScreenerPage() {
       const bVal = (b as unknown as Record<string, number>)[sortKey] ?? 0;
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
-
     return data;
   }, [coins, searchQuery, sortKey, sortDir]);
 
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortKey !== column) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
-    return sortDir === "desc" ? (
-      <ArrowDown className="h-3 w-3 text-primary" />
-    ) : (
-      <ArrowUp className="h-3 w-3 text-primary" />
-    );
+    return sortDir === "desc" ? <ArrowDown className="h-3 w-3 text-primary" /> : <ArrowUp className="h-3 w-3 text-primary" />;
   };
 
   const exportCSV = () => {
     const headers = ["Rank,Name,Symbol,Price,24h%,7d%,Market Cap,Volume"];
     const rows = filteredAndSorted.map((c, i) =>
-      [
-        i + 1,
-        c.name,
-        c.symbol.toUpperCase(),
-        c.current_price,
-        c.price_change_percentage_24h?.toFixed(2),
-        c.price_change_percentage_7d_in_currency?.toFixed(2),
-        c.market_cap,
-        c.total_volume,
-      ].join(",")
+      [i + 1, c.name, c.symbol.toUpperCase(), c.current_price, c.price_change_percentage_24h?.toFixed(2), c.price_change_percentage_7d_in_currency?.toFixed(2), c.market_cap, c.total_volume].join(","),
     );
     const csv = [...headers, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -233,9 +189,9 @@ export default function CryptoScreenerPage() {
   return (
     <div className="p-6 space-y-6 mx-auto max-w-[1600px]">
       <div>
-        <h1 className="text-2xl font-bold">Crypto Screener</h1>
+        <h1 className="text-2xl font-bold">크립토 스크리너</h1>
         <p className="text-muted-foreground mt-1">
-          실시간 암호화폐 스크리너 - 시총, 가격, 거래량, 변동률 기준 필터링 및 정렬
+          실시간 암호화폐 스크리너 — 시총, 가격, 거래량, 변동률 기준 필터링 및 정렬
         </p>
       </div>
 
@@ -252,11 +208,11 @@ export default function CryptoScreenerPage() {
           />
         </div>
         <button
-          onClick={() => fetchData(true)}
-          disabled={refreshing}
+          onClick={() => refetch()}
+          disabled={isFetching}
           className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
         >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
           새로고침
         </button>
         <button
@@ -265,98 +221,51 @@ export default function CryptoScreenerPage() {
         >
           <Download className="h-4 w-4" /> CSV 내보내기
         </button>
-        <span className="ml-auto text-xs text-muted-foreground">
-          {filteredAndSorted.length}개 자산 표시 중
-        </span>
+        <span className="ml-auto text-xs text-muted-foreground">{filteredAndSorted.length}개 자산 표시 중</span>
       </div>
 
       {/* Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="h-12 rounded bg-muted/50 animate-pulse" />
+          ))}
         </div>
+      ) : isError ? (
+        <QueryErrorBox message="스크리너 데이터를 불러오지 못했습니다." onRetry={() => refetch()} />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground w-12">
-                  #
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground w-12">#</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground min-w-[160px]">이름</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort("current_price")}>
+                  <span className="inline-flex items-center gap-1">가격 <SortIcon column="current_price" /></span>
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground min-w-[160px]">
-                  이름
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort("price_change_percentage_24h")}>
+                  <span className="inline-flex items-center gap-1">24h % <SortIcon column="price_change_percentage_24h" /></span>
                 </th>
-                <th
-                  className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort("current_price")}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    가격 <SortIcon column="current_price" />
-                  </span>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort("price_change_percentage_7d_in_currency")}>
+                  <span className="inline-flex items-center gap-1">7d % <SortIcon column="price_change_percentage_7d_in_currency" /></span>
                 </th>
-                <th
-                  className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort("price_change_percentage_24h")}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    24h % <SortIcon column="price_change_percentage_24h" />
-                  </span>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort("price_change_percentage_30d_in_currency")}>
+                  <span className="inline-flex items-center gap-1">30d % <SortIcon column="price_change_percentage_30d_in_currency" /></span>
                 </th>
-                <th
-                  className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort("price_change_percentage_7d_in_currency")}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    7d % <SortIcon column="price_change_percentage_7d_in_currency" />
-                  </span>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort("market_cap")}>
+                  <span className="inline-flex items-center gap-1">시가총액 <SortIcon column="market_cap" /></span>
                 </th>
-                <th
-                  className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort("price_change_percentage_30d_in_currency")}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    30d % <SortIcon column="price_change_percentage_30d_in_currency" />
-                  </span>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort("fiat_risk")}>
+                  <span className="inline-flex items-center gap-1">Fiat Risk <SortIcon column="fiat_risk" /></span>
                 </th>
-                <th
-                  className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort("market_cap")}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    시가총액 <SortIcon column="market_cap" />
-                  </span>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">BTC Risk</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">ETH Risk</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">신뢰도</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">카테고리</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort("total_volume")}>
+                  <span className="inline-flex items-center gap-1">거래량(24h) <SortIcon column="total_volume" /></span>
                 </th>
-                <th
-                  className="px-4 py-3 text-center font-medium text-muted-foreground cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort("fiat_risk")}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    Fiat Risk <SortIcon column="fiat_risk" />
-                  </span>
-                </th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">
-                  BTC Risk
-                </th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">
-                  ETH Risk
-                </th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">
-                  Conf.
-                </th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">
-                  Category
-                </th>
-                <th
-                  className="px-4 py-3 text-right font-medium text-muted-foreground cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort("total_volume")}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    거래량(24h) <SortIcon column="total_volume" />
-                  </span>
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground w-[120px]">
-                  7일 차트
-                </th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground w-[120px]">7일 차트</th>
               </tr>
             </thead>
             <tbody>
@@ -364,84 +273,45 @@ export default function CryptoScreenerPage() {
                 const change24h = coin.price_change_percentage_24h ?? 0;
                 const change7d = coin.price_change_percentage_7d_in_currency ?? 0;
                 const change30d = coin.price_change_percentage_30d_in_currency ?? 0;
-                const fiatRisk = coin.ath && coin.atl
-                  ? calculateLogRisk(coin.current_price, coin.ath, coin.atl)
-                  : null;
-                // BTC/ETH relative risk: how the asset's fiat risk compares
+                const fiatRisk = coin.ath && coin.atl ? calculateLogRisk(coin.current_price, coin.ath, coin.atl) : null;
                 const btcRelRisk = fiatRisk !== null ? Math.max(0, Math.min(1, fiatRisk - btcRisk + 0.5)) : null;
                 const ethRelRisk = fiatRisk !== null ? Math.max(0, Math.min(1, fiatRisk - ethRisk + 0.5)) : null;
                 const conf = confidenceLevel(coin);
                 const category = COIN_CATEGORIES[coin.id] ?? "Other";
 
                 return (
-                  <tr
-                    key={coin.id}
-                    className="border-b border-border hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-muted-foreground text-xs">
-                      {index + 1}
-                    </td>
+                  <tr key={coin.id} className="border-b border-border table-row-hover transition-colors">
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{index + 1}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         {coin.image ? (
-                          <img
-                            src={coin.image}
-                            alt={coin.name}
-                            className="h-6 w-6 rounded-full"
-                            loading="lazy"
-                          />
+                          <img src={coin.image} alt={coin.name} className="h-6 w-6 rounded-full" loading="lazy" />
                         ) : (
                           <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
                             {coin.symbol.slice(0, 2).toUpperCase()}
                           </div>
                         )}
                         <div>
-                          <p className="font-medium text-sm leading-tight">
-                            {coin.name}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground uppercase">
-                            {coin.symbol}
-                          </p>
+                          <p className="font-medium text-sm leading-tight">{coin.name}</p>
+                          <p className="text-[11px] text-muted-foreground uppercase">{coin.symbol}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono font-medium text-sm">
-                      {formatPrice(coin.current_price)}
+                    <td className="px-4 py-3 text-right font-mono font-medium text-sm">{formatPrice(coin.current_price)}</td>
+                    <td className={`px-4 py-3 text-right font-mono text-sm ${change24h >= 0 ? "text-positive" : "text-negative"}`}>
+                      {change24h >= 0 ? "+" : ""}{change24h.toFixed(2)}%
                     </td>
-                    <td
-                      className={`px-4 py-3 text-right font-mono text-sm ${
-                        change24h >= 0 ? "text-green-500" : "text-red-500"
-                      }`}
-                    >
-                      {change24h >= 0 ? "+" : ""}
-                      {change24h.toFixed(2)}%
+                    <td className={`px-4 py-3 text-right font-mono text-sm ${change7d >= 0 ? "text-positive" : "text-negative"}`}>
+                      {change7d >= 0 ? "+" : ""}{change7d.toFixed(2)}%
                     </td>
-                    <td
-                      className={`px-4 py-3 text-right font-mono text-sm ${
-                        change7d >= 0 ? "text-green-500" : "text-red-500"
-                      }`}
-                    >
-                      {change7d >= 0 ? "+" : ""}
-                      {change7d.toFixed(2)}%
+                    <td className={`px-4 py-3 text-right font-mono text-sm ${change30d >= 0 ? "text-positive" : "text-negative"}`}>
+                      {change30d >= 0 ? "+" : ""}{change30d.toFixed(2)}%
                     </td>
-                    <td
-                      className={`px-4 py-3 text-right font-mono text-sm ${
-                        change30d >= 0 ? "text-green-500" : "text-red-500"
-                      }`}
-                    >
-                      {change30d >= 0 ? "+" : ""}
-                      {change30d.toFixed(2)}%
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm">
-                      {formatCurrency(coin.market_cap)}
-                    </td>
-                    {/* Fiat Risk */}
+                    <td className="px-4 py-3 text-right font-mono text-sm">{formatCurrency(coin.market_cap)}</td>
                     <td className="px-4 py-3 text-center">
                       {fiatRisk !== null ? (
                         <div className="flex items-center justify-center gap-1.5">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(fiatRisk)}`}>
-                            {fiatRisk.toFixed(3)}
-                          </span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(fiatRisk)}`}>{fiatRisk.toFixed(3)}</span>
                           <div className="w-12 h-1.5 bg-white/5 rounded-full overflow-hidden">
                             <div className={`h-full rounded-full ${riskBarBg(fiatRisk)}`} style={{ width: `${fiatRisk * 100}%` }} />
                           </div>
@@ -450,46 +320,28 @@ export default function CryptoScreenerPage() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </td>
-                    {/* BTC Risk */}
                     <td className="px-4 py-3 text-center">
                       {btcRelRisk !== null ? (
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(btcRelRisk)}`}>
-                          {btcRelRisk.toFixed(3)}
-                        </span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(btcRelRisk)}`}>{btcRelRisk.toFixed(3)}</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </td>
-                    {/* ETH Risk */}
                     <td className="px-4 py-3 text-center">
                       {ethRelRisk !== null ? (
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(ethRelRisk)}`}>
-                          {ethRelRisk.toFixed(3)}
-                        </span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskColorClass(ethRelRisk)}`}>{ethRelRisk.toFixed(3)}</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </td>
-                    {/* Confidence */}
-                    <td className={`px-4 py-3 text-center text-xs font-medium ${conf.color}`}>
-                      {conf.label}
-                    </td>
-                    {/* Category */}
+                    <td className={`px-4 py-3 text-center text-xs font-medium ${conf.color}`}>{conf.label}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className="text-xs bg-muted/50 px-2 py-0.5 rounded-full text-muted-foreground whitespace-nowrap">
-                        {category}
-                      </span>
+                      <span className="text-xs bg-muted/50 px-2 py-0.5 rounded-full text-muted-foreground whitespace-nowrap">{category}</span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm">
-                      {formatCurrency(coin.total_volume)}
-                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-sm">{formatCurrency(coin.total_volume)}</td>
                     <td className="px-4 py-2 text-right">
                       {coin.sparkline_in_7d?.price ? (
-                        <SparklineChart
-                          data={coin.sparkline_in_7d.price}
-                          height={28}
-                          className="ml-auto"
-                        />
+                        <SparklineChart data={coin.sparkline_in_7d.price} height={28} className="ml-auto" />
                       ) : (
                         <div className="h-7 w-full bg-muted/30 rounded" />
                       )}

@@ -36,10 +36,10 @@ export default function NotFound() {
       {/* Quick Links */}
       <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Dashboard", href: "/dashboard" },
-          { label: "Screener", href: "/crypto/screener" },
-          { label: "Heatmap", href: "/crypto/heatmap" },
-          { label: "Tools", href: "/tools/dca-simulation" },
+          { label: "대시보드", href: "/dashboard" },
+          { label: "스크리너", href: "/crypto/screener" },
+          { label: "히트맵", href: "/crypto/heatmap" },
+          { label: "도구", href: "/tools/dca-simulation" },
         ].map((link) => (
           <Link
             key={link.href}

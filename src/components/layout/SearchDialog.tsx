@@ -15,22 +15,24 @@ interface SearchEntry {
   type: "page" | "chart";
 }
 
-function flattenNavItems(items: NavItem[], parent?: string): SearchEntry[] {
+function flattenNavItems(items: NavItem[]): SearchEntry[] {
   const result: SearchEntry[] = [];
   for (const item of items) {
     if (item.children) {
-      result.push(...flattenNavItems(item.children, item.label));
+      for (const child of item.children) {
+        result.push({ label: child.label, href: child.href, parent: item.label, type: "page" });
+      }
     } else {
-      result.push({ label: item.label, href: item.href, parent, type: "page" });
+      result.push({ label: item.label, href: item.href, type: "page" });
     }
   }
   return result;
 }
 
 const SECTION_LABELS: Record<string, string> = {
-  crypto: "Crypto",
-  macro: "Macro",
-  tradfi: "TradFi",
+  crypto: "크립토",
+  macro: "매크로",
+  tradfi: "전통 금융",
 };
 
 const ALL_ENTRIES: SearchEntry[] = [

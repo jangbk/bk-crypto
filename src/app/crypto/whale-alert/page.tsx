@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   Fish,
   ArrowRightLeft,
@@ -107,34 +109,24 @@ const ASSET_COLORS: Record<string, string> = {
 // Component
 // ---------------------------------------------------------------------------
 export default function WhaleAlertPage() {
-  const [transactions, setTransactions] = useState<WhaleTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState("loading");
-  const [lastUpdated, setLastUpdated] = useState("");
+  const { data: apiData, isLoading: loading, isError, isFetching, refetch } = useQuery({
+    queryKey: ["crypto", "whale-alert"],
+    queryFn: async () => {
+      const res = await fetch("/api/crypto/whale-alert");
+      if (!res.ok) throw new Error("API error");
+      return res.json();
+    },
+  });
+
+  const transactions: WhaleTransaction[] = apiData?.transactions ?? [];
+  const source: string = isError ? "error" : (apiData?.source ?? "loading");
+  const lastUpdated = apiData ? new Date().toLocaleTimeString("ko-KR") : "";
 
   // Filters
   const [assetFilter, setAssetFilter] = useState<AssetFilter>("ALL");
   const [flowFilter, setFlowFilter] = useState<FlowFilter>("ALL");
   const [sizeFilter, setSizeFilter] = useState<SizeFilter>("ALL");
   const [guideOpen, setGuideOpen] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/crypto/whale-alert");
-      if (!res.ok) throw new Error("API error");
-      const json = await res.json();
-      setTransactions(json.transactions || []);
-      setSource(json.source || "unknown");
-      setLastUpdated(new Date().toLocaleTimeString("ko-KR"));
-    } catch {
-      setSource("error");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
 
   // Apply filters
   const filtered = useMemo(() => {
@@ -203,11 +195,11 @@ export default function WhaleAlertPage() {
               {lastUpdated && <span className="text-muted-foreground/60">· {lastUpdated}</span>}
             </div>
             <button
-              onClick={fetchData}
-              disabled={loading}
+              onClick={() => refetch()}
+              disabled={isFetching}
               className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
           </div>
         </div>
@@ -484,7 +476,9 @@ export default function WhaleAlertPage() {
             </span>
           </div>
 
-          {loading ? (
+          {isError ? (
+            <QueryErrorBox onRetry={() => refetch()} />
+          ) : loading ? (
             <div className="flex items-center justify-center py-20">
               <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
               <span className="ml-2 text-muted-foreground">데이터 로딩 중...</span>

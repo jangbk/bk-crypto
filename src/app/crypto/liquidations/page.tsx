@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   Flame,
   TrendingDown,
@@ -423,42 +425,29 @@ function SortHeader({
 // Page
 // ---------------------------------------------------------------------------
 export default function LiquidationsPage() {
-  const [coins, setCoins] = useState<LiqCoin[]>([]);
-  const [summary, setSummary] = useState<LiqSummary>({
+  const DEFAULT_SUMMARY: LiqSummary = {
     totalLongExp: 0, totalShortExp: 0, totalExposure: 0,
     totalOI: 0, totalVolume: 0, longShortRatio: 1,
     topTraderLSRatio: 1, takerBuySellRatio: 1, takerBuyVol: 0, takerSellVol: 0,
+  };
+
+  const { data: apiData, isLoading: loading, isError, refetch } = useQuery({
+    queryKey: ["crypto", "liquidations"],
+    queryFn: async () => {
+      const res = await fetch("/api/crypto/liquidations");
+      if (!res.ok) throw new Error("API error");
+      return res.json();
+    },
+    refetchInterval: 30_000,
   });
-  const [source, setSource] = useState("loading");
-  const [loading, setLoading] = useState(true);
+
+  const coins: LiqCoin[] = apiData?.coins ?? [];
+  const summary: LiqSummary = apiData?.summary ?? DEFAULT_SUMMARY;
+  const source: string = isError ? "error" : (apiData?.source ?? "loading");
+  const lastUpdated = apiData ? new Date().toLocaleTimeString("ko-KR") : "";
+
   const [sortKey, setSortKey] = useState<SortKey>("totalExposure");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [lastUpdated, setLastUpdated] = useState("");
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch("/api/crypto/liquidations");
-        if (!res.ok) throw new Error("API error");
-        const json = await res.json();
-        setCoins(json.coins || []);
-        setSummary(json.summary || {
-          totalLongExp: 0, totalShortExp: 0, totalExposure: 0,
-          totalOI: 0, totalVolume: 0, longShortRatio: 1,
-          topTraderLSRatio: 1, takerBuySellRatio: 1, takerBuyVol: 0, takerSellVol: 0,
-        });
-        setSource(json.source || "sample");
-        setLastUpdated(new Date().toLocaleTimeString("ko-KR"));
-      } catch {
-        setSource("error");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-    const iv = setInterval(fetchData, 30_000);
-    return () => clearInterval(iv);
-  }, []);
 
   function handleSort(key: SortKey) {
     if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -484,6 +473,14 @@ export default function LiquidationsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4 sm:p-6 mx-auto max-w-[1600px]">
+        <QueryErrorBox onRetry={() => refetch()} />
       </div>
     );
   }

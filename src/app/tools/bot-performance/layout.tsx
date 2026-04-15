@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: { absolute: "BK CRYPTO" },
+  title: "봇 성과",
   description: "봇 성과 - 자동매매 봇 실시간 성과 추적",
 };
 

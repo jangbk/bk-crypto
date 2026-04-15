@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: { absolute: "BK CRYPTO" },
+  title: "대시보드",
   description: "투자 대시보드 - 실시간 시세, 리스크, 매크로 지표 모니터링",
 };
 

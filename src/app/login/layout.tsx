@@ -4,15 +4,15 @@ export default function LoginLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-gray-900 via-slate-900 to-black">
-      {/* Video Background */}
+    <div className="relative min-h-screen overflow-hidden bg-[#030712]">
+      {/* Video Background (hero only) */}
       <video
         autoPlay
         muted
         loop
         playsInline
         poster="https://assets.mixkit.co/videos/12262/12262-thumb-720-0.jpg"
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-[100vh] object-cover"
       >
         <source
           src="https://assets.mixkit.co/videos/12262/12262-720.mp4"
@@ -21,7 +21,7 @@ export default function LoginLayout({
       </video>
 
       {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
+      <div className="absolute inset-0 h-[100vh] bg-black/50 backdrop-blur-[1px]" />
 
       {/* Content */}
       <div className="relative z-10 w-full">

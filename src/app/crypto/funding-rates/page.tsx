@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   TrendingUp,
   TrendingDown,
@@ -442,41 +444,23 @@ export default function FundingRatesPage() {
   const [sortKey, setSortKey] = useState<SortKey>("openInterest");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [guideOpen, setGuideOpen] = useState(false);
-  const [coins, setCoins] = useState<FundingCoin[]>(SAMPLE_COINS);
-  const [history, setHistory] = useState<DailyFunding[]>(BTC_FUNDING_HISTORY);
-  const [btcPrices, setBtcPrices] = useState<BtcPriceEntry[]>([]);
-  const [source, setSource] = useState<string>("sample");
-  const [updatedAt, setUpdatedAt] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const { data: apiData, isLoading: loading, isError, refetch } = useQuery({
+    queryKey: ["crypto", "funding-rates"],
+    queryFn: async () => {
+      const res = await fetch("/api/crypto/funding-rates");
+      if (!res.ok) throw new Error("API error");
+      return res.json();
+    },
+    refetchInterval: 60_000,
+  });
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch("/api/crypto/funding-rates");
-        if (!res.ok) throw new Error("API error");
-        const data = await res.json();
-        if (data.coins && data.coins.length > 0) {
-          setCoins(data.coins.map((c: FundingCoin) => ({ ...c, signal: getSignal(c.rate8h) })));
-        }
-        if (data.btcHistory && data.btcHistory.length > 0) {
-          setHistory(data.btcHistory);
-        }
-        if (data.btcPrices && data.btcPrices.length > 0) {
-          setBtcPrices(data.btcPrices);
-        }
-        setSource(data.source || "sample");
-        setUpdatedAt(data.updatedAt || "");
-      } catch {
-        // Keep sample data as fallback
-        setSource("sample");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-    const interval = setInterval(fetchData, 60_000); // refresh every 60s
-    return () => clearInterval(interval);
-  }, []);
+  const coins: FundingCoin[] = apiData?.coins?.length > 0
+    ? apiData.coins.map((c: FundingCoin) => ({ ...c, signal: getSignal(c.rate8h) }))
+    : SAMPLE_COINS;
+  const history: DailyFunding[] = apiData?.btcHistory?.length > 0 ? apiData.btcHistory : BTC_FUNDING_HISTORY;
+  const btcPrices: BtcPriceEntry[] = apiData?.btcPrices ?? [];
+  const source: string = apiData?.source ?? "sample";
+  const updatedAt: string = apiData?.updatedAt ?? "";
 
   // Sort logic
   const sorted = useMemo(() => {
@@ -549,6 +533,9 @@ export default function FundingRatesPage() {
             )}
           </div>
         </div>
+
+        {/* Error */}
+        {isError && <div className="mb-8"><QueryErrorBox onRetry={() => refetch()} /></div>}
 
         {/* ----------------------------------------------------------------- */}
         {/* Summary Cards                                                     */}

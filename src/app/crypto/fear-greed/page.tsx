@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   BarChart3,
@@ -10,6 +11,7 @@ import {
   Bitcoin,
   Info,
 } from "lucide-react";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -657,40 +659,21 @@ function InvestmentGuide() {
 // Main Page
 // ---------------------------------------------------------------------------
 export default function FearGreedPage() {
-  const [data, setData] = useState<APIResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [components, setComponents] = useState<ComponentBreakdown[]>([]);
-  const [btcPrices, setBtcPrices] = useState<BtcPrice[]>([]);
+  const { data, isLoading: loading, error, refetch } = useQuery<APIResponse>({
+    queryKey: ["crypto", "fear-greed-page"],
+    queryFn: async () => {
+      const res = await fetch("/api/crypto/fear-greed");
+      if (!res.ok) throw new Error("API error");
+      return res.json();
+    },
+    refetchInterval: 60_000,
+  });
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch("/api/crypto/fear-greed");
-        if (!res.ok) throw new Error("API error");
-        const json: APIResponse = await res.json();
-        setData(json);
-        setBtcPrices(json.btcPrices ?? []);
-        setComponents(buildComponents(json.components ?? []));
-      } catch {
-        // Fallback
-        setData({
-          source: "fallback",
-          current: { value: 50, classification: "Neutral", date: new Date().toISOString().split("T")[0] },
-          history: Array.from({ length: 30 }, (_, i) => {
-            const v = Math.max(0, Math.min(100, Math.round(50 + Math.sin(i * 0.4) * 20)));
-            const d = new Date(Date.now() - i * 86400000);
-            return { value: v, classification: "Neutral", date: d.toISOString().split("T")[0] };
-          }),
-        });
-        setComponents([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-    const interval = setInterval(fetchData, 60_000);
-    return () => clearInterval(interval);
-  }, []);
+  const btcPrices = data?.btcPrices ?? [];
+  const components = useMemo(
+    () => buildComponents(data?.components ?? []),
+    [data?.components]
+  );
 
   const currentValue = data?.current.value ?? 0;
   const historyData: FearGreedEntry[] = (data?.history ?? [])
@@ -712,6 +695,17 @@ export default function FearGreedPage() {
         <div className="flex items-center justify-center py-20 text-muted-foreground">
           데이터 로딩 중...
         </div>
+      </main>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <QueryErrorBox
+          message={error instanceof Error ? error.message : "데이터를 불러오지 못했습니다."}
+          onRetry={() => refetch()}
+        />
       </main>
     );
   }

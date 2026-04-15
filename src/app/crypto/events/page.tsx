@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 import {
   Calendar,
   Bell,
@@ -159,9 +161,39 @@ export default function CryptoEventsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedCoin, setSelectedCoin] = useState("All");
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
-  const [events, setEvents] = useState<CryptoEvent[]>(FALLBACK_EVENTS);
-  const [dataSource, setDataSource] = useState<string>("loading");
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: apiData, isLoading, isError, refetch } = useQuery({
+    queryKey: ["crypto", "events"],
+    queryFn: async () => {
+      const res = await fetch("/api/crypto/events");
+      if (!res.ok) throw new Error("API error");
+      return res.json();
+    },
+    refetchInterval: 60_000,
+  });
+
+  const events: CryptoEvent[] = (() => {
+    if (!apiData?.data || apiData.data.length === 0) return FALLBACK_EVENTS;
+    return apiData.data.map((e: { id: number; title: string; coin: string; coinName: string; date: string; category: string; importance: string; description: string; confidence: number; source?: string }) => ({
+      id: e.id,
+      title: e.title,
+      coin: e.coin,
+      coinName: e.coinName,
+      date: e.date,
+      category: e.category,
+      importance: e.importance as "high" | "medium" | "low",
+      description: e.description || "",
+      source: e.source || "CoinMarketCal",
+      confidence: e.confidence || 50,
+      notified: false,
+    }));
+  })();
+
+  const dataSource: string = isLoading
+    ? "loading"
+    : apiData?.data?.length > 0
+      ? (apiData.source === "coinmarketcal" ? "CoinMarketCal (실시간)" : "sample")
+      : "fallback";
+
   const [notifications, setNotifications] = useState<Record<number, boolean>>(
     Object.fromEntries(
       FALLBACK_EVENTS.filter((e) => e.notified).map((e) => [e.id, true])
@@ -169,42 +201,6 @@ export default function CryptoEventsPage() {
   );
   const [alertDays, setAlertDays] = useState(3);
   const [showAlertSettings, setShowAlertSettings] = useState(false);
-
-  useEffect(() => {
-    async function fetchEvents() {
-      try {
-        const res = await fetch("/api/crypto/events");
-        if (!res.ok) throw new Error("API error");
-        const json = await res.json();
-        if (json.data && json.data.length > 0) {
-          const mapped: CryptoEvent[] = json.data.map((e: { id: number; title: string; coin: string; coinName: string; date: string; category: string; importance: string; description: string; confidence: number; source?: string }) => ({
-            id: e.id,
-            title: e.title,
-            coin: e.coin,
-            coinName: e.coinName,
-            date: e.date,
-            category: e.category,
-            importance: e.importance as "high" | "medium" | "low",
-            description: e.description || "",
-            source: e.source || "CoinMarketCal",
-            confidence: e.confidence || 50,
-            notified: false,
-          }));
-          setEvents(mapped);
-          setDataSource(json.source === "coinmarketcal" ? "CoinMarketCal (실시간)" : "sample");
-        } else {
-          setDataSource("fallback");
-        }
-      } catch {
-        setDataSource("fallback");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchEvents();
-    const iv = setInterval(fetchEvents, 60_000);
-    return () => clearInterval(iv);
-  }, []);
 
   // Build dynamic category and coin lists from actual data
   const dynamicCategories = ["All", ...Array.from(new Set(events.map((e) => e.category))).sort()];
@@ -386,6 +382,9 @@ export default function CryptoEventsPage() {
           ))}
         </div>
       </div>
+
+      {/* Error */}
+      {isError && <QueryErrorBox onRetry={() => refetch()} />}
 
       {/* List View */}
       {viewMode === "list" && (
