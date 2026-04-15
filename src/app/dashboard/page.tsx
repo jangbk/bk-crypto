@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useCryptoPrices,
   useCryptoRisk,
@@ -12,14 +12,20 @@ import {
   useDominance,
   useMacroIndicator,
 } from "@/hooks/useDashboardQueries";
+import { useRealtimePrices } from "@/hooks/useRealtimePrices";
 import { HeroBar } from "@/components/dashboard/HeroBar";
+import { LivePriceIndicator } from "@/components/dashboard/LivePriceIndicator";
 import { FavoriteAssetsTable } from "@/components/dashboard/FavoriteAssetsTable";
 import { RiskGauges } from "@/components/dashboard/RiskGauges";
 import { MarketCharts } from "@/components/dashboard/MarketCharts";
 import { RiskAndMacroCharts } from "@/components/dashboard/RiskAndMacroCharts";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { usePriceAlertContext } from "@/components/providers/PriceAlertProvider";
 
 export default function DashboardPage() {
+  // ─── Real-time WebSocket prices (enhancement layer) ────────────
+  const { prices: realtimePrices, status: wsStatus } = useRealtimePrices();
+
   // ─── Queries ───────────────────────────────────────────────────
   const pricesQuery = useCryptoPrices();
   const riskQuery = useCryptoRisk();
@@ -38,6 +44,14 @@ export default function DashboardPage() {
   const macroQuery = useMacroIndicator(macroTab);
 
   const assets = pricesQuery.data ?? [];
+
+  // ─── Feed assets to price alert system ────────────────────────
+  const { setAssets } = usePriceAlertContext();
+  useEffect(() => {
+    if (assets.length > 0) {
+      setAssets(assets);
+    }
+  }, [assets, setAssets]);
 
   // ─── Derived data ─────────────────────────────────────────────
   const riskValues: Record<string, number> = useMemo(() => {
@@ -76,6 +90,9 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
+      <div className="mb-2 flex justify-end">
+        <LivePriceIndicator status={wsStatus} />
+      </div>
       <HeroBar
         btc={btc}
         eth={eth}
@@ -83,6 +100,7 @@ export default function DashboardPage() {
         fearClass={fearClass}
         latestMcap={latestMcap}
         recessionValue={recessionValue}
+        realtimePrices={realtimePrices}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">

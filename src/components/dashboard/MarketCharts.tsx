@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { InsightBox } from "@/components/ui/InsightBox";
 import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
+import { ExportButton } from "@/components/ui/ExportButton";
 import { formatCurrency } from "@/lib/formatters";
 import { getMcapInsight, getDomInsight } from "@/lib/insights";
 import { ChartSkeleton } from "./Skeletons";
@@ -32,6 +33,11 @@ export function MarketCharts({
   onDomTabChange,
   domQuery,
 }: MarketChartsProps) {
+  const mcapContainerRef = useRef<HTMLElement>(null);
+  const domContainerRef = useRef<HTMLElement>(null);
+  const getMcapContainer = useCallback(() => mcapContainerRef.current, []);
+  const getDomContainer = useCallback(() => domContainerRef.current, []);
+
   const mcapChartData = useMemo(() => {
     if (!mcapQuery.data?.data) return [];
     return mcapQuery.data.data.map(([ts, val]) => ({
@@ -51,7 +57,7 @@ export function MarketCharts({
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       {/* Market Cap */}
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section ref={mcapContainerRef} className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             {(["total", "btc", "eth"] as const).map((tab) => (
@@ -68,6 +74,12 @@ export function MarketCharts({
               </button>
             ))}
           </div>
+          <ExportButton
+            getContainer={getMcapContainer}
+            title={`Market Cap - ${mcapTab === "total" ? "Total" : mcapTab.toUpperCase()}`}
+            size="sm"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+          />
         </div>
         <p className="mb-2 text-xs text-muted-foreground">
           CMC: {formatCurrency(latestMcap, 0)}
@@ -93,7 +105,7 @@ export function MarketCharts({
       </section>
 
       {/* Dominance */}
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section ref={domContainerRef} className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             {(["btc", "eth"] as const).map((tab) => (
@@ -110,6 +122,12 @@ export function MarketCharts({
               </button>
             ))}
           </div>
+          <ExportButton
+            getContainer={getDomContainer}
+            title={`${domTab.toUpperCase()} Dominance`}
+            size="sm"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+          />
         </div>
         <p className="mb-2 text-xs text-muted-foreground">
           {domQuery.data

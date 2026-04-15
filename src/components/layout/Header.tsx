@@ -5,11 +5,15 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS } from "@/lib/constants";
+import { useTranslation } from "@/lib/i18n";
+import { NAV_ITEMS_I18N, translateNavItems } from "@/lib/nav-items";
 import { ThemeToggle } from "./ThemeToggle";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { SearchDialog } from "./SearchDialog";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { UserDropdown } from "./UserDropdown";
+import { AlertBell } from "@/components/ui/AlertBell";
+import { usePriceAlertContext } from "@/components/providers/PriceAlertProvider";
 import type { NavItem, NavChild } from "@/lib/types";
 
 function Logo() {
@@ -157,10 +161,12 @@ function NavDropdown({
 
 function DesktopNav() {
   const pathname = usePathname();
+  const { t } = useTranslation();
+  const navItems = translateNavItems(NAV_ITEMS_I18N, t);
 
   return (
-    <nav className="hidden items-center gap-0.5 lg:flex" aria-label="메인 네비게이션">
-      {NAV_ITEMS.map((item) => {
+    <nav className="hidden items-center gap-0.5 lg:flex" aria-label={t("common.main_nav")}>
+      {navItems.map((item) => {
         const isActive =
           pathname === item.href ||
           pathname.startsWith(item.href + "/");
@@ -201,6 +207,8 @@ function MobileNav({
   triggerRef: React.RefObject<HTMLButtonElement | null>;
 }) {
   const pathname = usePathname();
+  const { t } = useTranslation();
+  const navItems = translateNavItems(NAV_ITEMS_I18N, t);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -264,7 +272,7 @@ function MobileNav({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="모바일 메뉴">
+    <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("common.mobile_menu")}>
       <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
       <div ref={panelRef} className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border overflow-y-auto animate-slide-in-left">
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -273,13 +281,13 @@ function MobileNav({
             ref={closeButtonRef}
             onClick={onClose}
             className="p-2 hover:bg-muted rounded-lg"
-            aria-label="메뉴 닫기"
+            aria-label={t("common.close_menu")}
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="p-2" aria-label="모바일 네비게이션">
-          {NAV_ITEMS.map((item) => {
+        <nav className="p-2" aria-label={t("common.mobile_nav")}>
+          {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
               pathname.startsWith(item.href + "/");
@@ -397,6 +405,8 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const { activeCount, openDialog } = usePriceAlertContext();
+  const { t } = useTranslation();
 
   // Global Cmd+K / Ctrl+K shortcut
   const handleGlobalKey = useCallback((e: KeyboardEvent) => {
@@ -420,7 +430,7 @@ export function Header() {
             ref={mobileMenuTriggerRef}
             onClick={() => setMobileOpen(true)}
             className="p-2 hover:bg-muted rounded-lg lg:hidden"
-            aria-label="메뉴 열기"
+            aria-label={t("common.open_menu")}
             aria-expanded={mobileOpen}
           >
             <Menu className="h-5 w-5" aria-hidden="true" />
@@ -447,13 +457,15 @@ export function Header() {
             <button
               onClick={() => setSearchOpen(true)}
               className="relative rounded-lg p-2 hover:bg-muted transition-colors"
-              aria-label="검색 (⌘K)"
+              aria-label={t("common.search_shortcut")}
             >
               <Search className="h-5 w-5 text-foreground" aria-hidden="true" />
               <kbd className="absolute -bottom-0.5 -right-1 hidden sm:inline-flex items-center rounded border border-border bg-muted px-1 py-px text-[9px] font-medium text-muted-foreground leading-none">
                 ⌘K
               </kbd>
             </button>
+            <AlertBell activeCount={activeCount} onClick={openDialog} />
+            <LanguageToggle />
             <ThemeToggle />
             <NotificationsDropdown />
             <UserDropdown />

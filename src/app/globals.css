@@ -151,6 +151,35 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
+/* ─── Price flash on WebSocket update ─── */
+@keyframes price-flash-green {
+  0% {
+    background-color: rgba(16, 185, 129, 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes price-flash-red {
+  0% {
+    background-color: rgba(239, 68, 68, 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-green {
+  animation: price-flash-green 600ms ease-out;
+  border-radius: 4px;
+}
+
+.flash-red {
+  animation: price-flash-red 600ms ease-out;
+  border-radius: 4px;
+}
+
 /* ─── Reduced motion ─── */
 @media (prefers-reduced-motion: reduce) {
   *,

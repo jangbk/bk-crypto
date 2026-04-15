@@ -1,3 +1,4 @@
+import { type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 import { CHART_BAND_LINES, DUAL_CHART_CONFIG } from "@/data/chart-insights";
@@ -30,6 +31,8 @@ interface ChartRendererProps {
   secondaryLabel: string;
   scaleType: "linear" | "log";
   overlayData: OverlaySeries[];
+  /** Ref attached to the outermost chart wrapper for image export */
+  chartContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
 function DualChartScaleRef({ chartId }: { chartId: string }) {
@@ -66,6 +69,7 @@ export function ChartRenderer({
   secondaryLabel,
   scaleType,
   overlayData,
+  chartContainerRef,
 }: ChartRendererProps) {
   const dualConfig = DUAL_CHART_CONFIG[chartId] || null;
 
@@ -91,7 +95,7 @@ export function ChartRenderer({
 
   if (secondaryData.length > 0) {
     return (
-      <div className="space-y-3">
+      <div ref={chartContainerRef} className="space-y-3">
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
@@ -132,7 +136,7 @@ export function ChartRenderer({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div ref={chartContainerRef} className="rounded-lg border border-border bg-card p-4">
       <LightweightChartWrapper
         data={chartData}
         type={chartType === "area" ? "area" : "line"}

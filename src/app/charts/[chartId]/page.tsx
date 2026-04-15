@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getChartById, CHART_CATALOG } from "@/data/chart-catalog";
 import { CHART_INSIGHTS, DUAL_CHART_CONFIG } from "@/data/chart-insights";
@@ -83,6 +83,9 @@ export default function ChartDetailPage() {
   const [showRiskOverlay, setShowRiskOverlay] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
 
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const getChartContainer = useCallback(() => chartContainerRef.current, []);
+
   const chartTitle =
     chart?.title ||
     chartId.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
@@ -141,6 +144,7 @@ export default function ChartDetailPage() {
         backHref={backHref}
         isFavorited={isFavorited}
         onToggleFavorite={() => setIsFavorited(!isFavorited)}
+        getChartContainer={getChartContainer}
       />
 
       <ChartToolbar
@@ -169,6 +173,7 @@ export default function ChartDetailPage() {
         secondaryLabel={secondaryLabel}
         scaleType={scaleType}
         overlayData={overlayData}
+        chartContainerRef={chartContainerRef}
       />
 
       {insightConfig && stats && (

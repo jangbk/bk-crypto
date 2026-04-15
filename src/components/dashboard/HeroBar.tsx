@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
 import type { CryptoAsset } from "@/lib/types";
+import type { RealtimePrice } from "@/hooks/useRealtimePrices";
 
 interface HeroBarProps {
   btc: CryptoAsset | undefined;
@@ -8,6 +12,52 @@ interface HeroBarProps {
   fearClass: string | null;
   latestMcap: number;
   recessionValue: number | null;
+  realtimePrices?: ReadonlyMap<string, RealtimePrice>;
+}
+
+/** Resolves the display price: real-time WebSocket data takes priority over API data. */
+function resolvePrice(
+  asset: CryptoAsset | undefined,
+  coinId: string,
+  realtimePrices?: ReadonlyMap<string, RealtimePrice>,
+): { price: number | null; change24h: number | null; isRealtime: boolean } {
+  const rt = realtimePrices?.get(coinId);
+  if (rt) {
+    return { price: rt.price, change24h: rt.change24h, isRealtime: true };
+  }
+  if (asset) {
+    return {
+      price: asset.current_price,
+      change24h: asset.price_change_percentage_24h,
+      isRealtime: false,
+    };
+  }
+  return { price: null, change24h: null, isRealtime: false };
+}
+
+/** Triggers a brief flash animation on a DOM element when its text content changes. */
+function usePriceFlash(value: number | null) {
+  const ref = useRef<HTMLDivElement>(null);
+  const prevRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (value === null || prevRef.current === null) {
+      prevRef.current = value;
+      return;
+    }
+
+    if (value !== prevRef.current && ref.current) {
+      const direction = value > prevRef.current ? "flash-green" : "flash-red";
+      ref.current.classList.remove("flash-green", "flash-red");
+      // Force reflow to restart animation
+      void ref.current.offsetWidth;
+      ref.current.classList.add(direction);
+    }
+
+    prevRef.current = value;
+  }, [value]);
+
+  return ref;
 }
 
 export function HeroBar({
@@ -17,7 +67,14 @@ export function HeroBar({
   fearClass,
   latestMcap,
   recessionValue,
+  realtimePrices,
 }: HeroBarProps) {
+  const btcResolved = resolvePrice(btc, "bitcoin", realtimePrices);
+  const ethResolved = resolvePrice(eth, "ethereum", realtimePrices);
+
+  const btcFlashRef = usePriceFlash(btcResolved.price);
+  const ethFlashRef = usePriceFlash(ethResolved.price);
+
   return (
     <section
       className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5"
@@ -26,16 +83,19 @@ export function HeroBar({
       {/* BTC */}
       <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-amber-500/10 via-card to-card p-4 card-elevated">
         <div className="text-xs font-medium text-muted-foreground">BTC</div>
-        <div className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums">
-          {btc ? formatCurrency(btc.current_price) : "—"}
+        <div
+          ref={btcFlashRef}
+          className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums"
+        >
+          {btcResolved.price !== null ? formatCurrency(btcResolved.price) : "—"}
         </div>
-        {btc && (
+        {btcResolved.change24h !== null && (
           <div
             className={`mt-0.5 text-xs font-semibold font-mono ${
-              btc.price_change_percentage_24h >= 0 ? "text-positive glow-positive" : "text-negative glow-negative"
+              btcResolved.change24h >= 0 ? "text-positive glow-positive" : "text-negative glow-negative"
             }`}
           >
-            {formatPercent(btc.price_change_percentage_24h)}
+            {formatPercent(btcResolved.change24h)}
           </div>
         )}
         <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-amber-500/10 blur-2xl" />
@@ -44,16 +104,19 @@ export function HeroBar({
       {/* ETH */}
       <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-blue-500/10 via-card to-card p-4 card-elevated">
         <div className="text-xs font-medium text-muted-foreground">ETH</div>
-        <div className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums">
-          {eth ? formatCurrency(eth.current_price) : "—"}
+        <div
+          ref={ethFlashRef}
+          className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums"
+        >
+          {ethResolved.price !== null ? formatCurrency(ethResolved.price) : "—"}
         </div>
-        {eth && (
+        {ethResolved.change24h !== null && (
           <div
             className={`mt-0.5 text-xs font-semibold font-mono ${
-              eth.price_change_percentage_24h >= 0 ? "text-positive glow-positive" : "text-negative glow-negative"
+              ethResolved.change24h >= 0 ? "text-positive glow-positive" : "text-negative glow-negative"
             }`}
           >
-            {formatPercent(eth.price_change_percentage_24h)}
+            {formatPercent(ethResolved.change24h)}
           </div>
         )}
         <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-blue-500/10 blur-2xl" />

@@ -2,11 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { QueryProvider } from "@/components/layout/QueryProvider";
+import { I18nProvider } from "@/lib/i18n";
 import { ToastProvider } from "@/components/ui/Toast";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import ScrollToTop from "@/components/ui/ScrollToTop";
 import Breadcrumb from "@/components/ui/Breadcrumb";
+import { PriceAlertProvider } from "@/components/providers/PriceAlertProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -78,27 +80,31 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} antialiased bg-background text-foreground`}
       >
-        <ThemeProvider>
-          <QueryProvider>
-            <ToastProvider>
-              {/* Skip to content for keyboard users */}
-              <a href="#main-content" className="skip-to-content">
-                본문으로 건너뛰기
-              </a>
+        <I18nProvider>
+          <ThemeProvider>
+            <QueryProvider>
+              <ToastProvider>
+                <PriceAlertProvider>
+                  {/* Skip to content for keyboard users */}
+                  <a href="#main-content" className="skip-to-content">
+                    본문으로 건너뛰기
+                  </a>
 
-              <Header />
+                  <Header />
 
-              <Breadcrumb />
+                  <Breadcrumb />
 
-              <main id="main-content" className="min-h-[calc(100vh-3rem)]" role="main">
-                {children}
-              </main>
+                  <main id="main-content" className="min-h-[calc(100vh-3rem)]" role="main">
+                    {children}
+                  </main>
 
-              <Footer />
-              <ScrollToTop />
-            </ToastProvider>
-          </QueryProvider>
-        </ThemeProvider>
+                  <Footer />
+                  <ScrollToTop />
+                </PriceAlertProvider>
+              </ToastProvider>
+            </QueryProvider>
+          </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );
