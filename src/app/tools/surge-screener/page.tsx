@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp,
@@ -188,44 +188,47 @@ export default function CryptoSurgeScreenerPage() {
               {filtered.map((r, idx) => {
                 const isExpanded = expandedSymbol === r.symbol;
                 return (
-                  <tr key={r.symbol} className="group">
-                    <td colSpan={9} className="p-0">
-                      <div
-                        className={`flex cursor-pointer items-center border-b border-border/50 transition-colors hover:bg-muted/30 ${isExpanded ? "bg-muted/20" : ""}`}
-                        onClick={() => setExpandedSymbol(isExpanded ? null : r.symbol)}
-                      >
-                        <div className="w-10 px-3 py-2.5 text-xs text-muted-foreground">{idx + 1}</div>
-                        <div className="w-12 px-3 py-2.5"><GradeBadge grade={r.grade} /></div>
-                        <div className="min-w-[120px] flex-1 px-3 py-2.5">
-                          <div className="font-semibold">{r.name}</div>
-                          <div className="text-[10px] text-muted-foreground">{r.symbol}</div>
-                        </div>
-                        <div className="w-24 px-3 py-2.5 text-right font-mono text-xs">{fmtPrice(r.price)}</div>
-                        <div className={`w-20 px-3 py-2.5 text-right font-mono text-xs font-semibold ${r.chg_7d >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          {r.chg_7d >= 0 ? "+" : ""}{r.chg_7d.toFixed(1)}%
-                        </div>
-                        <div className={`hidden w-20 px-3 py-2.5 text-right font-mono text-xs font-semibold md:block ${r.chg_30d >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          {r.chg_30d >= 0 ? "+" : ""}{r.chg_30d.toFixed(1)}%
-                        </div>
-                        <div className="w-16 px-3 py-2.5 text-center">
-                          <span className={`font-mono text-base font-black ${r.total >= 65 ? "text-orange-400" : r.total >= 50 ? "text-yellow-400" : "text-muted-foreground"}`}>
-                            {r.total}
-                          </span>
-                        </div>
-                        <div className="hidden w-48 space-y-1 px-3 py-2.5 lg:block">
-                          {CATS.map((c) => (
-                            <div key={c.key} className="flex items-center gap-1.5">
-                              <c.icon className="h-2.5 w-2.5 text-muted-foreground" />
-                              <ScoreBar value={r[c.key]} max={c.max} color={c.color} />
-                              <span className="w-5 text-right font-mono text-[10px] text-muted-foreground">{r[c.key]}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="w-8 px-2 py-2.5 text-muted-foreground">
-                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </div>
+                  <React.Fragment key={r.symbol}>
+                  <tr
+                    className={`cursor-pointer border-b border-border/50 transition-colors hover:bg-muted/30 ${isExpanded ? "bg-muted/20" : ""}`}
+                    onClick={() => setExpandedSymbol(isExpanded ? null : r.symbol)}
+                  >
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground">{idx + 1}</td>
+                    <td className="px-3 py-2.5"><GradeBadge grade={r.grade} /></td>
+                    <td className="px-3 py-2.5">
+                      <div className="font-semibold">{r.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{r.symbol}</div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono text-xs">{fmtPrice(r.price)}</td>
+                    <td className={`px-3 py-2.5 text-right font-mono text-xs font-semibold ${r.chg_7d >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {r.chg_7d >= 0 ? "+" : ""}{r.chg_7d.toFixed(1)}%
+                    </td>
+                    <td className={`hidden px-3 py-2.5 text-right font-mono text-xs font-semibold md:table-cell ${r.chg_30d >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {r.chg_30d >= 0 ? "+" : ""}{r.chg_30d.toFixed(1)}%
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <span className={`font-mono text-base font-black ${r.total >= 65 ? "text-orange-400" : r.total >= 50 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                        {r.total}
+                      </span>
+                    </td>
+                    <td className="hidden px-3 py-2.5 lg:table-cell">
+                      <div className="w-40 space-y-1">
+                        {CATS.map((c) => (
+                          <div key={c.key} className="flex items-center gap-1.5">
+                            <c.icon className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                            <ScoreBar value={r[c.key]} max={c.max} color={c.color} />
+                            <span className="w-5 shrink-0 text-right font-mono text-[10px] text-muted-foreground">{r[c.key]}</span>
+                          </div>
+                        ))}
                       </div>
-                      {isExpanded && (
+                    </td>
+                    <td className="px-2 py-2.5 text-muted-foreground">
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                  <tr>
+                    <td colSpan={9} className="p-0">
                         <div className="border-b border-border bg-card px-4 py-3 space-y-3">
                           {/* Mobile category bars */}
                           <div className="grid grid-cols-2 gap-2 lg:hidden">
@@ -275,9 +278,10 @@ export default function CryptoSurgeScreenerPage() {
                             </div>
                           )}
                         </div>
-                      )}
                     </td>
                   </tr>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
