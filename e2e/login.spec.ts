@@ -43,19 +43,19 @@ test.describe("Login page", () => {
     const loginButton = page.getByRole("button", { name: "로그인" });
     await loginButton.click();
 
-    const errorAlert = page.getByRole("alert");
+    const errorAlert = page.locator('p[role="alert"]');
     await expect(errorAlert).toBeVisible({ timeout: 10_000 });
-    await expect(errorAlert).toContainText("실패");
+    await expect(errorAlert).toContainText("비밀번호");
   });
 
   test("shows stats section with page and chart counts", async ({ page }) => {
     await expect(page.getByText("50+")).toBeVisible();
-    await expect(page.getByText("100+")).toBeVisible();
+    await expect(page.getByText("100+", { exact: true })).toBeVisible();
     await expect(page.getByText("분석 페이지")).toBeVisible();
   });
 
   test("shows footer with copyright", async ({ page }) => {
-    const footer = page.locator("footer");
+    const footer = page.locator("footer").first();
     await expect(footer).toContainText("BK INVESTMENT");
   });
 });

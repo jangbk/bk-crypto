@@ -11,8 +11,9 @@ export default function LoginLayout({
         muted
         loop
         playsInline
+        preload="none"
         poster="https://assets.mixkit.co/videos/12262/12262-thumb-720-0.jpg"
-        className="absolute inset-0 w-full h-[100vh] object-cover"
+        className="absolute inset-0 w-full h-[100vh] object-cover opacity-60"
       >
         <source
           src="https://assets.mixkit.co/videos/12262/12262-720.mp4"
