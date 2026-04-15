@@ -100,7 +100,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#030712]">
       {/* ─── Hero Section ─── */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden" aria-label="BK CRYPTO 소개">
         {/* Background effects */}
         <div className="absolute inset-0">
           <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-blue-500/10 blur-[120px]" />
@@ -205,8 +205,8 @@ export default function LoginPage() {
       </section>
 
       {/* ─── Features Grid ─── */}
-      <section className="relative mx-auto max-w-6xl px-4 py-16">
-        <h2 className="text-center text-2xl font-bold text-white/90 sm:text-3xl">
+      <section className="relative mx-auto max-w-6xl px-4 py-16" aria-labelledby="features-heading">
+        <h2 id="features-heading" className="text-center text-2xl font-bold text-white/90 sm:text-3xl">
           주요 기능
         </h2>
         <p className="mt-2 text-center text-sm text-white/40">

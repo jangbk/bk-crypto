@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Grid3X3, Clock, Loader2, RefreshCw } from "lucide-react";
 import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
-import * as d3 from "d3";
+import { hierarchy, treemap } from "d3-hierarchy";
+import type { HierarchyRectangularNode } from "d3-hierarchy";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,21 +152,19 @@ export default function CryptoHeatmapPage() {
       })),
     };
 
-    const root = d3
-      .hierarchy(hierarchyData)
+    const root = hierarchy(hierarchyData)
       .sum((d) => d.value ?? 0)
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
-    const treemap = d3
-      .treemap<TreeNode>()
+    const treemapLayout = treemap<TreeNode>()
       .size([dimensions.width, dimensions.height])
       .padding(2)
       .round(true);
 
-    treemap(root);
+    treemapLayout(root);
 
     return root.leaves().map((leaf) => {
-      const l = leaf as d3.HierarchyRectangularNode<TreeNode>;
+      const l = leaf as HierarchyRectangularNode<TreeNode>;
       return {
         x0: l.x0,
         y0: l.y0,

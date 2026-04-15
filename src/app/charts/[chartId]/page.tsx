@@ -1,7 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -21,6 +22,7 @@ import {
   type ChartInsightConfig, type ChartBand, type ChartAboutContent, type AssetRank,
 } from "@/data/chart-insights";
 import type { ChartPriceLine, OverlaySeries } from "@/components/dashboard/LightweightChartWrapper";
+import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
 
 const LightweightChartWrapper = dynamic(
   () => import("@/components/dashboard/LightweightChartWrapper"),
@@ -36,6 +38,206 @@ const LightweightChartWrapper = dynamic(
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "2Y", "All"] as const;
 
+type TimeValue = { time: string; value: number };
+
+interface ChartQueryData {
+  rawData: TimeValue[];
+  rawSecondary: TimeValue[];
+  secondaryLabel: string;
+  rawOverlays: OverlaySeries[];
+}
+
+function generateSampleData(chartId: string): TimeValue[] {
+  let hash = 0;
+  for (let i = 0; i < chartId.length; i++) {
+    hash = ((hash << 5) - hash + chartId.charCodeAt(i)) | 0;
+  }
+  hash = Math.abs(hash);
+
+  const days = 365;
+  const data: TimeValue[] = [];
+  let value = 100 + (hash % 900);
+  const now = new Date();
+
+  for (let i = days; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const noise =
+      Math.sin(i * 0.05 + hash) * 10 +
+      Math.sin(i * 0.02 + hash * 2) * 20 +
+      (Math.random() - 0.5) * 5;
+    value = Math.max(10, value + noise * 0.1);
+    data.push({
+      time: date.toISOString().split("T")[0],
+      value: Math.round(value * 100) / 100,
+    });
+  }
+  return data;
+}
+
+async function fetchChartData(
+  chartId: string,
+  chart: ReturnType<typeof getChartById>,
+  dualConfig: (typeof DUAL_CHART_CONFIG)[string] | null,
+): Promise<ChartQueryData> {
+  let rawData: TimeValue[] = [];
+  let rawSecondary: TimeValue[] = [];
+  let secondaryLabel = "";
+  const rawOverlays: OverlaySeries[] = [];
+
+  if (chart?.apiEndpoint) {
+    const params = new URLSearchParams(chart.apiParams || {});
+    const res = await fetch(`${chart.apiEndpoint}?${params}`);
+    const json = await res.json();
+
+    const metric = chart.apiParams?.metric;
+
+    // Always parse price data first (for dual-chart: top = price)
+    let priceData: TimeValue[] = [];
+    if (json.data && Array.isArray(json.data)) {
+      if (Array.isArray(json.data[0])) {
+        priceData = json.data.map(([ts, val]: [number, number]) => ({
+          time: new Date(ts).toISOString().split("T")[0],
+          value: val,
+        }));
+      } else if (json.data[0]?.date) {
+        priceData = json.data.map((d: { date: string; value: string }) => ({
+          time: d.date,
+          value: parseFloat(d.value),
+        }));
+      }
+    } else if (json.withStables?.data) {
+      priceData = json.withStables.data.map(([ts, val]: [number, number]) => ({
+        time: new Date(ts).toISOString().split("T")[0],
+        value: val,
+      }));
+    }
+
+    // For dual-chart indicators (mvrv): show price on top, indicator on bottom
+    if (dualConfig && metric === "mvrv" && json.indicator && Array.isArray(json.indicator)) {
+      rawData = priceData;
+      rawSecondary = json.indicator.map(([ts, val]: [number, number]) => ({
+        time: new Date(ts).toISOString().split("T")[0],
+        value: parseFloat(val.toFixed(3)),
+      }));
+      secondaryLabel = dualConfig.label;
+    }
+    // For single indicator charts (RSI, MACD): show only indicator
+    else if (metric && (metric === "rsi" || metric === "macd") && json.indicator && Array.isArray(json.indicator)) {
+      const indicatorData = json.indicator.map(([ts, val]: [number, number]) => ({
+        time: new Date(ts).toISOString().split("T")[0],
+        value: val,
+      }));
+      if (indicatorData.length > 0) {
+        rawData = indicatorData;
+      } else if (priceData.length > 0) {
+        rawData = priceData;
+      } else {
+        rawData = generateSampleData(chartId);
+      }
+    }
+    // Bollinger: show BTC price as main, bands as overlays
+    else if (metric === "bollinger" && json.middle && priceData.length > 0) {
+      rawData = priceData;
+    }
+    // Standard: just price
+    else if (priceData.length > 0) {
+      rawData = priceData;
+    } else {
+      rawData = generateSampleData(chartId);
+    }
+
+    // ── Parse model overlay data ──
+    const toChart = (arr: Array<[number, number]>) =>
+      arr.map(([ts, val]: [number, number]) => ({
+        time: new Date(ts).toISOString().split("T")[0],
+        value: val,
+      }));
+
+    // Comparison overlay (BTC vs Gold / S&P 500)
+    if (json.compareOverlay && Array.isArray(json.compareOverlay)) {
+      const compareColor = chartId === "btc-vs-gold-roi" ? "#F59E0B" : "#EF4444";
+      rawOverlays.push({ data: toChart(json.compareOverlay), color: compareColor, lineWidth: 2 });
+    }
+
+    // SMA overlays (50-day and 200-day moving averages)
+    if (json.sma50 && Array.isArray(json.sma50)) {
+      rawOverlays.push({ data: toChart(json.sma50), color: "#F59E0B", lineWidth: 2 }); // gold
+    }
+    if (json.sma200 && Array.isArray(json.sma200)) {
+      rawOverlays.push({ data: toChart(json.sma200), color: "#EF4444", lineWidth: 2 }); // red
+    }
+
+    // Bollinger bands (upper, middle, lower)
+    if (json.upper && json.middle && json.lower) {
+      rawOverlays.push({ data: toChart(json.upper), color: "#EF4444", lineWidth: 1 });
+      rawOverlays.push({ data: toChart(json.middle), color: "#60A5FA", lineWidth: 2 });
+      rawOverlays.push({ data: toChart(json.lower), color: "#10B981", lineWidth: 1 });
+    }
+
+    // Log regression bands (fair value + upper/lower ±2σ)
+    if (json.regressionMiddle) {
+      rawOverlays.push({ data: toChart(json.regressionMiddle), color: "#F87171", lineWidth: 2 });
+      rawOverlays.push({ data: toChart(json.regressionUpper), color: "#34D399", lineWidth: 1, lineStyle: 2 });
+      rawOverlays.push({ data: toChart(json.regressionLower), color: "#34D399", lineWidth: 1, lineStyle: 2 });
+    }
+
+    // Rainbow bands (9 colored lines)
+    const rainbowColors = ["#1a237e", "#1565c0", "#0097a7", "#00897b", "#43a047", "#fdd835", "#ff8f00", "#e65100", "#c62828"];
+    if (json.rainbow0) {
+      for (let b = 0; b < 9; b++) {
+        if (json[`rainbow${b}`]) {
+          rawOverlays.push({ data: toChart(json[`rainbow${b}`]), color: rainbowColors[b], lineWidth: 2 });
+        }
+      }
+    }
+
+    // S2F model line + color segments (halving cycle progress)
+    if (json.s2fModel) {
+      rawOverlays.push({ data: toChart(json.s2fModel), color: "#F59E0B", lineWidth: 2 });
+      // Color segments: blue → cyan → green → yellow → orange → red
+      const s2fSegColors = [
+        "#3B82F6", "#2563EB", "#0EA5E9", "#06B6D4",
+        "#10B981", "#22C55E", "#84CC16", "#EAB308",
+        "#F97316", "#EF4444",
+      ];
+      for (let s = 0; s < 10; s++) {
+        if (json[`s2fColor${s}`] && json[`s2fColor${s}`].length > 1) {
+          rawOverlays.push({ data: toChart(json[`s2fColor${s}`]), color: s2fSegColors[s], lineWidth: 3 });
+        }
+      }
+    }
+
+    // Power law corridor
+    if (json.powerlawMiddle) {
+      rawOverlays.push({ data: toChart(json.powerlawMiddle), color: "#A78BFA", lineWidth: 2 });
+      rawOverlays.push({ data: toChart(json.powerlawUpper), color: "#EF4444", lineWidth: 1 });
+      rawOverlays.push({ data: toChart(json.powerlawLower), color: "#10B981", lineWidth: 1 });
+    }
+  } else {
+    rawData = generateSampleData(chartId);
+  }
+
+  // Fear & Greed: fetch secondary data from separate API
+  if (dualConfig?.secondaryApi) {
+    try {
+      const secRes = await fetch(dualConfig.secondaryApi);
+      const secJson = await secRes.json();
+      if (secJson.data && Array.isArray(secJson.data)) {
+        rawSecondary = secJson.data.map((d: { date: string; value: number }) => ({
+          time: d.date,
+          value: d.value,
+        }));
+        secondaryLabel = dualConfig.label;
+      }
+    } catch {
+      // secondary fetch failed, just show price
+    }
+  }
+
+  return { rawData, rawSecondary, secondaryLabel, rawOverlays };
+}
+
 
 export default function ChartDetailPage() {
   const params = useParams();
@@ -47,15 +249,6 @@ export default function ChartDetailPage() {
   const [showMA, setShowMA] = useState(false);
   const [showRiskOverlay, setShowRiskOverlay] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
-  const [rawData, setRawData] = useState<
-    Array<{ time: string; value: number }>
-  >([]);
-  const [rawSecondary, setRawSecondary] = useState<
-    Array<{ time: string; value: number }>
-  >([]);
-  const [secondaryLabel, setSecondaryLabel] = useState("");
-  const [rawOverlays, setRawOverlays] = useState<OverlaySeries[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Fallback title from URL slug
   const chartTitle =
@@ -71,208 +264,21 @@ export default function ChartDetailPage() {
 
   const dualConfig = DUAL_CHART_CONFIG[chartId] || null;
 
-  // Fetch full data from API or generate sample (only on chartId change)
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      setRawSecondary([]);
-      setSecondaryLabel("");
-      setRawOverlays([]);
+  const {
+    data: queryData,
+    isLoading: loading,
+    isError,
+    refetch,
+  } = useQuery<ChartQueryData>({
+    queryKey: [chartId, period],
+    queryFn: () => fetchChartData(chartId, chart, dualConfig),
+    staleTime: 5 * 60 * 1000,
+  });
 
-      if (chart?.apiEndpoint) {
-        try {
-          const params = new URLSearchParams(chart.apiParams || {});
-          const res = await fetch(`${chart.apiEndpoint}?${params}`);
-          const json = await res.json();
-
-          const metric = chart.apiParams?.metric;
-
-          // Always parse price data first (for dual-chart: top = price)
-          let priceData: Array<{ time: string; value: number }> = [];
-          if (json.data && Array.isArray(json.data)) {
-            if (Array.isArray(json.data[0])) {
-              priceData = json.data.map(([ts, val]: [number, number]) => ({
-                time: new Date(ts).toISOString().split("T")[0],
-                value: val,
-              }));
-            } else if (json.data[0]?.date) {
-              priceData = json.data.map((d: { date: string; value: string }) => ({
-                time: d.date,
-                value: parseFloat(d.value),
-              }));
-            }
-          } else if (json.withStables?.data) {
-            priceData = json.withStables.data.map(([ts, val]: [number, number]) => ({
-              time: new Date(ts).toISOString().split("T")[0],
-              value: val,
-            }));
-          }
-
-          // For dual-chart indicators (mvrv): show price on top, indicator on bottom
-          if (dualConfig && metric === "mvrv" && json.indicator && Array.isArray(json.indicator)) {
-            setRawData(priceData);
-            setRawSecondary(
-              json.indicator.map(([ts, val]: [number, number]) => ({
-                time: new Date(ts).toISOString().split("T")[0],
-                value: parseFloat(val.toFixed(3)),
-              }))
-            );
-            setSecondaryLabel(dualConfig.label);
-          }
-          // For single indicator charts (RSI, MACD): show only indicator
-          else if (metric && (metric === "rsi" || metric === "macd") && json.indicator && Array.isArray(json.indicator)) {
-            const indicatorData = json.indicator.map(([ts, val]: [number, number]) => ({
-              time: new Date(ts).toISOString().split("T")[0],
-              value: val,
-            }));
-            if (indicatorData.length > 0) {
-              setRawData(indicatorData);
-            } else if (priceData.length > 0) {
-              setRawData(priceData);
-            } else {
-              generateSampleData();
-            }
-          }
-          // Bollinger: show BTC price as main, bands as overlays
-          else if (metric === "bollinger" && json.middle && priceData.length > 0) {
-            setRawData(priceData);
-          }
-          // Standard: just price
-          else if (priceData.length > 0) {
-            setRawData(priceData);
-          } else {
-            generateSampleData();
-          }
-
-          // ── Parse model overlay data ──
-          const toChart = (arr: Array<[number, number]>) =>
-            arr.map(([ts, val]: [number, number]) => ({
-              time: new Date(ts).toISOString().split("T")[0],
-              value: val,
-            }));
-          const newOverlays: OverlaySeries[] = [];
-
-          // Comparison overlay (BTC vs Gold / S&P 500)
-          if (json.compareOverlay && Array.isArray(json.compareOverlay)) {
-            const compareColor = chartId === "btc-vs-gold-roi" ? "#F59E0B" : "#EF4444";
-            newOverlays.push({ data: toChart(json.compareOverlay), color: compareColor, lineWidth: 2 });
-          }
-
-          // SMA overlays (50-day and 200-day moving averages)
-          if (json.sma50 && Array.isArray(json.sma50)) {
-            newOverlays.push({ data: toChart(json.sma50), color: "#F59E0B", lineWidth: 2 }); // gold
-          }
-          if (json.sma200 && Array.isArray(json.sma200)) {
-            newOverlays.push({ data: toChart(json.sma200), color: "#EF4444", lineWidth: 2 }); // red
-          }
-
-          // Bollinger bands (upper, middle, lower)
-          if (json.upper && json.middle && json.lower) {
-            newOverlays.push({ data: toChart(json.upper), color: "#EF4444", lineWidth: 1 });
-            newOverlays.push({ data: toChart(json.middle), color: "#60A5FA", lineWidth: 2 });
-            newOverlays.push({ data: toChart(json.lower), color: "#10B981", lineWidth: 1 });
-          }
-
-          // Log regression bands (fair value + upper/lower ±2σ)
-          if (json.regressionMiddle) {
-            newOverlays.push({ data: toChart(json.regressionMiddle), color: "#F87171", lineWidth: 2 });
-            newOverlays.push({ data: toChart(json.regressionUpper), color: "#34D399", lineWidth: 1, lineStyle: 2 });
-            newOverlays.push({ data: toChart(json.regressionLower), color: "#34D399", lineWidth: 1, lineStyle: 2 });
-          }
-
-          // Rainbow bands (9 colored lines)
-          const rainbowColors = ["#1a237e", "#1565c0", "#0097a7", "#00897b", "#43a047", "#fdd835", "#ff8f00", "#e65100", "#c62828"];
-          if (json.rainbow0) {
-            for (let b = 0; b < 9; b++) {
-              if (json[`rainbow${b}`]) {
-                newOverlays.push({ data: toChart(json[`rainbow${b}`]), color: rainbowColors[b], lineWidth: 2 });
-              }
-            }
-          }
-
-          // S2F model line + color segments (halving cycle progress)
-          if (json.s2fModel) {
-            newOverlays.push({ data: toChart(json.s2fModel), color: "#F59E0B", lineWidth: 2 });
-            // Color segments: blue → cyan → green → yellow → orange → red
-            const s2fSegColors = [
-              "#3B82F6", "#2563EB", "#0EA5E9", "#06B6D4",
-              "#10B981", "#22C55E", "#84CC16", "#EAB308",
-              "#F97316", "#EF4444",
-            ];
-            for (let s = 0; s < 10; s++) {
-              if (json[`s2fColor${s}`] && json[`s2fColor${s}`].length > 1) {
-                newOverlays.push({ data: toChart(json[`s2fColor${s}`]), color: s2fSegColors[s], lineWidth: 3 });
-              }
-            }
-          }
-
-          // Power law corridor
-          if (json.powerlawMiddle) {
-            newOverlays.push({ data: toChart(json.powerlawMiddle), color: "#A78BFA", lineWidth: 2 });
-            newOverlays.push({ data: toChart(json.powerlawUpper), color: "#EF4444", lineWidth: 1 });
-            newOverlays.push({ data: toChart(json.powerlawLower), color: "#10B981", lineWidth: 1 });
-          }
-
-          if (newOverlays.length > 0) setRawOverlays(newOverlays);
-        } catch {
-          generateSampleData();
-        }
-      } else {
-        generateSampleData();
-      }
-
-      // Fear & Greed: fetch secondary data from separate API
-      if (dualConfig && dualConfig.secondaryApi) {
-        try {
-          const secRes = await fetch(dualConfig.secondaryApi);
-          const secJson = await secRes.json();
-          if (secJson.data && Array.isArray(secJson.data)) {
-            const secData = secJson.data.map((d: { date: string; value: number }) => ({
-              time: d.date,
-              value: d.value,
-            }));
-            setRawSecondary(secData);
-            setSecondaryLabel(dualConfig.label);
-          }
-        } catch {
-          // secondary fetch failed, just show price
-        }
-      }
-
-      setLoading(false);
-    }
-
-    function generateSampleData() {
-      let hash = 0;
-      for (let i = 0; i < chartId.length; i++) {
-        hash = ((hash << 5) - hash + chartId.charCodeAt(i)) | 0;
-      }
-      hash = Math.abs(hash);
-
-      const days = 365;
-      const data: Array<{ time: string; value: number }> = [];
-      let value = 100 + (hash % 900);
-      const now = new Date();
-
-      for (let i = days; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - i);
-        const noise =
-          Math.sin(i * 0.05 + hash) * 10 +
-          Math.sin(i * 0.02 + hash * 2) * 20 +
-          (Math.random() - 0.5) * 5;
-        value = Math.max(10, value + noise * 0.1);
-        data.push({
-          time: date.toISOString().split("T")[0],
-          value: Math.round(value * 100) / 100,
-        });
-      }
-      setRawData(data);
-    }
-
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartId]);
+  const rawData = queryData?.rawData ?? [];
+  const rawSecondary = queryData?.rawSecondary ?? [];
+  const secondaryLabel = queryData?.secondaryLabel ?? "";
+  const rawOverlays = queryData?.rawOverlays ?? [];
 
   // Filter data by selected period
   const filterByPeriod = (data: Array<{ time: string; value: number }>) => {
@@ -469,6 +475,12 @@ export default function ChartDetailPage() {
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="h-[480px] flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      ) : isError ? (
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="h-[480px] flex items-center justify-center">
+            <QueryErrorBox message="차트 데이터를 불러오지 못했습니다." onRetry={() => refetch()} />
           </div>
         </div>
       ) : secondaryData.length > 0 ? (
