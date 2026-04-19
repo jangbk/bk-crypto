@@ -172,7 +172,7 @@ export async function getBithumbBotData() {
       description: "EMA 15/60 + MA200 하락장 필터 + ADX + RSI + ATR 동적손절 — ChatGPT 4차 리뷰 완료",
       asset: "BTC/KRW",
       exchange: "Bithumb",
-      status: "active" as const,
+      status: "stopped" as const,
       startDate: trades.length
         ? trades[trades.length - 1].time.split(" ")[0]
         : BOT_START,

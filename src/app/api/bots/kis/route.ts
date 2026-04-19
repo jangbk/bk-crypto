@@ -216,7 +216,7 @@ export async function getKisBotData() {
       description: "RSI 14 + MACD 12/26/9 전략",
       asset: WATCHLIST.map((w) => w.name).join(", "),
       exchange: "한국투자증권",
-      status: "active" as const,
+      status: "stopped" as const,
       startDate: trades.length
         ? trades[trades.length - 1].time.split(" ")[0]
         : "2025-04-01",

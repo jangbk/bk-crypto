@@ -55,7 +55,7 @@ async function fetchBotData(): Promise<{ strategies: BotStrategy[]; timestamp: s
         ...base,
         currentValue: ls.currentValue,
         totalReturn: ls.totalReturn,
-        status: ls.status === "running" ? "active" as const : base.status,
+        status: "stopped" as const,
       };
     }
     return base;

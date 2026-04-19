@@ -116,7 +116,7 @@ export async function getBybitSMCData() {
       name: "LuxAlgo SMC Hybrid v1",
       asset: "BTC/USDT",
       exchange: "Bybit (Demo)",
-      status: position ? "active" : "paused",
+      status: "stopped",
       walletBalance,
       unrealisedPnl,
       currentPrice,

@@ -146,7 +146,7 @@ export async function getCoinoneBotData() {
       description: "EMA100 + ATR 밴드 + MA200 하락장 필터 + RSI + ROC20 + 3단계 청산",
       asset: "BTC/KRW",
       exchange: "Coinone",
-      status: "active" as const,
+      status: "stopped" as const,
       startDate: trades.length
         ? trades[trades.length - 1].time.split("T")[0]
         : "2026-01-20",
