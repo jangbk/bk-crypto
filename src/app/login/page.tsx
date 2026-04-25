@@ -12,6 +12,10 @@ import {
   Brain,
   Activity,
   PieChart,
+  Waves,
+  Percent,
+  Sparkles,
+  Gauge,
 } from "lucide-react";
 
 const FEATURES = [
@@ -62,6 +66,30 @@ const FEATURES = [
     title: "파생상품 분석",
     desc: "펀딩레이트, 청산맵, 옵션플로우, CME 갭 분석",
     color: "from-teal-500 to-emerald-500",
+  },
+  {
+    icon: Waves,
+    title: "고래·온체인 추적",
+    desc: "고래 지갑 이동, 거래소 유입/유출, 스테이블코인 흐름 모니터링",
+    color: "from-sky-500 to-blue-500",
+  },
+  {
+    icon: Percent,
+    title: "DeFi 수익률",
+    desc: "프로토콜별 스테이킹·LP·대출 APY를 실시간 비교",
+    color: "from-lime-500 to-emerald-500",
+  },
+  {
+    icon: Sparkles,
+    title: "AI 가격 예측",
+    desc: "TimesFM 기반 시계열 예측과 Claude 센티먼트 분석 통합",
+    color: "from-fuchsia-500 to-pink-500",
+  },
+  {
+    icon: Gauge,
+    title: "센티먼트 & F&G",
+    desc: "공포·탐욕 지수, 소셜 센티먼트, 뉴스 톤 종합 감성 지표",
+    color: "from-rose-500 to-orange-500",
   },
 ];
 
