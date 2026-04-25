@@ -150,7 +150,7 @@ export default function LoginPage() {
                   BK CRYPTO
                 </span>
                 <br />
-                <span className="text-white/90">투자 분석 플랫폼</span>
+                <span className="text-white/90">암호화폐 투자정보 플랫폼</span>
               </h1>
 
               <p className="mt-5 max-w-lg text-lg leading-relaxed text-white/50">
