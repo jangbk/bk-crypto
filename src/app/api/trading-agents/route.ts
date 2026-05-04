@@ -1,39 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-sonnet-4-20250514";
+import { generateText, aiErrorMessage, isAiConfigured, type AiError } from "@/lib/ai-provider";
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
+  if (!isAiConfigured()) {
+    return NextResponse.json({ error: "AI provider not configured (GEMINI_API_KEY or ANTHROPIC_API_KEY required)" }, { status: 503 });
   }
 
   try {
     const { system, user } = await req.json();
-
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1000,
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
+    const text = await generateText({
+      systemPrompt: system,
+      userPrompt: user,
+      maxTokens: 1000,
     });
-
-    const data = await res.json();
-    if (!res.ok) {
-      return NextResponse.json({ error: data.error?.message || "Claude API Error" }, { status: res.status });
-    }
-
-    return NextResponse.json({ text: data.content?.[0]?.text || "" });
+    return NextResponse.json({ text });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    const { message, status } = aiErrorMessage(err as AiError);
+    return NextResponse.json({ error: message }, { status });
   }
 }

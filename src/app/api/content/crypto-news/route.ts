@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import Anthropic from "@anthropic-ai/sdk";
+import { generateText } from "@/lib/ai-provider";
 import { ollamaChat } from "@/lib/ollama";
 
 // ---------------------------------------------------------------------------
@@ -216,22 +216,19 @@ ${listText}`;
       console.log("[crypto-news] Gemma 4 로컬 사용 (무료)");
     }
 
-    // 2차: Claude 폴백 (유료)
+    // 2차: Gemini > Anthropic 폴백 (provider 자동 선택)
     if (!rawText) {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) return new Map();
-
-      const client = new Anthropic({ apiKey });
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 4096,
-        messages: [{ role: "user", content: prompt }],
-      });
-
-      const textBlock = response.content.find((b) => b.type === "text");
-      if (!textBlock || textBlock.type !== "text") return new Map();
-      rawText = textBlock.text;
-      console.log("[crypto-news] Claude 폴백 사용 (유료)");
+      try {
+        rawText = await generateText({
+          userPrompt: prompt,
+          maxTokens: 4096,
+          jsonMode: true,
+        });
+        console.log("[crypto-news] AI 폴백 사용");
+      } catch {
+        return new Map();
+      }
+      if (!rawText) return new Map();
     }
 
     let jsonStr = rawText.trim();

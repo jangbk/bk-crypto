@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ollamaChat } from "@/lib/ollama";
+import { generateText } from "@/lib/ai-provider";
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6시간 캐시
 
 let cachedData: { data: unknown; timestamp: number } | null = null;
@@ -96,32 +96,21 @@ async function fetchLatestPolicies() {
     }
   }
 
-  // 2차: Claude 폴백 (유료)
-  const apiKey = ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 8000,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
-
-  if (!res.ok) {
-    console.error("Claude API error:", res.status, await res.text().catch(() => ""));
+  // 2차: Gemini > Anthropic 폴백 (provider 자동 선택)
+  let text = "";
+  try {
+    text = await generateText({
+      systemPrompt,
+      userPrompt,
+      maxTokens: 8000,
+      temperature: 0.5,
+      jsonMode: true,
+    });
+    console.log("[crypto-policy] AI 폴백 사용");
+  } catch (e) {
+    console.error("[crypto-policy] AI provider error:", e);
     return null;
   }
-  const data = await res.json();
-  const text = data.content?.[0]?.text || "";
-  console.log("[crypto-policy] Claude 폴백 사용 (유료)");
 
   try {
     return JSON.parse(text.replace(/```(?:json)?|```/g, "").trim());
