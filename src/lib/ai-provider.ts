@@ -122,9 +122,25 @@ async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
     throw err;
   }
   const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    candidates?: {
+      content?: { parts?: { text?: string }[] };
+      finishReason?: string;
+    }[];
   };
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.[0]?.text;
+  if (!text) {
+    const reason = candidate?.finishReason ?? "UNKNOWN";
+    console.warn(`[gemini] empty response model=${model} reason=${reason}`);
+    // MAX_TOKENS (thinking 다 먹음) 면 명시적 에러로 throw → per-call Anthropic 폴백 trigger
+    if (reason === "MAX_TOKENS") {
+      const err = new Error(`Gemini empty response (MAX_TOKENS, model=${model})`) as AiError;
+      err.status = 500;
+      err.innerType = "max_tokens";
+      throw err;
+    }
+  }
+  return text ?? "";
 }
 
 async function callAnthropic(apiKey: string, opts: AiOptions): Promise<string> {
