@@ -66,7 +66,6 @@ export async function generateText(opts: AiOptions): Promise<string> {
       return await callGeminiWithRetry(geminiKey, opts);
     } catch (e) {
       const ae = e as AiError;
-      console.warn(`[ai] G:${ae.status ?? "?"} ${ae.innerType ?? "?"} ${(ae.innerMessage ?? ae.message ?? "").slice(0, 160)}`);
       if (!isRetryable(ae)) throw e;
       // 2. Gemma 폴백
       if (gemmaUrl) {
@@ -74,31 +73,14 @@ export async function generateText(opts: AiOptions): Promise<string> {
           return await callGemma(gemmaUrl, opts);
         } catch (eg) {
           const aeg = eg as AiError;
-          console.warn(`[ai] M:${aeg.status ?? "?"} ${aeg.innerType ?? "?"} ${(aeg.innerMessage ?? aeg.message ?? "").slice(0, 160)}`);
           if (!isRetryable(aeg)) throw eg;
           // 3. Anthropic 폴백
-          if (anthropicKey) {
-            try {
-              return await callAnthropic(anthropicKey, opts);
-            } catch (ea) {
-              const aea = ea as AiError;
-              console.warn(`[ai] A:${aea.status ?? "?"} ${aea.innerType ?? "?"} ${(aea.innerMessage ?? aea.message ?? "").slice(0, 160)}`);
-              throw ea;
-            }
-          }
+          if (anthropicKey) return await callAnthropic(anthropicKey, opts);
           throw eg;
         }
       }
       // Gemma 미설정: Anthropic 직행
-      if (anthropicKey) {
-        try {
-          return await callAnthropic(anthropicKey, opts);
-        } catch (ea) {
-          const aea = ea as AiError;
-          console.warn(`[ai] A:${aea.status ?? "?"} ${aea.innerType ?? "?"} ${(aea.innerMessage ?? aea.message ?? "").slice(0, 160)}`);
-          throw ea;
-        }
-      }
+      if (anthropicKey) return await callAnthropic(anthropicKey, opts);
       throw e;
     }
   }
@@ -109,22 +91,13 @@ export async function generateText(opts: AiOptions): Promise<string> {
       return await callGemma(gemmaUrl, opts);
     } catch (e) {
       const ae = e as AiError;
-      console.warn(`[ai] M-only:${ae.status ?? "?"} ${ae.innerType ?? "?"} ${(ae.innerMessage ?? ae.message ?? "").slice(0, 160)}`);
       if (!isRetryable(ae) || !anthropicKey) throw e;
       return await callAnthropic(anthropicKey, opts);
     }
   }
 
   // Anthropic 단독
-  if (anthropicKey) {
-    try {
-      return await callAnthropic(anthropicKey, opts);
-    } catch (e) {
-      const ae = e as AiError;
-      console.warn(`[ai] A-only:${ae.status ?? "?"} ${ae.innerType ?? "?"} ${(ae.innerMessage ?? ae.message ?? "").slice(0, 160)}`);
-      throw e;
-    }
-  }
+  if (anthropicKey) return await callAnthropic(anthropicKey, opts);
 
   const err = new Error("AI provider not configured (GEMINI_API_KEY, GEMMA_URL, or ANTHROPIC_API_KEY required)") as AiError;
   err.status = 503;
