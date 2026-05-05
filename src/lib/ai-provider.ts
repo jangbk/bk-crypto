@@ -27,6 +27,7 @@ export interface AiError extends Error {
   status?: number;
   innerType?: string;
   innerMessage?: string;
+  retryAfterMs?: number;
 }
 
 const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
@@ -38,10 +39,21 @@ const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
  */
 export async function generateText(opts: AiOptions): Promise<string> {
   const geminiKey = process.env.GEMINI_API_KEY;
-  if (geminiKey) {
-    return await callGemini(geminiKey, opts);
-  }
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+  if (geminiKey) {
+    try {
+      return await callGeminiWithRetry(geminiKey, opts);
+    } catch (e) {
+      const ae = e as AiError;
+      // Per-call fallback: Gemini 429/5xx → Anthropic for THIS call (if configured)
+      const isRetryable = ae.status === 429 || (ae.status ?? 0) >= 500 || ae.innerType === "rate_limit_error" || ae.innerType === "overloaded_error";
+      if (isRetryable && anthropicKey) {
+        return await callAnthropic(anthropicKey, opts);
+      }
+      throw e;
+    }
+  }
   if (anthropicKey) {
     return await callAnthropic(anthropicKey, opts);
   }
@@ -49,6 +61,21 @@ export async function generateText(opts: AiOptions): Promise<string> {
   err.status = 503;
   err.innerType = "config_error";
   throw err;
+}
+
+async function callGeminiWithRetry(apiKey: string, opts: AiOptions): Promise<string> {
+  try {
+    return await callGemini(apiKey, opts);
+  } catch (e) {
+    const ae = e as AiError;
+    // Single retry on 429: honor Retry-After if present, else 8s + jitter
+    if (ae.status === 429) {
+      const wait = ae.retryAfterMs ?? 8000 + Math.floor(Math.random() * 2000);
+      await new Promise((r) => setTimeout(r, wait));
+      return await callGemini(apiKey, opts);
+    }
+    throw e;
+  }
 }
 
 async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
@@ -76,6 +103,13 @@ async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
     err.status = res.status;
     err.innerType = res.status === 429 ? "rate_limit_error" : "api_error";
     err.innerMessage = text.slice(0, 300);
+    const ra = res.headers.get("retry-after");
+    if (ra) {
+      const seconds = Number(ra);
+      if (Number.isFinite(seconds) && seconds > 0) {
+        err.retryAfterMs = Math.min(60000, Math.max(1000, seconds * 1000));
+      }
+    }
     throw err;
   }
   const data = (await res.json()) as {

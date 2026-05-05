@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const text = await generateText({
       systemPrompt: system,
       userPrompt: user,
-      maxTokens: 1000,
+      maxTokens: 2500,
     });
     return NextResponse.json({ text });
   } catch (err) {

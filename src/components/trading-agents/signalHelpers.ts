@@ -61,17 +61,31 @@ export function detectRegime(ch: number | null) {
 }
 
 /* ══════════════════════════════════════════════════
-   API
+   API — paced caller (Gemini free tier 15 RPM safe)
 ══════════════════════════════════════════════════ */
-export async function callClaude(system: string, user: string) {
-  const res = await fetch("/api/trading-agents", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ system, user }),
+// Serialize all calls and enforce a minimum spacing between them.
+// Any concurrent Promise.all([...]) is auto-serialized via the chain.
+const MIN_INTERVAL_MS = 4000;
+let lastCallStart = 0;
+let callQueue: Promise<unknown> = Promise.resolve();
+
+export function callClaude(system: string, user: string): Promise<string> {
+  const next = callQueue.then(async () => {
+    const wait = MIN_INTERVAL_MS - (Date.now() - lastCallStart);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastCallStart = Date.now();
+    const res = await fetch("/api/trading-agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system, user }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "API Error");
+    return (data.text || "") as string;
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "API Error");
-  return data.text || "";
+  // Don't break the chain if one call rejects — subsequent calls can still be paced.
+  callQueue = next.catch(() => undefined);
+  return next;
 }
 
 export async function fetchMarketData() {
