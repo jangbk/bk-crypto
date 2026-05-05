@@ -49,16 +49,29 @@ export async function generateText(opts: AiOptions): Promise<string> {
       return await callGeminiWithRetry(geminiKey, opts);
     } catch (e) {
       const ae = e as AiError;
+      console.warn(`[ai-provider] gemini failed status=${ae.status} type=${ae.innerType} msg=${(ae.innerMessage ?? ae.message ?? "").slice(0, 200)}`);
       // Per-call fallback: Gemini 429/5xx → Anthropic for THIS call (if configured)
       const isRetryable = ae.status === 429 || (ae.status ?? 0) >= 500 || ae.innerType === "rate_limit_error" || ae.innerType === "overloaded_error";
       if (isRetryable && anthropicKey) {
-        return await callAnthropic(anthropicKey, opts);
+        try {
+          return await callAnthropic(anthropicKey, opts);
+        } catch (ae2) {
+          const ae2t = ae2 as AiError;
+          console.warn(`[ai-provider] anthropic-fallback failed status=${ae2t.status} type=${ae2t.innerType} msg=${(ae2t.innerMessage ?? ae2t.message ?? "").slice(0, 200)}`);
+          throw ae2;
+        }
       }
       throw e;
     }
   }
   if (anthropicKey) {
-    return await callAnthropic(anthropicKey, opts);
+    try {
+      return await callAnthropic(anthropicKey, opts);
+    } catch (e) {
+      const ae = e as AiError;
+      console.warn(`[ai-provider] anthropic-only failed status=${ae.status} type=${ae.innerType} msg=${(ae.innerMessage ?? ae.message ?? "").slice(0, 200)}`);
+      throw e;
+    }
   }
   const err = new Error("AI provider not configured (GEMINI_API_KEY or ANTHROPIC_API_KEY required)") as AiError;
   err.status = 503;
