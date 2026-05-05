@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       systemPrompt: system,
       userPrompt: user,
       maxTokens: 2500,
-      geminiModel: "gemini-2.0-flash",
+      geminiModel: "gemini-2.5-flash",
       anthropicModel: "claude-sonnet-4-5-20250929",
     });
     return NextResponse.json({ text });

@@ -33,7 +33,10 @@ export interface AiError extends Error {
   retryAfterMs?: number;
 }
 
-const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
+// gemini-flash-latest alias 가 thinking 모델로 redirect되어 긴 prompt 빈 응답 +
+// gemini-2.0-flash / gemini-pro-* 는 무료 tier limit=0 (Google 차단).
+// 검증된 무료 작동 모델: gemini-2.5-flash, gemini-2.5-flash-lite.
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
 
 /**
@@ -49,29 +52,16 @@ export async function generateText(opts: AiOptions): Promise<string> {
       return await callGeminiWithRetry(geminiKey, opts);
     } catch (e) {
       const ae = e as AiError;
-      console.warn(`[ai-provider] gemini failed status=${ae.status} type=${ae.innerType} msg=${(ae.innerMessage ?? ae.message ?? "").slice(0, 200)}`);
       // Per-call fallback: Gemini 429/5xx → Anthropic for THIS call (if configured)
       const isRetryable = ae.status === 429 || (ae.status ?? 0) >= 500 || ae.innerType === "rate_limit_error" || ae.innerType === "overloaded_error";
       if (isRetryable && anthropicKey) {
-        try {
-          return await callAnthropic(anthropicKey, opts);
-        } catch (ae2) {
-          const ae2t = ae2 as AiError;
-          console.warn(`[ai-provider] anthropic-fallback failed status=${ae2t.status} type=${ae2t.innerType} msg=${(ae2t.innerMessage ?? ae2t.message ?? "").slice(0, 200)}`);
-          throw ae2;
-        }
+        return await callAnthropic(anthropicKey, opts);
       }
       throw e;
     }
   }
   if (anthropicKey) {
-    try {
-      return await callAnthropic(anthropicKey, opts);
-    } catch (e) {
-      const ae = e as AiError;
-      console.warn(`[ai-provider] anthropic-only failed status=${ae.status} type=${ae.innerType} msg=${(ae.innerMessage ?? ae.message ?? "").slice(0, 200)}`);
-      throw e;
-    }
+    return await callAnthropic(anthropicKey, opts);
   }
   const err = new Error("AI provider not configured (GEMINI_API_KEY or ANTHROPIC_API_KEY required)") as AiError;
   err.status = 503;
