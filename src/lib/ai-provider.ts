@@ -85,7 +85,8 @@ async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
   const model = opts.geminiModel ?? DEFAULT_GEMINI_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   // Gemini 2.5+ pro/flash 는 thinking 토큰 소비 — thinkingBudget=0 으로 비활성화하면
-  // maxOutputTokens 가 답변 출력에만 사용됨. 빈 응답("Empty text") 방지.
+  // 빠른 응답 + maxOutputTokens 답변 전용. trading-agents 처럼 추론 강화 원하면
+  // 옵션으로 budget 조정 가능 (현재는 일괄 0 으로 호환성 우선).
   const isThinkingCapable = /pro|2\.5|2-5|3\.|3-/.test(model);
   const body: Record<string, unknown> = {
     contents: [{ role: "user", parts: [{ text: opts.userPrompt }] }],
