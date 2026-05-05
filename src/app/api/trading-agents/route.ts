@@ -8,10 +8,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const { system, user } = await req.json();
+    // 다중 agent 협업 분석이라 강한 추론 필요 → Gemini Pro 사용 (Flash 보다 품질↑)
     const text = await generateText({
       systemPrompt: system,
       userPrompt: user,
       maxTokens: 2500,
+      geminiModel: "gemini-pro-latest",
+      anthropicModel: "claude-sonnet-4-5-20250929",
     });
     return NextResponse.json({ text });
   } catch (err) {

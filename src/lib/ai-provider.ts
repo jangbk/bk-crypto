@@ -19,6 +19,9 @@ export interface AiOptions {
   maxTokens?: number;
   temperature?: number;
   jsonMode?: boolean;  // Gemini responseMimeType=application/json (JSON 출력 강제)
+  // Gemini 모델 override. 기본 gemini-flash-latest (속도·무료 tier 풍부).
+  // 강한 추론 필요한 경우 'gemini-pro-latest' 권장 (분당 25 RPM, 1.5M tok/day 무료).
+  geminiModel?: string;
   // Anthropic 폴백 시 사용할 모델. 기본 sonnet-4-6.
   anthropicModel?: string;
 }
@@ -79,7 +82,8 @@ async function callGeminiWithRetry(apiKey: string, opts: AiOptions): Promise<str
 }
 
 async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const model = opts.geminiModel ?? DEFAULT_GEMINI_MODEL;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const body: Record<string, unknown> = {
     contents: [{ role: "user", parts: [{ text: opts.userPrompt }] }],
     generationConfig: {
