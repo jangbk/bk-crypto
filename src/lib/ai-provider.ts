@@ -84,11 +84,15 @@ async function callGeminiWithRetry(apiKey: string, opts: AiOptions): Promise<str
 async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
   const model = opts.geminiModel ?? DEFAULT_GEMINI_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  // Gemini 2.5+ pro/flash 는 thinking 토큰 소비 — thinkingBudget=0 으로 비활성화하면
+  // maxOutputTokens 가 답변 출력에만 사용됨. 빈 응답("Empty text") 방지.
+  const isThinkingCapable = /pro|2\.5|2-5|3\.|3-/.test(model);
   const body: Record<string, unknown> = {
     contents: [{ role: "user", parts: [{ text: opts.userPrompt }] }],
     generationConfig: {
       temperature: opts.temperature ?? 0.7,
       maxOutputTokens: opts.maxTokens ?? 4000,
+      ...(isThinkingCapable ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
       ...(opts.jsonMode ? { responseMimeType: "application/json" } : {}),
     },
   };
