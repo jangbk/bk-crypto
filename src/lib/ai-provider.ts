@@ -183,10 +183,20 @@ export function aiErrorMessage(e: AiError): { message: string; status: number } 
     return { message: "AI API 인증 실패. 관리자에게 키 설정 확인을 요청해주세요.", status: 503 };
   }
   if (e.status === 400 && /credit|balance/i.test(msg)) {
-    return { message: "AI 크레딧이 부족합니다. GEMINI_API_KEY 추가 또는 Anthropic 충전이 필요합니다.", status: 503 };
+    return {
+      message:
+        "AI 호출 한도 초과 — Gemini 무료 quota 소진 + Anthropic 크레딧 부족. " +
+        "1~2분 후 재시도하거나, Anthropic 소액 충전 또는 Gemini 유료 tier 전환이 필요합니다.",
+      status: 503,
+    };
   }
   if (e.status === 429 || inner === "rate_limit_error") {
-    return { message: "AI 호출이 일시적으로 제한됐습니다. 1~2분 뒤 다시 시도해주세요.", status: 503 };
+    return {
+      message:
+        "AI 호출이 일시적으로 제한됐습니다 (Gemini 분당/일일 quota). " +
+        "1~2분 후 또는 PT 자정(KST 16~17시) 이후 재시도해주세요.",
+      status: 503,
+    };
   }
   if ((e.status ?? 0) >= 500 || inner === "overloaded_error") {
     return { message: "AI 서비스가 일시적으로 응답하지 않습니다.", status: 503 };
