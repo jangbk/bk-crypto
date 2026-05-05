@@ -84,16 +84,16 @@ async function callGeminiWithRetry(apiKey: string, opts: AiOptions): Promise<str
 async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
   const model = opts.geminiModel ?? DEFAULT_GEMINI_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  // Gemini 2.5+ pro/flash 는 thinking 토큰 소비 — thinkingBudget=0 으로 비활성화하면
-  // 빠른 응답 + maxOutputTokens 답변 전용. trading-agents 처럼 추론 강화 원하면
-  // 옵션으로 budget 조정 가능 (현재는 일괄 0 으로 호환성 우선).
+  // Gemini 2.5+ thinking 모델은 maxOutputTokens 가 thinking + 답변 합산.
+  // 빈 응답 방지 위해 maxTokens 자동 2배 (요청 4000 → 8000).
   const isThinkingCapable = /pro|2\.5|2-5|3\.|3-/.test(model);
+  const requestedMax = opts.maxTokens ?? 4000;
+  const effectiveMax = isThinkingCapable ? requestedMax * 2 : requestedMax;
   const body: Record<string, unknown> = {
     contents: [{ role: "user", parts: [{ text: opts.userPrompt }] }],
     generationConfig: {
       temperature: opts.temperature ?? 0.7,
-      maxOutputTokens: opts.maxTokens ?? 4000,
-      ...(isThinkingCapable ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      maxOutputTokens: effectiveMax,
       ...(opts.jsonMode ? { responseMimeType: "application/json" } : {}),
     },
   };
