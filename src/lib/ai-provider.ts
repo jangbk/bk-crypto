@@ -1,14 +1,15 @@
 /**
- * AI provider abstraction (Gemini > Anthropic 우선순위 폴백).
+ * AI provider abstraction (Gemini > Gemma > Anthropic 폴백 체인).
  *
- * 사용 이유: Anthropic 크레딧 부족 시에도 무료 Gemini 1.5 Flash 로 자동 폴백.
+ * 사용 이유: 각 제공자 quota/잔액 소진 시에도 자동 폴백.
  * 우선순위:
- *   1. GEMINI_API_KEY (Google AI Studio, 무료 1500 req/day)
- *   2. ANTHROPIC_API_KEY (claude-haiku-4-5 / sonnet-4-6)
- *   3. AI_NOT_CONFIGURED 에러
+ *   1. GEMINI_API_KEY (Google AI Studio, 무료 tier)
+ *   2. GEMMA_URL (Mac Mini MLX 로컬, Cloudflare Tunnel 노출, OpenAI chat/completions 포맷)
+ *   3. ANTHROPIC_API_KEY (claude-sonnet-4-5)
+ *   4. AI_NOT_CONFIGURED 에러
  *
- * Gemini 와 Anthropic 응답 모두 plain text 로 통일 반환. JSON 모드는 호출처가
- * jsonMode=true 지정 시 Gemini 측 responseMimeType 적용.
+ * 본업 trading-system shared/llm_client.py 와 동일한 폴백 패턴.
+ * Gemma 는 mlx-community/gemma-3-12b-it-qat-4bit 권장 (4 26B 는 reasoning 빈응답 이슈).
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -19,10 +20,11 @@ export interface AiOptions {
   maxTokens?: number;
   temperature?: number;
   jsonMode?: boolean;  // Gemini responseMimeType=application/json (JSON 출력 강제)
-  // Gemini 모델 override. 기본 gemini-flash-latest (속도·무료 tier 풍부).
-  // 강한 추론 필요한 경우 'gemini-pro-latest' 권장 (분당 25 RPM, 1.5M tok/day 무료).
+  // Gemini 모델 override. 기본 gemini-2.5-flash.
   geminiModel?: string;
-  // Anthropic 폴백 시 사용할 모델. 기본 sonnet-4-6.
+  // Gemma 모델 override. 기본 GEMMA_MODEL env 또는 gemma-3-12b-it-qat-4bit.
+  gemmaModel?: string;
+  // Anthropic 폴백 시 사용할 모델. 기본 sonnet-4-5.
   anthropicModel?: string;
 }
 
@@ -38,6 +40,8 @@ export interface AiError extends Error {
 // 검증된 무료 작동 모델: gemini-2.5-flash, gemini-2.5-flash-lite.
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
+// Gemma 4 26B 는 reasoning 모드 빈응답 이슈로 본업 trading-system 도 3 12B 사용.
+const DEFAULT_GEMMA_MODEL = "mlx-community/gemma-3-12b-it-qat-4bit";
 
 /**
  * 텍스트 생성. provider 자동 선택.
@@ -45,28 +49,73 @@ const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
  */
 export async function generateText(opts: AiOptions): Promise<string> {
   const geminiKey = process.env.GEMINI_API_KEY;
+  const gemmaUrl = process.env.GEMMA_URL;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
+  // Retryable: 자동 폴백 대상 (429 quota / 5xx overload / max_tokens 빈응답)
+  const isRetryable = (ae: AiError) =>
+    ae.status === 429 ||
+    (ae.status ?? 0) >= 500 ||
+    ae.innerType === "rate_limit_error" ||
+    ae.innerType === "overloaded_error" ||
+    ae.innerType === "max_tokens";
+
+  // 1. Gemini 시도
   if (geminiKey) {
     try {
       return await callGeminiWithRetry(geminiKey, opts);
     } catch (e) {
       const ae = e as AiError;
       console.warn(`[ai] G:${ae.status ?? "?"} ${ae.innerType ?? "?"} ${(ae.innerMessage ?? ae.message ?? "").slice(0, 160)}`);
-      // Per-call fallback: Gemini 429/5xx → Anthropic for THIS call (if configured)
-      const isRetryable = ae.status === 429 || (ae.status ?? 0) >= 500 || ae.innerType === "rate_limit_error" || ae.innerType === "overloaded_error";
-      if (isRetryable && anthropicKey) {
+      if (!isRetryable(ae)) throw e;
+      // 2. Gemma 폴백
+      if (gemmaUrl) {
+        try {
+          return await callGemma(gemmaUrl, opts);
+        } catch (eg) {
+          const aeg = eg as AiError;
+          console.warn(`[ai] M:${aeg.status ?? "?"} ${aeg.innerType ?? "?"} ${(aeg.innerMessage ?? aeg.message ?? "").slice(0, 160)}`);
+          if (!isRetryable(aeg)) throw eg;
+          // 3. Anthropic 폴백
+          if (anthropicKey) {
+            try {
+              return await callAnthropic(anthropicKey, opts);
+            } catch (ea) {
+              const aea = ea as AiError;
+              console.warn(`[ai] A:${aea.status ?? "?"} ${aea.innerType ?? "?"} ${(aea.innerMessage ?? aea.message ?? "").slice(0, 160)}`);
+              throw ea;
+            }
+          }
+          throw eg;
+        }
+      }
+      // Gemma 미설정: Anthropic 직행
+      if (anthropicKey) {
         try {
           return await callAnthropic(anthropicKey, opts);
-        } catch (ae2) {
-          const ae2t = ae2 as AiError;
-          console.warn(`[ai] A:${ae2t.status ?? "?"} ${ae2t.innerType ?? "?"} ${(ae2t.innerMessage ?? ae2t.message ?? "").slice(0, 160)}`);
-          throw ae2;
+        } catch (ea) {
+          const aea = ea as AiError;
+          console.warn(`[ai] A:${aea.status ?? "?"} ${aea.innerType ?? "?"} ${(aea.innerMessage ?? aea.message ?? "").slice(0, 160)}`);
+          throw ea;
         }
       }
       throw e;
     }
   }
+
+  // Gemini 미설정: Gemma 단독
+  if (gemmaUrl) {
+    try {
+      return await callGemma(gemmaUrl, opts);
+    } catch (e) {
+      const ae = e as AiError;
+      console.warn(`[ai] M-only:${ae.status ?? "?"} ${ae.innerType ?? "?"} ${(ae.innerMessage ?? ae.message ?? "").slice(0, 160)}`);
+      if (!isRetryable(ae) || !anthropicKey) throw e;
+      return await callAnthropic(anthropicKey, opts);
+    }
+  }
+
+  // Anthropic 단독
   if (anthropicKey) {
     try {
       return await callAnthropic(anthropicKey, opts);
@@ -76,7 +125,8 @@ export async function generateText(opts: AiOptions): Promise<string> {
       throw e;
     }
   }
-  const err = new Error("AI provider not configured (GEMINI_API_KEY or ANTHROPIC_API_KEY required)") as AiError;
+
+  const err = new Error("AI provider not configured (GEMINI_API_KEY, GEMMA_URL, or ANTHROPIC_API_KEY required)") as AiError;
   err.status = 503;
   err.innerType = "config_error";
   throw err;
@@ -161,6 +211,68 @@ async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
   return text ?? "";
 }
 
+/**
+ * Gemma 로컬 호출 (Mac Mini MLX, OpenAI chat/completions 포맷).
+ * 본업 trading-system shared/llm_client.py:_call_gemma 와 동일 패턴.
+ * 빈 응답 (reasoning 만 채워지고 content 비는 케이스) 시 max_tokens 에러로 throw → 다음 폴백.
+ */
+async function callGemma(baseUrl: string, opts: AiOptions): Promise<string> {
+  const model = opts.gemmaModel ?? process.env.GEMMA_MODEL ?? DEFAULT_GEMMA_MODEL;
+  // OpenAI chat/completions 는 system 메시지를 별도 role 로 받음
+  const messages: { role: "system" | "user"; content: string }[] = [];
+  if (opts.systemPrompt) messages.push({ role: "system", content: opts.systemPrompt });
+  messages.push({ role: "user", content: opts.userPrompt });
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120_000);
+
+  let res: Response;
+  try {
+    res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: opts.maxTokens ?? 4000,
+        temperature: opts.temperature ?? 0.3,
+      }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    const err = new Error(`Gemma fetch failed: ${(e as Error).message}`) as AiError;
+    err.status = 503;
+    err.innerType = "overloaded_error";
+    err.innerMessage = (e as Error).message?.slice(0, 200);
+    throw err;
+  }
+  clearTimeout(timeoutId);
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const err = new Error(`Gemma API ${res.status}`) as AiError;
+    err.status = res.status;
+    err.innerType = res.status === 429 ? "rate_limit_error" : "api_error";
+    err.innerMessage = text.slice(0, 300);
+    throw err;
+  }
+
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
+  };
+  const choice = data.choices?.[0];
+  const text = choice?.message?.content ?? "";
+  if (!text.trim()) {
+    const reason = choice?.finish_reason ?? "UNKNOWN";
+    const err = new Error(`Gemma empty response (finish=${reason}, model=${model})`) as AiError;
+    err.status = 500;
+    err.innerType = "max_tokens";
+    throw err;
+  }
+  return text;
+}
+
 async function callAnthropic(apiKey: string, opts: AiOptions): Promise<string> {
   const client = new Anthropic({ apiKey });
   try {
@@ -185,7 +297,7 @@ async function callAnthropic(apiKey: string, opts: AiOptions): Promise<string> {
 
 /** AI provider 가 어디라도 설정됐는지 quick check (route 내 빠른 폴백 분기용). */
 export function isAiConfigured(): boolean {
-  return !!(process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY);
+  return !!(process.env.GEMINI_API_KEY || process.env.GEMMA_URL || process.env.ANTHROPIC_API_KEY);
 }
 
 /** AiError → 사용자 친화 한국어 메시지. */
