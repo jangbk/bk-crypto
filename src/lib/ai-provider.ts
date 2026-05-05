@@ -48,9 +48,10 @@ const DEFAULT_GEMMA_MODEL = "mlx-community/gemma-3-12b-it-qat-4bit";
  * @returns 생성된 plain text (response.candidates[0].content.parts[0].text 또는 response.content[0].text)
  */
 export async function generateText(opts: AiOptions): Promise<string> {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const gemmaUrl = process.env.GEMMA_URL;
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  // Vercel 환경변수에 trailing newline 등 공백이 섞이는 케이스 방어 — 모두 trim
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const gemmaUrl = process.env.GEMMA_URL?.trim();
+  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
 
   // Retryable: 자동 폴백 대상 (429 quota / 5xx overload / max_tokens 빈응답)
   const isRetryable = (ae: AiError) =>
@@ -190,7 +191,7 @@ async function callGemini(apiKey: string, opts: AiOptions): Promise<string> {
  * 빈 응답 (reasoning 만 채워지고 content 비는 케이스) 시 max_tokens 에러로 throw → 다음 폴백.
  */
 async function callGemma(baseUrl: string, opts: AiOptions): Promise<string> {
-  const model = opts.gemmaModel ?? process.env.GEMMA_MODEL ?? DEFAULT_GEMMA_MODEL;
+  const model = (opts.gemmaModel ?? process.env.GEMMA_MODEL ?? DEFAULT_GEMMA_MODEL).trim();
   // OpenAI chat/completions 는 system 메시지를 별도 role 로 받음
   const messages: { role: "system" | "user"; content: string }[] = [];
   if (opts.systemPrompt) messages.push({ role: "system", content: opts.systemPrompt });
@@ -270,7 +271,7 @@ async function callAnthropic(apiKey: string, opts: AiOptions): Promise<string> {
 
 /** AI provider 가 어디라도 설정됐는지 quick check (route 내 빠른 폴백 분기용). */
 export function isAiConfigured(): boolean {
-  return !!(process.env.GEMINI_API_KEY || process.env.GEMMA_URL || process.env.ANTHROPIC_API_KEY);
+  return !!(process.env.GEMINI_API_KEY?.trim() || process.env.GEMMA_URL?.trim() || process.env.ANTHROPIC_API_KEY?.trim());
 }
 
 /** AiError → 사용자 친화 한국어 메시지. */
