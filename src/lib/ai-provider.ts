@@ -29,7 +29,7 @@ export interface AiError extends Error {
   innerMessage?: string;
 }
 
-const DEFAULT_GEMINI_MODEL = "gemini-1.5-flash-latest";
+const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
 
 /**
