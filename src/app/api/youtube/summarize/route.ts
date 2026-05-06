@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { generateText, aiErrorMessage, type AiError } from "@/lib/ai-provider";
 import { ollamaChat } from "@/lib/ollama";
+import { checkRateLimit, buildCacheKey, getCachedResponse, setCachedResponse } from "@/lib/api-shield";
+
+const SHIELD_PREFIX = "bkc:yt-summarize";
 
 const SYSTEM_PROMPT = `당신은 투자 영상 분석 전문가입니다. YouTube 투자 영상의 트랜스크립트를 받아 구조화된 요약을 생성합니다.
 
@@ -15,6 +18,10 @@ const SYSTEM_PROMPT = `당신은 투자 영상 분석 전문가입니다. YouTub
 
 export async function POST(request: Request) {
   try {
+    // Rate limit (per-IP, fail-open)
+    const limited = await checkRateLimit(request.headers, SHIELD_PREFIX, 5, 30);
+    if (limited) return limited;
+
     const { transcript, title, channel } = await request.json();
 
     if (!transcript) {
@@ -40,24 +47,30 @@ export async function POST(request: Request) {
 ${truncatedTranscript}
 ---`;
 
+    // 0차: Cache lookup (전체 LLM 체인 skip 가능)
+    const cacheKey = buildCacheKey(SHIELD_PREFIX, SYSTEM_PROMPT, userMessage);
+    const cachedRaw = await getCachedResponse(cacheKey);
+
+    let rawText: string | null = cachedRaw;
+    let provider = cachedRaw ? "cache" : "claude";
+
     // 1차: Gemma 4 로컬 (무료)
-    let rawText: string | null = null;
-    let provider = "claude";
+    if (!rawText) {
+      const ollamaResult = await ollamaChat({
+        prompt: userMessage,
+        system: SYSTEM_PROMPT,
+        maxTokens: 4096,
+        temperature: 0.7,
+      });
 
-    const ollamaResult = await ollamaChat({
-      prompt: userMessage,
-      system: SYSTEM_PROMPT,
-      maxTokens: 4096,
-      temperature: 0.7,
-    });
-
-    if (ollamaResult) {
-      rawText = ollamaResult.text;
-      provider = "gemma4";
-      console.log("[youtube/summarize] Gemma 4 로컬 사용 (무료)");
+      if (ollamaResult) {
+        rawText = ollamaResult.text;
+        provider = "gemma4";
+        console.log("[youtube/summarize] Gemma 4 로컬 사용 (무료)");
+      }
     }
 
-    // 2차: Gemini > Anthropic 폴백 (provider 자동 선택)
+    // 2차: Gemini > Gemma > Anthropic 폴백 (provider 자동 선택)
     if (!rawText) {
       try {
         rawText = await generateText({
@@ -77,6 +90,11 @@ ${truncatedTranscript}
           { status: 500 }
         );
       }
+    }
+
+    // Cache set (cache miss 였을 때만 — provider !== "cache")
+    if (provider !== "cache" && rawText) {
+      await setCachedResponse(cacheKey, rawText);
     }
 
     // Parse JSON from response

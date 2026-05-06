@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { generateText, aiErrorMessage, type AiError } from "@/lib/ai-provider";
 import { ollamaChat } from "@/lib/ollama";
+import { checkRateLimit, buildCacheKey, getCachedResponse, setCachedResponse } from "@/lib/api-shield";
+
+const SHIELD_PREFIX = "bkc:news-analyze";
 
 const SYSTEM_PROMPT = `당신은 경제뉴스 및 투자 기사 분석 전문가입니다. 경제뉴스, 신문기사, X(트위터) 게시물 등을 받아 투자 관점에서 분석하고 구조화된 가이드를 생성합니다.
 
@@ -32,6 +35,9 @@ function stripHtml(html: string): string {
 
 export async function POST(request: Request) {
   try {
+    const limited = await checkRateLimit(request.headers, SHIELD_PREFIX, 5, 30);
+    if (limited) return limited;
+
     const { content, url, title } = await request.json();
 
     let articleText = content || "";
@@ -123,24 +129,30 @@ export async function POST(request: Request) {
 ${truncatedText}
 ---`;
 
+    // 0차: Cache lookup
+    const cacheKey = buildCacheKey(SHIELD_PREFIX, SYSTEM_PROMPT, userMessage);
+    const cachedRaw = await getCachedResponse(cacheKey);
+
+    let rawText: string | null = cachedRaw;
+    let provider = cachedRaw ? "cache" : "claude";
+
     // 1차: Gemma 4 로컬 (무료)
-    let rawText: string | null = null;
-    let provider = "claude";
+    if (!rawText) {
+      const ollamaResult = await ollamaChat({
+        prompt: userMessage,
+        system: SYSTEM_PROMPT,
+        maxTokens: 4096,
+        temperature: 0.7,
+      });
 
-    const ollamaResult = await ollamaChat({
-      prompt: userMessage,
-      system: SYSTEM_PROMPT,
-      maxTokens: 4096,
-      temperature: 0.7,
-    });
-
-    if (ollamaResult) {
-      rawText = ollamaResult.text;
-      provider = "gemma4";
-      console.log("[news/analyze] Gemma 4 로컬 사용 (무료)");
+      if (ollamaResult) {
+        rawText = ollamaResult.text;
+        provider = "gemma4";
+        console.log("[news/analyze] Gemma 4 로컬 사용 (무료)");
+      }
     }
 
-    // 2차: Gemini > Anthropic 폴백 (provider 자동 선택)
+    // 2차: Gemini > Gemma > Anthropic 폴백
     if (!rawText) {
       try {
         rawText = await generateText({
@@ -160,6 +172,10 @@ ${truncatedText}
           { status: 500 }
         );
       }
+    }
+
+    if (provider !== "cache" && rawText) {
+      await setCachedResponse(cacheKey, rawText);
     }
 
     // Parse JSON from response

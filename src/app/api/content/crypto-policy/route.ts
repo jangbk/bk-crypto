@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { ollamaChat } from "@/lib/ollama";
 import { generateText } from "@/lib/ai-provider";
+import { checkRateLimit } from "@/lib/api-shield";
+
+const SHIELD_PREFIX = "bkc:content-crypto-policy";
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6시간 캐시
 
@@ -120,7 +123,10 @@ async function fetchLatestPolicies() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const limited = await checkRateLimit(request.headers, SHIELD_PREFIX, 10, 60);
+  if (limited) return limited;
+
   // 캐시 확인
   if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION) {
     return NextResponse.json(cachedData.data, {

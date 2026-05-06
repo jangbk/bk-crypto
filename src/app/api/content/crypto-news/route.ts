@@ -4,6 +4,9 @@ import fs from "fs";
 import path from "path";
 import { generateText } from "@/lib/ai-provider";
 import { ollamaChat } from "@/lib/ollama";
+import { checkRateLimit } from "@/lib/api-shield";
+
+const SHIELD_PREFIX = "bkc:content-crypto-news";
 
 // ---------------------------------------------------------------------------
 // RSS Feed Sources
@@ -296,6 +299,9 @@ async function fetchAndSummarize(): Promise<Article[]> {
 // ---------------------------------------------------------------------------
 export async function GET(request: Request) {
   try {
+    const limited = await checkRateLimit(request.headers, SHIELD_PREFIX, 10, 60);
+    if (limited) return limited;
+
     const { searchParams } = new URL(request.url);
     const forceRefresh = searchParams.get("refresh") === "true";
 
