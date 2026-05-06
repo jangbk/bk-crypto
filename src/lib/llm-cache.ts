@@ -29,7 +29,7 @@ export async function getCachedResponse(key: string): Promise<string | null> {
   try {
     return await r.get(key);
   } catch (e) {
-    console.warn(`[llm-cache] get error: ${(e as Error).message?.slice(0, 200)}`);
+    console.warn(`[cache-get] ${(e as Error).message?.slice(0, 80)}`);
     return null;
   }
 }
@@ -41,6 +41,6 @@ export async function setCachedResponse(key: string, value: string): Promise<voi
   try {
     await r.setex(key, CACHE_TTL_SEC, value);
   } catch (e) {
-    console.warn(`[llm-cache] set error: ${(e as Error).message?.slice(0, 200)}`);
+    console.warn(`[cache-set] ${(e as Error).message?.slice(0, 80)}`);
   }
 }

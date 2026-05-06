@@ -84,7 +84,7 @@ export async function rateLimitCheck(opts: RateLimitOptions): Promise<RateLimitR
       limitHour: perHour,
     };
   } catch (e) {
-    console.warn(`[rate-limit] redis error: ${(e as Error).message?.slice(0, 200)}`);
+    console.warn(`[rl] ${(e as Error).message?.slice(0, 80)}`);
     return fallback;
   }
 }
