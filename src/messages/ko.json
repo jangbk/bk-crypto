@@ -2,11 +2,13 @@
   "nav": {
     "dashboard": "대시보드",
     "charts": "차트",
+    "markets": "마켓",
     "crypto": "크립토",
     "macro": "매크로",
     "tradfi": "전통 금융",
     "tools": "도구",
-    "content": "콘텐츠"
+    "content": "콘텐츠",
+    "research": "리서치"
   },
   "nav_children": {
     "screener": "스크리너",
@@ -62,7 +64,8 @@
     "analysis": "분석",
     "automation": "자동화",
     "news": "뉴스",
-    "video_research": "영상 & 리서치"
+    "video_research": "영상 & 리서치",
+    "tradfi": "전통 금융"
   },
   "common": {
     "refresh": "새로고침",

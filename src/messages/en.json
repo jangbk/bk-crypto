@@ -2,11 +2,13 @@
   "nav": {
     "dashboard": "Dashboard",
     "charts": "Charts",
+    "markets": "Markets",
     "crypto": "Crypto",
     "macro": "Macro",
     "tradfi": "TradFi",
     "tools": "Tools",
-    "content": "Content"
+    "content": "Content",
+    "research": "Research"
   },
   "nav_children": {
     "screener": "Screener",
@@ -62,7 +64,8 @@
     "analysis": "Analysis",
     "automation": "Automation",
     "news": "News",
-    "video_research": "Video & Research"
+    "video_research": "Video & Research",
+    "tradfi": "TradFi"
   },
   "common": {
     "refresh": "Refresh",

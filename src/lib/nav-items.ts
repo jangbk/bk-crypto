@@ -4,11 +4,23 @@ import type { NavItem } from "./types";
  * Nav items with i18n keys instead of hardcoded labels.
  * Each label/group is a dot-notation key into the messages JSON.
  */
+/**
+ * IA (Information Architecture) — W1 (2026-05-07): 6→4 dropdown 축소
+ *   1. Markets   = Crypto (16) + TradFi (3)
+ *   2. Macro     (4)
+ *   3. Tools     (13)
+ *   4. Research  = Content (7, 라벨 변경)
+ *
+ * + 단순 링크: Dashboard, Charts
+ *
+ * Why: 6개 dropdown 은 메뉴바 공간 압박 + 의사결정 부담. Markets 와 Research 통합으로
+ * 인지 부하 감소 + 시각 균형 향상. URL 구조는 유지 (호환성).
+ */
 export const NAV_ITEMS_I18N: NavItem[] = [
   { label: "nav.dashboard", href: "/dashboard" },
   { label: "nav.charts", href: "/charts" },
   {
-    label: "nav.crypto",
+    label: "nav.markets",
     href: "/crypto",
     children: [
       { label: "nav_children.screener", href: "/crypto/screener", group: "nav_groups.market_data" },
@@ -27,6 +39,9 @@ export const NAV_ITEMS_I18N: NavItem[] = [
       { label: "nav_children.cme_gap", href: "/crypto/cme-gap", group: "nav_groups.derivatives" },
       { label: "nav_children.defi_yields", href: "/crypto/defi-yields", group: "nav_groups.derivatives" },
       { label: "nav_children.events", href: "/crypto/events", group: "nav_groups.events" },
+      { label: "nav_children.indexes", href: "/tradfi/indexes", group: "nav_groups.tradfi" },
+      { label: "nav_children.stocks", href: "/tradfi/stocks", group: "nav_groups.tradfi" },
+      { label: "nav_children.metals", href: "/tradfi/metals", group: "nav_groups.tradfi" },
     ],
   },
   {
@@ -37,15 +52,6 @@ export const NAV_ITEMS_I18N: NavItem[] = [
       { label: "nav_children.recession_risk", href: "/tools/macro-recession-risk-dashboard" },
       { label: "nav_children.liquidity_risk", href: "/tools/macro-liquidity-risk-dashboard" },
       { label: "nav_children.macro_calendar", href: "/macro/calendar" },
-    ],
-  },
-  {
-    label: "nav.tradfi",
-    href: "/tradfi",
-    children: [
-      { label: "nav_children.indexes", href: "/tradfi/indexes" },
-      { label: "nav_children.stocks", href: "/tradfi/stocks" },
-      { label: "nav_children.metals", href: "/tradfi/metals" },
     ],
   },
   {
@@ -68,7 +74,7 @@ export const NAV_ITEMS_I18N: NavItem[] = [
     ],
   },
   {
-    label: "nav.content",
+    label: "nav.research",
     href: "/content",
     children: [
       { label: "nav_children.news_analysis", href: "/content/news-analysis", group: "nav_groups.news" },
