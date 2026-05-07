@@ -190,7 +190,7 @@ export function Sidebar() {
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-lg"
               style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))" }}
             >
-              <span className="font-display text-[16px] font-black leading-none text-white">
+              <span className="font-display text-[20px] font-black leading-none tracking-tight text-white">
                 BK
               </span>
             </div>
