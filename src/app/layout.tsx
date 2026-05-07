@@ -6,6 +6,9 @@ import { I18nProvider } from "@/lib/i18n";
 import { ToastProvider } from "@/components/ui/Toast";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { SidebarProvider } from "@/components/layout/SidebarContext";
+import { SidebarMain } from "@/components/layout/SidebarMain";
 import ScrollToTop from "@/components/ui/ScrollToTop";
 import Breadcrumb from "@/components/ui/Breadcrumb";
 import { PriceAlertProvider } from "@/components/providers/PriceAlertProvider";
@@ -91,21 +94,26 @@ export default function RootLayout({
             <QueryProvider>
               <ToastProvider>
                 <PriceAlertProvider>
-                  {/* Skip to content for keyboard users */}
-                  <a href="#main-content" className="skip-to-content">
-                    본문으로 건너뛰기
-                  </a>
+                  <SidebarProvider>
+                    {/* Skip to content for keyboard users */}
+                    <a href="#main-content" className="skip-to-content">
+                      본문으로 건너뛰기
+                    </a>
 
-                  <Header />
+                    <Sidebar />
 
-                  <Breadcrumb />
+                    {/* Main column: sidebar 폭만큼 좌 padding 자동 적용 */}
+                    <SidebarMain>
+                      <Header />
+                      <Breadcrumb />
+                      <main id="main-content" className="min-h-[calc(100vh-6rem)]" role="main">
+                        {children}
+                      </main>
+                      <Footer />
+                    </SidebarMain>
 
-                  <main id="main-content" className="min-h-[calc(100vh-3rem)]" role="main">
-                    {children}
-                  </main>
-
-                  <Footer />
-                  <ScrollToTop />
+                    <ScrollToTop />
+                  </SidebarProvider>
                 </PriceAlertProvider>
               </ToastProvider>
             </QueryProvider>

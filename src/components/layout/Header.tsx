@@ -1,12 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, ChevronDown, Menu, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useCallback } from "react";
+import { Search, Menu } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
-import { NAV_ITEMS_I18N, translateNavItems } from "@/lib/nav-items";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { SearchDialog } from "./SearchDialog";
@@ -14,399 +10,19 @@ import { NotificationsDropdown } from "./NotificationsDropdown";
 import { UserDropdown } from "./UserDropdown";
 import { AlertBell } from "@/components/ui/AlertBell";
 import { usePriceAlertContext } from "@/components/providers/PriceAlertProvider";
-import type { NavItem, NavChild } from "@/lib/types";
+import { useSidebar } from "./SidebarContext";
 
-function Logo() {
-  return (
-    <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="BK CRYPTO 홈">
-      <div className="relative h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg">
-        <svg viewBox="0 0 40 40" className="h-10 w-10" aria-hidden="true">
-          <defs>
-            <linearGradient id="bk-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#8b5cf6" />
-            </linearGradient>
-          </defs>
-          <rect width="40" height="40" rx="10" fill="url(#bk-grad)" />
-          <text x="20" y="28" textAnchor="middle" fontSize="18" fontWeight="900" fill="#fff" fontFamily="system-ui, sans-serif">BK</text>
-        </svg>
-      </div>
-      <span className="hidden leading-tight sm:block font-[var(--font-orbitron)]">
-        <span className="text-xl font-black text-primary tracking-tight">BK</span>
-        <br />
-        <span className="text-xs font-bold text-foreground tracking-widest">
-          CRYPTO
-        </span>
-      </span>
-    </Link>
-  );
-}
-
-function NavDropdown({
-  item,
-  isActive,
-}: {
-  item: NavItem;
-  isActive: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [open]);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
-  return (
-    <div
-      ref={ref}
-      className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <button
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        aria-haspopup="true"
-        className={cn(
-          "flex items-center gap-1 px-3 py-2 text-sm font-bold transition-colors rounded-md",
-          isActive
-            ? "text-primary bg-accent"
-            : "text-foreground hover:text-primary"
-        )}
-      >
-        {item.label}
-        <ChevronDown
-          className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
-          aria-hidden="true"
-        />
-      </button>
-      {open && item.children && (() => {
-        const hasGroups = item.children.some((c) => c.group);
-        if (!hasGroups) {
-          return (
-            <div
-              className="absolute left-0 top-full z-50 mt-0.5 min-w-[200px] rounded-lg border border-border bg-card py-1.5 shadow-lg animate-fade-in"
-              role="menu"
-            >
-              {item.children.map((child) => (
-                <Link
-                  key={child.href}
-                  href={child.href}
-                  className="block px-4 py-2 text-sm text-card-foreground hover:bg-muted transition-colors"
-                  role="menuitem"
-                  onClick={() => setOpen(false)}
-                >
-                  {child.label}
-                </Link>
-              ))}
-            </div>
-          );
-        }
-        // Grouped menu
-        const groups: Record<string, NavChild[]> = {};
-        for (const child of item.children) {
-          const g = child.group || "Other";
-          (groups[g] ??= []).push(child);
-        }
-        const groupEntries = Object.entries(groups);
-        return (
-          <div
-            className="absolute left-0 top-full z-50 mt-0.5 min-w-[480px] rounded-lg border border-border bg-card p-3 shadow-lg animate-fade-in"
-            role="menu"
-          >
-            <div className={`grid gap-4 ${groupEntries.length >= 3 ? "grid-cols-3" : `grid-cols-${groupEntries.length}`}`}>
-              {groupEntries.map(([groupName, children]) => (
-                <div key={groupName}>
-                  <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {groupName}
-                  </div>
-                  {children.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      className="block rounded-md px-2 py-1.5 text-sm text-card-foreground hover:bg-muted transition-colors"
-                      role="menuitem"
-                      onClick={() => setOpen(false)}
-                    >
-                      {child.label}
-                    </Link>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-    </div>
-  );
-}
-
-function DesktopNav() {
-  const pathname = usePathname();
-  const { t } = useTranslation();
-  const navItems = translateNavItems(NAV_ITEMS_I18N, t);
-
-  return (
-    <nav className="hidden items-center gap-0.5 lg:flex" aria-label={t("common.main_nav")}>
-      {navItems.map((item) => {
-        const isActive =
-          pathname === item.href ||
-          pathname.startsWith(item.href + "/");
-
-        if (item.children) {
-          return (
-            <NavDropdown key={item.href} item={item} isActive={isActive} />
-          );
-        }
-
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "px-3 py-2 text-sm font-bold transition-colors rounded-md",
-              isActive
-                ? "text-primary bg-accent"
-                : "text-foreground hover:text-primary"
-            )}
-            aria-current={isActive ? "page" : undefined}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
-function MobileNav({
-  open,
-  onClose,
-  triggerRef,
-}: {
-  open: boolean;
-  onClose: () => void;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
-}) {
-  const pathname = usePathname();
-  const { t } = useTranslation();
-  const navItems = translateNavItems(NAV_ITEMS_I18N, t);
-  const [expandedItem, setExpandedItem] = useState<string | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
-
-  // Prevent body scroll when open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
-
-  // Focus trap: focus close button on open, return focus on close
-  useEffect(() => {
-    if (open) {
-      closeButtonRef.current?.focus();
-    } else {
-      triggerRef.current?.focus();
-    }
-  }, [open, triggerRef]);
-
-  // Tab cycle within panel
-  useEffect(() => {
-    if (!open) return;
-    const panel = panelRef.current;
-    if (!panel) return;
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      const focusable = panel.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleTab);
-    return () => document.removeEventListener("keydown", handleTab);
-  }, [open]);
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("common.mobile_menu")}>
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
-      <div ref={panelRef} className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border overflow-y-auto animate-slide-in-left">
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <Logo />
-          <button
-            ref={closeButtonRef}
-            onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg"
-            aria-label={t("common.close_menu")}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <nav className="p-2" aria-label={t("common.mobile_nav")}>
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              pathname.startsWith(item.href + "/");
-
-            if (item.children) {
-              const isExpanded = expandedItem === item.href;
-              return (
-                <div key={item.href}>
-                  <button
-                    onClick={() =>
-                      setExpandedItem(isExpanded ? null : item.href)
-                    }
-                    aria-expanded={isExpanded}
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "text-primary bg-accent"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    {item.label}
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 transition-transform",
-                        isExpanded && "rotate-180"
-                      )}
-                      aria-hidden="true"
-                    />
-                  </button>
-                  {isExpanded && (() => {
-                    const hasGroups = item.children!.some((c) => c.group);
-                    if (!hasGroups) {
-                      return (
-                        <div className="ml-3 border-l border-border pl-3 py-1">
-                          {item.children!.map((child) => (
-                            <Link
-                              key={child.href}
-                              href={child.href}
-                              onClick={onClose}
-                              className={cn(
-                                "block rounded-lg px-3 py-2 text-sm transition-colors",
-                                pathname === child.href
-                                  ? "text-primary font-medium"
-                                  : "text-muted-foreground hover:text-foreground"
-                              )}
-                              aria-current={pathname === child.href ? "page" : undefined}
-                            >
-                              {child.label}
-                            </Link>
-                          ))}
-                        </div>
-                      );
-                    }
-                    const groups: Record<string, NavChild[]> = {};
-                    for (const child of item.children!) {
-                      const g = child.group || "Other";
-                      (groups[g] ??= []).push(child);
-                    }
-                    return (
-                      <div className="ml-3 border-l border-border pl-3 py-1">
-                        {Object.entries(groups).map(([groupName, children]) => (
-                          <div key={groupName} className="mt-2 first:mt-0">
-                            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                              {groupName}
-                            </div>
-                            {children.map((child) => (
-                              <Link
-                                key={child.href}
-                                href={child.href}
-                                onClick={onClose}
-                                className={cn(
-                                  "block rounded-lg px-3 py-2 text-sm transition-colors",
-                                  pathname === child.href
-                                    ? "text-primary font-medium"
-                                    : "text-muted-foreground hover:text-foreground"
-                                )}
-                                aria-current={pathname === child.href ? "page" : undefined}
-                              >
-                                {child.label}
-                              </Link>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              );
-            }
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={cn(
-                  "block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  isActive
-                    ? "text-primary bg-accent"
-                    : "text-foreground hover:bg-muted"
-                )}
-                aria-current={isActive ? "page" : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-    </div>
-  );
-}
-
+/**
+ * 슬림 Topbar (W1, sidebar nav 도입 후).
+ * 좌측: 햄버거 (모바일만, sidebar drawer open).
+ * 우측: BK STOCK 링크, 검색(⌘K), 알림, 언어, 테마, 알림 dropdown, 유저.
+ * 페이지 식별·내비는 sidebar 가 담당.
+ */
 export function Header() {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const { activeCount, openDialog } = usePriceAlertContext();
   const { t } = useTranslation();
+  const { setMobileOpen } = useSidebar();
 
   // Global Cmd+K / Ctrl+K shortcut
   const handleGlobalKey = useCallback((e: KeyboardEvent) => {
@@ -423,44 +39,49 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-sm" role="banner">
-        <div className="mx-auto flex h-12 items-center gap-4 px-4">
-          {/* Mobile menu button */}
+      <header
+        className="sticky top-0 z-30 border-b border-border bg-surface-1/90 backdrop-blur-sm"
+        role="banner"
+      >
+        <div className="flex h-12 items-center gap-2 px-4">
+          {/* Mobile sidebar trigger */}
           <button
-            ref={mobileMenuTriggerRef}
             onClick={() => setMobileOpen(true)}
-            className="p-2 hover:bg-muted rounded-lg lg:hidden"
+            className="rounded-md p-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground md:hidden"
             aria-label={t("common.open_menu")}
-            aria-expanded={mobileOpen}
           >
             <Menu className="h-5 w-5" aria-hidden="true" />
           </button>
 
-          <Logo />
-          <DesktopNav />
-
-          {/* Right side actions */}
+          {/* Right-aligned actions */}
           <div className="ml-auto flex items-center gap-1">
             <a
               href="https://bk-stock.vercel.app/dashboard"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-[#00bfff]/40 text-[#00bfff] hover:bg-[#00bfff]/10 transition-colors shrink-0"
+              className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-[#00bfff]/40 px-3 py-1.5 text-xs font-bold text-[#00bfff] transition-colors hover:bg-[#00bfff]/10 sm:flex"
               aria-label="BK STOCK 사이트로 이동"
             >
               <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true">
                 <rect width="16" height="16" rx="3" fill="#00bfff" />
-                <polyline points="3,11 5.5,9 8,10.5 10.5,5.5 13,7" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline
+                  points="3,11 5.5,9 8,10.5 10.5,5.5 13,7"
+                  stroke="#fff"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
               BK STOCK
             </a>
             <button
               onClick={() => setSearchOpen(true)}
-              className="relative rounded-lg p-2 hover:bg-muted transition-colors"
+              className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground"
               aria-label={t("common.search_shortcut")}
             >
-              <Search className="h-5 w-5 text-foreground" aria-hidden="true" />
-              <kbd className="absolute -bottom-0.5 -right-1 hidden sm:inline-flex items-center rounded border border-border bg-muted px-1 py-px text-[9px] font-medium text-muted-foreground leading-none">
+              <Search className="h-5 w-5" aria-hidden="true" />
+              <kbd className="absolute -bottom-0.5 -right-1 hidden items-center rounded border border-border bg-muted px-1 py-px text-[9px] font-medium leading-none text-muted-foreground sm:inline-flex">
                 ⌘K
               </kbd>
             </button>
@@ -473,7 +94,6 @@ export function Header() {
         </div>
       </header>
 
-      <MobileNav open={mobileOpen} onClose={() => setMobileOpen(false)} triggerRef={mobileMenuTriggerRef} />
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
