@@ -15,27 +15,24 @@ interface HeroBarProps {
   realtimePrices?: ReadonlyMap<string, RealtimePrice>;
 }
 
-/** Resolves the display price: real-time WebSocket data takes priority over API data. */
+/** Resolve display price: real-time WebSocket > API. */
 function resolvePrice(
   asset: CryptoAsset | undefined,
   coinId: string,
   realtimePrices?: ReadonlyMap<string, RealtimePrice>,
 ): { price: number | null; change24h: number | null; isRealtime: boolean } {
   const rt = realtimePrices?.get(coinId);
-  if (rt) {
-    return { price: rt.price, change24h: rt.change24h, isRealtime: true };
-  }
-  if (asset) {
+  if (rt) return { price: rt.price, change24h: rt.change24h, isRealtime: true };
+  if (asset)
     return {
       price: asset.current_price,
       change24h: asset.price_change_percentage_24h,
       isRealtime: false,
     };
-  }
   return { price: null, change24h: null, isRealtime: false };
 }
 
-/** Triggers a brief flash animation on a DOM element when its text content changes. */
+/** Brief flash on price change. */
 function usePriceFlash(value: number | null) {
   const ref = useRef<HTMLDivElement>(null);
   const prevRef = useRef<number | null>(null);
@@ -45,21 +42,71 @@ function usePriceFlash(value: number | null) {
       prevRef.current = value;
       return;
     }
-
     if (value !== prevRef.current && ref.current) {
       const direction = value > prevRef.current ? "flash-green" : "flash-red";
       ref.current.classList.remove("flash-green", "flash-red");
-      // Force reflow to restart animation
       void ref.current.offsetWidth;
       ref.current.classList.add(direction);
     }
-
     prevRef.current = value;
   }, [value]);
 
   return ref;
 }
 
+// ─── 우측 작은 risk pill (Fear/Recession/Mcap) ─────────────
+function RiskPill({
+  label,
+  value,
+  hint,
+  progress,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  progress?: number; // 0 ~ 1
+  tone: "positive" | "warning" | "negative" | "neutral";
+}) {
+  const toneClass = {
+    positive: "text-positive",
+    warning: "text-warning",
+    negative: "text-negative",
+    neutral: "text-foreground",
+  }[tone];
+
+  const barColor = {
+    positive: "bg-positive",
+    warning: "bg-warning",
+    negative: "bg-negative",
+    neutral: "bg-primary",
+  }[tone];
+
+  return (
+    <div className="relative flex flex-col gap-1 rounded-lg border border-border bg-surface-2 p-3">
+      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-accent/60" aria-hidden="true" />
+      <div className="flex items-baseline justify-between gap-2 pl-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-text-2">
+          {label}
+        </span>
+        {hint && <span className={`text-[10px] font-semibold ${toneClass}`}>{hint}</span>}
+      </div>
+      <div className="pl-2 font-mono text-base font-bold tabular-nums text-foreground">
+        {value}
+      </div>
+      {progress !== undefined && (
+        <div className="ml-2 h-1 w-full overflow-hidden rounded-full bg-surface-3">
+          <div
+            className={`h-full rounded-full ${barColor} transition-all`}
+            style={{ width: `${Math.min(Math.max(progress * 100, 0), 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── HeroBar ────────────────────────────────────────────────
 export function HeroBar({
   btc,
   eth,
@@ -69,142 +116,137 @@ export function HeroBar({
   recessionValue,
   realtimePrices,
 }: HeroBarProps) {
-  const btcResolved = resolvePrice(btc, "bitcoin", realtimePrices);
-  const ethResolved = resolvePrice(eth, "ethereum", realtimePrices);
+  const btcRes = resolvePrice(btc, "bitcoin", realtimePrices);
+  const ethRes = resolvePrice(eth, "ethereum", realtimePrices);
+  const btcFlash = usePriceFlash(btcRes.price);
 
-  const btcFlashRef = usePriceFlash(btcResolved.price);
-  const ethFlashRef = usePriceFlash(ethResolved.price);
+  // tone calculators
+  const fearTone =
+    fearValue === null
+      ? "neutral"
+      : fearValue >= 60
+        ? "positive"
+        : fearValue <= 40
+          ? "negative"
+          : "warning";
+
+  const recessionTone =
+    recessionValue === null
+      ? "neutral"
+      : recessionValue < 0.2
+        ? "positive"
+        : recessionValue < 0.5
+          ? "warning"
+          : "negative";
 
   return (
     <section
-      className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5"
-      aria-label="핵심 지표 요약"
+      className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5"
+      aria-label="시장 핵심 지표"
     >
-      {/* BTC */}
-      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-amber-500/10 via-card to-card p-4 card-elevated">
-        <div className="text-xs font-medium text-muted-foreground">BTC</div>
-        <div
-          ref={btcFlashRef}
-          className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums"
-        >
-          {btcResolved.price !== null ? formatCurrency(btcResolved.price) : "—"}
-        </div>
-        {btcResolved.change24h !== null && (
-          <div
-            className={`mt-0.5 text-xs font-semibold font-mono ${
-              btcResolved.change24h >= 0 ? "text-positive glow-positive" : "text-negative glow-negative"
-            }`}
-          >
-            {formatPercent(btcResolved.change24h)}
-          </div>
-        )}
-        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-amber-500/10 blur-2xl" />
-      </div>
+      {/* ─── 좌 60%: BTC Pulse Hero Card ─── */}
+      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary-pale/40 via-surface-2 to-surface-2 p-6 card-elevated lg:col-span-3">
+        {/* 좌측 액센트 보더 (signature) */}
+        <span
+          className="absolute left-0 top-6 bottom-6 w-1 rounded-r bg-accent"
+          aria-hidden="true"
+        />
+        {/* 우상단 grain glow */}
+        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/15 blur-3xl" />
 
-      {/* ETH */}
-      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-blue-500/10 via-card to-card p-4 card-elevated">
-        <div className="text-xs font-medium text-muted-foreground">ETH</div>
-        <div
-          ref={ethFlashRef}
-          className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums"
-        >
-          {ethResolved.price !== null ? formatCurrency(ethResolved.price) : "—"}
-        </div>
-        {ethResolved.change24h !== null && (
-          <div
-            className={`mt-0.5 text-xs font-semibold font-mono ${
-              ethResolved.change24h >= 0 ? "text-positive glow-positive" : "text-negative glow-negative"
-            }`}
-          >
-            {formatPercent(ethResolved.change24h)}
-          </div>
-        )}
-        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-blue-500/10 blur-2xl" />
-      </div>
-
-      {/* Fear & Greed */}
-      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-purple-500/10 via-card to-card p-4 card-elevated">
-        <div className="text-xs font-medium text-muted-foreground">Fear & Greed</div>
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-xl font-black font-mono tabular-nums">
-            {fearValue !== null ? fearValue : "—"}
-          </span>
-          {fearClass && (
-            <span
-              className={`text-xs font-semibold ${
-                fearValue !== null && fearValue >= 60
-                  ? "text-positive"
-                  : fearValue !== null && fearValue <= 40
-                    ? "text-negative"
-                    : "text-warning"
-              }`}
-            >
-              {fearClass}
+        <div className="relative pl-3">
+          {/* 헤더 라벨 */}
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-text-2">
+            <span className="font-display text-accent">₿ BITCOIN</span>
+            <span className={btcRes.isRealtime ? "text-positive" : "text-text-3"}>
+              {btcRes.isRealtime ? "● LIVE" : "○ DELAYED"}
             </span>
-          )}
-        </div>
-        {fearValue !== null && (
-          <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${
-                fearValue >= 60
-                  ? "bg-emerald-500"
-                  : fearValue >= 40
-                    ? "bg-amber-500"
-                    : "bg-red-500"
-              }`}
-              style={{ width: `${fearValue}%` }}
-            />
           </div>
-        )}
-        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-purple-500/10 blur-2xl" />
-      </div>
 
-      {/* Total Market Cap */}
-      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-cyan-500/10 via-card to-card p-4 card-elevated">
-        <div className="text-xs font-medium text-muted-foreground">Total Market Cap</div>
-        <div className="mt-1 text-xl font-black font-mono tracking-tight tabular-nums">
-          {latestMcap > 0 ? formatCurrency(latestMcap, 0) : "—"}
-        </div>
-        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-cyan-500/10 blur-2xl" />
-      </div>
-
-      {/* Recession Risk */}
-      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-emerald-500/10 via-card to-card p-4 card-elevated col-span-2 sm:col-span-4 lg:col-span-1">
-        <div className="text-xs font-medium text-muted-foreground">Recession Risk</div>
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-xl font-black font-mono tabular-nums">
-            {recessionValue !== null ? (recessionValue * 100).toFixed(1) : "—"}
-          </span>
-          {recessionValue !== null && (
-            <span
-              className={`text-xs font-semibold ${
-                recessionValue < 0.2
-                  ? "text-positive"
-                  : recessionValue < 0.5
-                    ? "text-warning"
-                    : "text-negative"
-              }`}
+          {/* 메인 가격 */}
+          <div className="mt-3 flex items-baseline gap-3 flex-wrap">
+            <div
+              ref={btcFlash}
+              className="font-mono text-4xl font-bold tabular-nums tracking-tight text-foreground sm:text-5xl"
             >
-              {recessionValue < 0.2 ? "Low" : recessionValue < 0.5 ? "Medium" : "High"}
-            </span>
-          )}
-        </div>
-        {recessionValue !== null && (
-          <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${
-                recessionValue < 0.2
-                  ? "bg-emerald-500"
-                  : recessionValue < 0.5
-                    ? "bg-amber-500"
-                    : "bg-red-500"
-              }`}
-              style={{ width: `${Math.min(recessionValue * 100, 100)}%` }}
-            />
+              {btcRes.price !== null ? formatCurrency(btcRes.price) : "—"}
+            </div>
+            {btcRes.change24h !== null && (
+              <div
+                className={`font-mono text-base font-semibold tabular-nums ${
+                  btcRes.change24h >= 0 ? "text-positive" : "text-negative"
+                }`}
+              >
+                {formatPercent(btcRes.change24h)}
+                <span className="ml-1 text-[10px] font-normal uppercase tracking-wider text-text-3">
+                  24h
+                </span>
+              </div>
+            )}
           </div>
-        )}
-        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-emerald-500/10 blur-2xl" />
+
+          {/* 보조 정보 grid: ETH · Mcap · Volume */}
+          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-4 text-[11px]">
+            <div>
+              <div className="font-semibold uppercase tracking-wider text-text-2">ETH</div>
+              <div className="mt-1 font-mono tabular-nums text-foreground">
+                {ethRes.price !== null ? formatCurrency(ethRes.price) : "—"}
+              </div>
+              {ethRes.change24h !== null && (
+                <div
+                  className={`font-mono tabular-nums ${
+                    ethRes.change24h >= 0 ? "text-positive" : "text-negative"
+                  }`}
+                >
+                  {formatPercent(ethRes.change24h)}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="font-semibold uppercase tracking-wider text-text-2">Mcap (BTC)</div>
+              <div className="mt-1 font-mono tabular-nums text-foreground">
+                {btc?.market_cap ? formatCurrency(btc.market_cap, 0) : "—"}
+              </div>
+            </div>
+            <div>
+              <div className="font-semibold uppercase tracking-wider text-text-2">Vol 24h</div>
+              <div className="mt-1 font-mono tabular-nums text-foreground">
+                {btc?.total_volume ? formatCurrency(btc.total_volume, 0) : "—"}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 우 40%: 3축 Risk Strip ─── */}
+      <div className="grid grid-cols-1 gap-3 lg:col-span-2">
+        <RiskPill
+          label="Fear & Greed"
+          value={fearValue !== null ? String(fearValue) : "—"}
+          hint={fearClass ?? undefined}
+          progress={fearValue !== null ? fearValue / 100 : undefined}
+          tone={fearTone}
+        />
+        <RiskPill
+          label="Recession Risk"
+          value={recessionValue !== null ? `${(recessionValue * 100).toFixed(1)}%` : "—"}
+          hint={
+            recessionValue === null
+              ? undefined
+              : recessionValue < 0.2
+                ? "Low"
+                : recessionValue < 0.5
+                  ? "Medium"
+                  : "High"
+          }
+          progress={recessionValue !== null ? recessionValue : undefined}
+          tone={recessionTone}
+        />
+        <RiskPill
+          label="Total Market Cap"
+          value={latestMcap > 0 ? formatCurrency(latestMcap, 0) : "—"}
+          tone="neutral"
+        />
       </div>
     </section>
   );
