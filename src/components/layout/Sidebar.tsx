@@ -182,18 +182,20 @@ export function Sidebar() {
         <div className="flex h-12 items-center gap-2 border-b border-border px-3 shrink-0">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2.5"
             onClick={() => setMobileOpen(false)}
-            aria-label="BK CRYPTO 홈"
+            aria-label="BK-CRYPTO 홈"
           >
             <div
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md shadow-sm"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md"
               style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))" }}
             >
-              <span className="font-display text-[10px] font-black text-white">BK</span>
+              <span className="font-display text-[13px] font-black leading-none text-white">
+                BK
+              </span>
             </div>
-            <span className="font-display text-sm font-bold tracking-wider text-foreground">
-              CRYPTO
+            <span className="font-display text-[15px] font-bold tracking-wide text-foreground">
+              BK-CRYPTO
             </span>
           </Link>
 
