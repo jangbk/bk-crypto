@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Menu } from "lucide-react";
+import { Search, Menu, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
@@ -22,7 +22,7 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const { activeCount, openDialog } = usePriceAlertContext();
   const { t } = useTranslation();
-  const { setMobileOpen } = useSidebar();
+  const { setMobileOpen, hidden, toggleHidden } = useSidebar();
 
   // Global Cmd+K / Ctrl+K shortcut
   const handleGlobalKey = useCallback((e: KeyboardEvent) => {
@@ -51,6 +51,20 @@ export function Header() {
             aria-label={t("common.open_menu")}
           >
             <Menu className="h-5 w-5" aria-hidden="true" />
+          </button>
+
+          {/* Desktop sidebar toggle (펼침 ↔ 숨김) */}
+          <button
+            onClick={toggleHidden}
+            className="hidden rounded-md p-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground md:inline-flex"
+            aria-label={hidden ? "사이드바 펼치기" : "사이드바 숨기기"}
+            title={hidden ? "사이드바 펼치기" : "사이드바 숨기기"}
+          >
+            {hidden ? (
+              <PanelLeft className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <PanelLeftClose className="h-5 w-5" aria-hidden="true" />
+            )}
           </button>
 
           {/* Right-aligned actions */}

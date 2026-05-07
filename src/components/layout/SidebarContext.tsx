@@ -2,12 +2,12 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-const STORAGE_KEY = "bkc:sidebar:collapsed";
+const STORAGE_KEY = "bkc:sidebar:hidden";
 
 interface SidebarContextValue {
-  collapsed: boolean;        // 데스크톱 collapse 상태 (60px ↔ 240px)
-  setCollapsed: (v: boolean) => void;
-  toggleCollapsed: () => void;
+  hidden: boolean;           // 데스크톱 사이드바 완전 숨김 여부 (true = 0px, false = 240px)
+  setHidden: (v: boolean) => void;
+  toggleHidden: () => void;
   mobileOpen: boolean;       // 모바일 drawer 열림 여부
   setMobileOpen: (v: boolean) => void;
 }
@@ -15,21 +15,21 @@ interface SidebarContextValue {
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [collapsed, setCollapsedState] = useState(false);
+  const [hidden, setHiddenState] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // localStorage 복원 (초기 마운트 1회)
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved === "1") setCollapsedState(true);
+      if (saved === "1") setHiddenState(true);
     } catch {
       /* ignore */
     }
   }, []);
 
-  const setCollapsed = (v: boolean) => {
-    setCollapsedState(v);
+  const setHidden = (v: boolean) => {
+    setHiddenState(v);
     try {
       window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
     } catch {
@@ -37,11 +37,11 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const toggleCollapsed = () => setCollapsed(!collapsed);
+  const toggleHidden = () => setHidden(!hidden);
 
   return (
     <SidebarContext.Provider
-      value={{ collapsed, setCollapsed, toggleCollapsed, mobileOpen, setMobileOpen }}
+      value={{ hidden, setHidden, toggleHidden, mobileOpen, setMobileOpen }}
     >
       {children}
     </SidebarContext.Provider>
