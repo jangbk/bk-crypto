@@ -43,7 +43,7 @@ export function Header() {
         className="sticky top-8 z-30 border-b border-border bg-surface-1/90 backdrop-blur-sm"
         role="banner"
       >
-        <div className="flex h-12 items-center gap-2 px-4">
+        <div className="flex h-16 items-center gap-2 px-4">
           {/* Mobile sidebar trigger */}
           <button
             onClick={() => setMobileOpen(true)}

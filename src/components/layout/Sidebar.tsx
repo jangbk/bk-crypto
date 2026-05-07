@@ -179,22 +179,22 @@ export function Sidebar() {
         aria-hidden={hidden && !mobileOpen}
       >
         {/* 로고 영역 */}
-        <div className="flex h-12 items-center gap-2 border-b border-border px-3 shrink-0">
+        <div className="flex h-16 items-center gap-3 border-b border-border px-3 shrink-0">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2.5"
+            className="flex items-center gap-3"
             onClick={() => setMobileOpen(false)}
             aria-label="BK-CRYPTO 홈"
           >
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-lg"
               style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))" }}
             >
-              <span className="font-display text-[13px] font-black leading-none text-white">
+              <span className="font-display text-[16px] font-black leading-none text-white">
                 BK
               </span>
             </div>
-            <span className="font-display text-[15px] font-bold tracking-wide text-foreground">
+            <span className="font-display text-base font-bold tracking-wide text-foreground">
               BK-CRYPTO
             </span>
           </Link>
