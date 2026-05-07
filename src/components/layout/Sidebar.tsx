@@ -108,7 +108,7 @@ function NavSection({ item, onClickItem }: { item: NavItem; onClickItem?: () => 
           {groupKeys.map((g) => (
             <div key={g}>
               {g !== "_" && (
-                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-text-3">
+                <div className="px-2 py-1.5 text-[13px] font-bold uppercase tracking-wide text-accent">
                   {g}
                 </div>
               )}
