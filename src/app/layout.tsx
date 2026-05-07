@@ -9,6 +9,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarProvider } from "@/components/layout/SidebarContext";
 import { SidebarMain } from "@/components/layout/SidebarMain";
+import { TickerTape } from "@/components/layout/TickerTape";
 import ScrollToTop from "@/components/ui/ScrollToTop";
 import Breadcrumb from "@/components/ui/Breadcrumb";
 import { PriceAlertProvider } from "@/components/providers/PriceAlertProvider";
@@ -99,6 +100,11 @@ export default function RootLayout({
                     <a href="#main-content" className="skip-to-content">
                       본문으로 건너뛰기
                     </a>
+
+                    {/* 상단 풀폭 티커 테이프 (32px) — sidebar 위에 노출 */}
+                    <div className="fixed inset-x-0 top-0 z-50">
+                      <TickerTape />
+                    </div>
 
                     <Sidebar />
 

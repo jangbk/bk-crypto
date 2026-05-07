@@ -13,7 +13,8 @@ export function SidebarMain({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "transition-[padding-left] duration-200",
+        // pt-8: 상단 ticker tape 32px 만큼 push
+        "pt-8 transition-[padding-left] duration-200",
         hidden ? "md:pl-0" : "md:pl-[240px]",
       )}
     >

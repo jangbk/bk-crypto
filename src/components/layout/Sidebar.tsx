@@ -156,10 +156,10 @@ export function Sidebar() {
 
   return (
     <>
-      {/* 모바일 backdrop */}
+      {/* 모바일 backdrop (ticker 아래부터) */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-x-0 bottom-0 top-8 z-30 bg-black/60 backdrop-blur-sm md:hidden"
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
@@ -167,7 +167,8 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col border-r border-border bg-surface-1 transition-transform duration-200",
+          // top: 32px (티커 테이프 아래부터 시작), bottom: 0
+          "fixed bottom-0 left-0 top-8 z-40 flex w-[240px] flex-col border-r border-border bg-surface-1 transition-transform duration-200",
           // 데스크톱: hidden 일 때 완전 숨김 (translate-x), 아니면 보임
           hidden ? "md:-translate-x-full" : "md:translate-x-0",
           // 모바일: drawer (mobileOpen 일 때만 표시)

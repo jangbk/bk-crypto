@@ -382,6 +382,27 @@ body {
 
 .metric-card:hover { background: var(--surface-3); }
 
+/* ─── Ticker tape (Bloomberg-style 무한 스크롤) ─── */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.ticker-track {
+  animation: ticker-scroll 80s linear infinite;
+  will-change: transform;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}
+
 /* ─── Noise texture overlay ─── */
 .noise-overlay::before {
   content: '';

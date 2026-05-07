@@ -40,7 +40,7 @@ export function Header() {
   return (
     <>
       <header
-        className="sticky top-0 z-30 border-b border-border bg-surface-1/90 backdrop-blur-sm"
+        className="sticky top-8 z-30 border-b border-border bg-surface-1/90 backdrop-blur-sm"
         role="banner"
       >
         <div className="flex h-12 items-center gap-2 px-4">
