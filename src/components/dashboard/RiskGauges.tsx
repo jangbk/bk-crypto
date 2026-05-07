@@ -51,8 +51,8 @@ export function RiskGauges({
                 ]}
               />
               <div className="mt-2 flex items-center justify-between w-full max-w-[14rem] text-[10px] text-muted-foreground">
-                <span className="text-emerald-500 font-medium">0 = 저평가 (매수 기회)</span>
-                <span className="text-red-500 font-medium">1 = 고평가 (과열)</span>
+                <span className="text-positive font-medium">0 = 저평가 (매수 기회)</span>
+                <span className="text-negative font-medium">1 = 고평가 (과열)</span>
               </div>
             </div>
             <InsightBox {...getCryptoRiskInsight(cryptoRiskSummary)} />
@@ -86,8 +86,8 @@ export function RiskGauges({
                 }
               />
               <div className="mt-2 flex items-center justify-between w-full max-w-[14rem] text-[10px] text-muted-foreground">
-                <span className="text-emerald-500 font-medium">0 = 안전 (경기 확장)</span>
-                <span className="text-red-500 font-medium">1 = 위험 (경기 침체)</span>
+                <span className="text-positive font-medium">0 = 안전 (경기 확장)</span>
+                <span className="text-negative font-medium">1 = 위험 (경기 침체)</span>
               </div>
             </div>
             <InsightBox {...getRecessionInsight(recessionData?.risk ?? 0.071)} />

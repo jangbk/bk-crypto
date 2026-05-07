@@ -256,12 +256,12 @@ export function FavoriteAssetsTable({
                               <div
                                 className={`h-full rounded-full ${
                                   risk < 0.3
-                                    ? "bg-emerald-500"
+                                    ? "bg-positive"
                                     : risk < 0.5
-                                      ? "bg-yellow-500"
+                                      ? "bg-warning"
                                       : risk < 0.7
                                         ? "bg-orange-500"
-                                        : "bg-red-500"
+                                        : "bg-negative"
                                 }`}
                                 style={{ width: `${Math.round(risk * 100)}%` }}
                               />
@@ -269,12 +269,12 @@ export function FavoriteAssetsTable({
                             <span
                               className={`text-xs font-mono font-medium ${
                                 risk < 0.3
-                                  ? "text-emerald-500"
+                                  ? "text-positive"
                                   : risk < 0.5
-                                    ? "text-yellow-500"
+                                    ? "text-warning"
                                     : risk < 0.7
                                       ? "text-orange-500"
-                                      : "text-red-500"
+                                      : "text-negative"
                               }`}
                             >
                               {risk.toFixed(2)}

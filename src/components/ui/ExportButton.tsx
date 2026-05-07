@@ -50,7 +50,7 @@ export function ExportButton({
       title={status === "done" ? "저장됨" : "차트 이미지 다운로드"}
     >
       {status === "done" ? (
-        <Check className={`${iconSize} text-emerald-500`} />
+        <Check className={`${iconSize} text-positive`} />
       ) : (
         <Download className={iconSize} />
       )}

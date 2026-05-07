@@ -10,13 +10,13 @@ const STATUS_CONFIG: Record<
 > = {
   connected: {
     label: "LIVE",
-    dotClass: "bg-emerald-500",
-    pulseClass: "animate-pulse bg-emerald-500/40",
+    dotClass: "bg-positive",
+    pulseClass: "animate-pulse bg-positive/40",
   },
   reconnecting: {
     label: "RECONNECTING",
-    dotClass: "bg-amber-500",
-    pulseClass: "animate-pulse bg-amber-500/40",
+    dotClass: "bg-warning",
+    pulseClass: "animate-pulse bg-warning/40",
   },
   disconnected: {
     label: "OFFLINE",
