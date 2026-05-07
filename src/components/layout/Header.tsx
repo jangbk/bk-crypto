@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Menu, PanelLeft, PanelLeftClose } from "lucide-react";
+import { Search, Menu, PanelLeft, PanelLeftClose, Radio } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
@@ -88,6 +88,17 @@ export function Header() {
                 />
               </svg>
               BK STOCK
+            </a>
+            <a
+              href="https://curved-writer-ea6.notion.site/a9f0522d314640678df65efef41129e7?v=c982bd545c624bfd98794db007aafb51"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-accent/40 px-3 py-1.5 text-xs font-bold text-accent transition-colors hover:bg-accent/10 sm:flex"
+              aria-label="BK 재테크 정보방 (Notion) 새 탭에서 열기"
+              title="BK 재테크 정보방 — 모든 텔레그램 알림 자동 미러링 (read-only)"
+            >
+              <Radio className="h-3.5 w-3.5" aria-hidden="true" />
+              BK 정보방
             </a>
             <button
               onClick={() => setSearchOpen(true)}
