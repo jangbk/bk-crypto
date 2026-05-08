@@ -10,6 +10,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarProvider } from "@/components/layout/SidebarContext";
 import { SidebarMain } from "@/components/layout/SidebarMain";
 import { TickerTape } from "@/components/layout/TickerTape";
+import { PWARegister } from "@/components/layout/PWARegister";
 import ScrollToTop from "@/components/ui/ScrollToTop";
 import Breadcrumb from "@/components/ui/Breadcrumb";
 import { PriceAlertProvider } from "@/components/providers/PriceAlertProvider";
@@ -119,6 +120,7 @@ export default function RootLayout({
                     </SidebarMain>
 
                     <ScrollToTop />
+                    <PWARegister />
                   </SidebarProvider>
                 </PriceAlertProvider>
               </ToastProvider>
