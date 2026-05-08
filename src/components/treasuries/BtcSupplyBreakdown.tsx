@@ -26,7 +26,7 @@ export function BtcSupplyBreakdown({ price }: BtcSupplyBreakdownProps) {
         </div>
         <div className="rounded-lg border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">미채굴 잔여</p>
-          <p className="text-2xl font-bold mt-1 text-yellow-500">{BTC_REMAINING.toLocaleString()} BTC</p>
+          <p className="text-2xl font-bold mt-1 text-warning">{BTC_REMAINING.toLocaleString()} BTC</p>
           <p className="text-xs text-muted-foreground mt-1">블록 보상 3.125 BTC · 다음 반감기 2028.4</p>
         </div>
       </div>

@@ -103,7 +103,7 @@ export function NewsAnalysisCard({
             </button>
             <button onClick={() => onCopyToClipboard(analysis)}
               className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
-              {copiedId === analysis.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              {copiedId === analysis.id ? <Check className="h-4 w-4 text-positive" /> : <Copy className="h-4 w-4" />}
               {copiedId === analysis.id ? "복사됨!" : "클립보드 복사"}
             </button>
             {analysis.sourceUrl && (
@@ -116,13 +116,13 @@ export function NewsAnalysisCard({
               <div className="flex items-center gap-2 ml-auto">
                 <span className="text-sm text-muted-foreground">삭제하시겠습니까?</span>
                 <button onClick={() => onDeleteConfirm(analysis.id)}
-                  className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600 transition-colors">확인</button>
+                  className="rounded-lg bg-negative px-3 py-1.5 text-xs font-medium text-white hover:bg-negative transition-colors">확인</button>
                 <button onClick={() => setDeletingId(null)}
                   className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">취소</button>
               </div>
             ) : (
               <button onClick={() => setDeletingId(analysis.id)}
-                className="flex items-center gap-2 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors ml-auto">
+                className="flex items-center gap-2 rounded-lg border border-negative/30 px-4 py-2 text-sm font-medium text-negative hover:bg-negative/10 transition-colors ml-auto">
                 <Trash2 className="h-4 w-4" />삭제
               </button>
             )}
@@ -140,10 +140,10 @@ export function NewsAnalysisCard({
           {/* Investment Guide Section */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <Target className="h-5 w-5 text-yellow-500" />
+              <Target className="h-5 w-5 text-warning" />
               <h4 className="font-semibold text-lg">투자 가이드</h4>
             </div>
-            <div className="rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-4 text-sm leading-relaxed whitespace-pre-line">{analysis.investmentGuide}</div>
+            <div className="rounded-lg bg-warning/5 border border-warning/20 p-4 text-sm leading-relaxed whitespace-pre-line">{analysis.investmentGuide}</div>
           </div>
 
           {/* Key Points */}

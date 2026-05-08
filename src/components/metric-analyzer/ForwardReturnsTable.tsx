@@ -35,7 +35,7 @@ export function ForwardReturnsTable({
             <tr className="border-b border-border">
               <td
                 colSpan={crossAnalysis.periods.length + 1}
-                className="px-3 py-1.5 text-[10px] font-semibold text-green-500 bg-green-500/5"
+                className="px-3 py-1.5 text-[10px] font-semibold text-positive bg-positive/5"
               >
                 Golden Cross ({crossAnalysis.goldenCount}회) - 평균 수익률 (%)
               </td>
@@ -47,7 +47,7 @@ export function ForwardReturnsTable({
                 return (
                   <td
                     key={p}
-                    className={`px-3 py-2 text-center font-mono ${r && r.avg >= 0 ? "text-green-500" : "text-red-500"}`}
+                    className={`px-3 py-2 text-center font-mono ${r && r.avg >= 0 ? "text-positive" : "text-negative"}`}
                   >
                     {r ? `${r.avg >= 0 ? "+" : ""}${r.avg.toFixed(1)}%` : "-"}
                   </td>
@@ -70,7 +70,7 @@ export function ForwardReturnsTable({
             <tr className="border-b border-border">
               <td
                 colSpan={crossAnalysis.periods.length + 1}
-                className="px-3 py-1.5 text-[10px] font-semibold text-red-500 bg-red-500/5"
+                className="px-3 py-1.5 text-[10px] font-semibold text-negative bg-negative/5"
               >
                 Death Cross ({crossAnalysis.deathCount}회) - 평균 수익률 (%)
               </td>
@@ -82,7 +82,7 @@ export function ForwardReturnsTable({
                 return (
                   <td
                     key={p}
-                    className={`px-3 py-2 text-center font-mono ${r && r.avg >= 0 ? "text-green-500" : "text-red-500"}`}
+                    className={`px-3 py-2 text-center font-mono ${r && r.avg >= 0 ? "text-positive" : "text-negative"}`}
                   >
                     {r ? `${r.avg >= 0 ? "+" : ""}${r.avg.toFixed(1)}%` : "-"}
                   </td>

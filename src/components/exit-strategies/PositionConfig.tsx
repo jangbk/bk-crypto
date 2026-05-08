@@ -81,7 +81,7 @@ export function PositionConfig({
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">미실현 P&L</span>
             <span
-              className={`font-bold ${unrealizedPnL >= 0 ? "text-green-500" : "text-red-500"}`}
+              className={`font-bold ${unrealizedPnL >= 0 ? "text-positive" : "text-negative"}`}
             >
               {unrealizedPnL >= 0 ? "+" : ""}
               {formatUSD(unrealizedPnL)} (

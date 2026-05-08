@@ -38,7 +38,7 @@ export function RiskSummaryTable({ indicators }: RiskSummaryTableProps) {
                           className="h-full rounded-full"
                           style={{
                             width: `${ind.risk * 100}%`,
-                            background: ind.risk < 0.33 ? "#10b981" : ind.risk < 0.66 ? "#eab308" : "#ef4444",
+                            background: ind.risk < 0.33 ? "var(--positive)" : ind.risk < 0.66 ? "var(--warning)" : "var(--negative)",
                           }}
                         />
                       </div>

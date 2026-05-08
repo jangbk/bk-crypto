@@ -39,18 +39,18 @@ function DualChartScaleRef({ chartId }: { chartId: string }) {
   if (chartId === "fear-greed-index") {
     return (
       <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground px-1">
-        <span className="text-red-500 font-medium">0 = Extreme Fear</span>
-        <span className="text-amber-500 font-medium">50 = Neutral</span>
-        <span className="text-emerald-500 font-medium">100 = Extreme Greed</span>
+        <span className="text-negative font-medium">0 = Extreme Fear</span>
+        <span className="text-warning font-medium">50 = Neutral</span>
+        <span className="text-positive font-medium">100 = Extreme Greed</span>
       </div>
     );
   }
   if (chartId === "mvrv-zscore") {
     return (
       <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground px-1">
-        <span className="text-emerald-500 font-medium">{"< 0 = 저평가 (매수 기회)"}</span>
+        <span className="text-positive font-medium">{"< 0 = 저평가 (매수 기회)"}</span>
         <span className="text-blue-500 font-medium">0~2 = 적정 가치</span>
-        <span className="text-red-500 font-medium">{"> 3 = 고평가 (과열 경고)"}</span>
+        <span className="text-negative font-medium">{"> 3 = 고평가 (과열 경고)"}</span>
       </div>
     );
   }

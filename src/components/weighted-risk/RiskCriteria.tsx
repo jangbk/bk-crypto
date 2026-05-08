@@ -26,20 +26,20 @@ export function RiskCriteria() {
           <div>
             <h4 className="font-semibold text-foreground mb-2">리스크 레벨 기준</h4>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className="rounded-md border border-green-500/30 bg-green-500/5 p-2.5">
-                <p className="text-xs font-bold text-green-500">Low Risk (0~25)</p>
+              <div className="rounded-md border border-positive/30 bg-positive/5 p-2.5">
+                <p className="text-xs font-bold text-positive">Low Risk (0~25)</p>
                 <p className="text-[10px] mt-1">시장이 저평가 구간에 있으며, 역사적으로 매수 기회가 될 수 있는 구간입니다.</p>
               </div>
               <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-2.5">
                 <p className="text-xs font-bold text-blue-500">Moderate (25~50)</p>
                 <p className="text-[10px] mt-1">시장이 적정 가치 범위 내에 있으며, 정상적인 상승 추세 또는 횡보 구간입니다.</p>
               </div>
-              <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-2.5">
-                <p className="text-xs font-bold text-yellow-500">Elevated (50~75)</p>
+              <div className="rounded-md border border-warning/30 bg-warning/5 p-2.5">
+                <p className="text-xs font-bold text-warning">Elevated (50~75)</p>
                 <p className="text-[10px] mt-1">시장 과열 초기 징후가 나타나며, 리스크 관리와 포지션 축소를 고려해야 합니다.</p>
               </div>
-              <div className="rounded-md border border-red-500/30 bg-red-500/5 p-2.5">
-                <p className="text-xs font-bold text-red-500">High Risk (75~100)</p>
+              <div className="rounded-md border border-negative/30 bg-negative/5 p-2.5">
+                <p className="text-xs font-bold text-negative">High Risk (75~100)</p>
                 <p className="text-[10px] mt-1">시장이 극도로 과열된 상태이며, 역사적으로 고점 형성 구간에 해당합니다.</p>
               </div>
             </div>

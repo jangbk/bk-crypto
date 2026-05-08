@@ -69,7 +69,7 @@ export function RiskReference({ config, holdingsNum }: RiskReferenceProps) {
                   <td className="px-3 py-2 text-right font-mono">{formatPrice(band.start)}</td>
                   <td className="px-3 py-2 text-right font-mono font-semibold">{formatPrice(band.mid)}</td>
                   <td className="px-3 py-2 text-right font-mono">{formatPrice(band.top)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-green-500">{formatUSD(holdingsNum * band.mid)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-positive">{formatUSD(holdingsNum * band.mid)}</td>
                 </tr>
               ))}
             </tbody>
@@ -148,11 +148,11 @@ export function RiskReference({ config, holdingsNum }: RiskReferenceProps) {
                       <span
                         className={`inline-block rounded px-2 py-0.5 ${
                           pct >= 25
-                            ? "bg-red-500/15 text-red-500"
+                            ? "bg-negative/15 text-negative"
                             : pct >= 15
-                            ? "bg-yellow-500/15 text-yellow-500"
+                            ? "bg-warning/15 text-warning"
                             : pct > 0
-                            ? "bg-green-500/15 text-green-500"
+                            ? "bg-positive/15 text-positive"
                             : "text-muted-foreground"
                         }`}
                       >
@@ -190,7 +190,7 @@ export function RiskReference({ config, holdingsNum }: RiskReferenceProps) {
                 </p>
               </div>
               <div className="rounded-md border border-border/50 p-2.5">
-                <p className="text-[10px] font-bold text-yellow-600 dark:text-yellow-400 mb-1">⚖ 중립적</p>
+                <p className="text-[10px] font-bold text-warning dark:text-warning mb-1">⚖ 중립적</p>
                 <p className="text-[9px] text-muted-foreground leading-relaxed">
                   밴드 전반에 걸쳐 균형 있게 배분합니다.
                   초반에는 소량 매도, 중후반에 비중을 높여 상승 수익과 리스크 관리를 절충합니다.
@@ -198,7 +198,7 @@ export function RiskReference({ config, holdingsNum }: RiskReferenceProps) {
                 </p>
               </div>
               <div className="rounded-md border border-border/50 p-2.5">
-                <p className="text-[10px] font-bold text-red-600 dark:text-red-400 mb-1">🔥 공격적</p>
+                <p className="text-[10px] font-bold text-negative dark:text-negative mb-1">🔥 공격적</p>
                 <p className="text-[9px] text-muted-foreground leading-relaxed">
                   초반 밴드에서는 거의 매도하지 않고, 고위험 밴드(Band 4~5)에서 집중 매도합니다.
                   최대 수익을 노리지만, 가격이 고점에 도달하지 못하면 매도 기회를 놓칠 수 있습니다.
@@ -216,7 +216,7 @@ export function RiskReference({ config, holdingsNum }: RiskReferenceProps) {
               <li>본인의 <strong>리스크 허용도</strong>를 판단합니다 — 원금 보전이 우선이면 보수적, 최대 수익이 목표면 공격적.</li>
               <li>해당 행(보수적/중립적/공격적)의 밴드별 %를 확인하고, 위의 <strong>래더 목표가에 반영</strong>합니다.</li>
               <li>예: 중립적 전략에서 Band 3 = 20%이면, Band 3 가격대({formatPrice(config.riskBands[2].start)}~{formatPrice(config.riskBands[2].top)})에서 보유량의 20%를 매도 설정합니다.</li>
-              <li>매트릭스 색상도 참고하세요 — <span className="text-green-500 font-medium">녹색(소량)</span>, <span className="text-yellow-500 font-medium">노랑(중간)</span>, <span className="text-red-500 font-medium">빨강(대량)</span> 매도.</li>
+              <li>매트릭스 색상도 참고하세요 — <span className="text-positive font-medium">녹색(소량)</span>, <span className="text-warning font-medium">노랑(중간)</span>, <span className="text-negative font-medium">빨강(대량)</span> 매도.</li>
             </ol>
           </div>
         </div>
@@ -227,8 +227,8 @@ export function RiskReference({ config, holdingsNum }: RiskReferenceProps) {
 
 export function Disclaimer() {
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
-      <div className="flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
+    <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 space-y-2">
+      <div className="flex items-center gap-2 text-sm font-semibold text-warning dark:text-warning">
         <AlertTriangle className="h-4 w-4" />
         주의사항
       </div>

@@ -37,7 +37,7 @@ export function SignalList({ signals }: SignalListProps) {
               <div>
                 <div className="text-sm font-medium flex items-center gap-1.5">
                   {signal.name}
-                  {signal.live && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="실시간" />}
+                  {signal.live && <span className="h-1.5 w-1.5 rounded-full bg-positive animate-pulse" title="실시간" />}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">{signal.value}</div>
               </div>

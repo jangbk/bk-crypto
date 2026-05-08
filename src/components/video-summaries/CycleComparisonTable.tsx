@@ -22,7 +22,7 @@ export function CycleComparisonTable() {
           <tbody>
             <tr className="border-b border-border/50 hover:bg-muted/50">
               <td className="p-3 font-medium">2014</td>
-              <td className="p-3 text-right text-red-500">-50%+</td>
+              <td className="p-3 text-right text-negative">-50%+</td>
               <td className="p-3 text-right">~1년</td>
               <td className="p-3 text-right">2월 10일</td>
               <td className="p-3 text-right">3월 3일</td>
@@ -30,7 +30,7 @@ export function CycleComparisonTable() {
             </tr>
             <tr className="border-b border-border/50 hover:bg-muted/50">
               <td className="p-3 font-medium">2018</td>
-              <td className="p-3 text-right text-red-500">-70%</td>
+              <td className="p-3 text-right text-negative">-70%</td>
               <td className="p-3 text-right">51주</td>
               <td className="p-3 text-right">2월 6일</td>
               <td className="p-3 text-right">3월 5일</td>
@@ -38,7 +38,7 @@ export function CycleComparisonTable() {
             </tr>
             <tr className="border-b border-border/50 hover:bg-muted/50">
               <td className="p-3 font-medium">2019</td>
-              <td className="p-3 text-right text-red-500">-52%</td>
+              <td className="p-3 text-right text-negative">-52%</td>
               <td className="p-3 text-right">수개월</td>
               <td className="p-3 text-right">-</td>
               <td className="p-3 text-right">-</td>
@@ -46,7 +46,7 @@ export function CycleComparisonTable() {
             </tr>
             <tr className="border-b border-border/50 hover:bg-muted/50">
               <td className="p-3 font-medium">2022</td>
-              <td className="p-3 text-right text-red-500">-63%</td>
+              <td className="p-3 text-right text-negative">-63%</td>
               <td className="p-3 text-right">183일</td>
               <td className="p-3 text-right">1월 (유사)</td>
               <td className="p-3 text-right">3월 2일</td>
@@ -54,10 +54,10 @@ export function CycleComparisonTable() {
             </tr>
             <tr className="bg-primary/5 font-semibold">
               <td className="p-3">2026 (현재)</td>
-              <td className="p-3 text-right text-red-500">-50%</td>
+              <td className="p-3 text-right text-negative">-50%</td>
               <td className="p-3 text-right">123일</td>
               <td className="p-3 text-right text-primary">2월 6일</td>
-              <td className="p-3 text-right text-yellow-500">3월 초 (예상)</td>
+              <td className="p-3 text-right text-warning">3월 초 (예상)</td>
               <td className="p-3 text-right text-orange-500">10월? 5월?</td>
             </tr>
           </tbody>

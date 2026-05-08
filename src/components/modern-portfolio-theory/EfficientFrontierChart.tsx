@@ -167,7 +167,7 @@ export function EfficientFrontierChart({
                 cx={toX(optimal.minVar.risk)}
                 cy={toY(optimal.minVar.ret)}
                 r={5}
-                fill="#10b981"
+                fill="var(--positive)"
                 stroke="white"
                 strokeWidth={1.5}
               />
@@ -184,7 +184,7 @@ export function EfficientFrontierChart({
                 cx={toX(optimal.maxSharpe.risk)}
                 cy={toY(optimal.maxSharpe.ret)}
                 r={5}
-                fill="#f59e0b"
+                fill="var(--warning)"
                 stroke="white"
                 strokeWidth={1.5}
               />

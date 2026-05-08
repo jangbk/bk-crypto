@@ -41,21 +41,21 @@ export function formatBotValue(id: string, value: number): string {
 export function getStatusBadge(status: string): ReactNode {
   if (status === "active")
     return (
-      <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 /30 dark:text-positive">
+        <span className="h-1.5 w-1.5 rounded-full bg-positive animate-pulse" />
         Active
       </span>
     );
   if (status === "paused")
     return (
-      <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+      <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 /30 dark:text-warning">
+        <span className="h-1.5 w-1.5 rounded-full bg-warning" />
         Paused
       </span>
     );
   return (
-    <span className="flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
-      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+    <span className="flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 /30 dark:text-negative">
+      <span className="h-1.5 w-1.5 rounded-full bg-negative" />
       Stopped
     </span>
   );

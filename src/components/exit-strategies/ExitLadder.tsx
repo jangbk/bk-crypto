@@ -45,14 +45,14 @@ export function ExitLadder({
             key={i}
             className={`flex items-center gap-3 rounded-lg border p-3 ${
               step.isTriggered
-                ? "border-green-500/30 bg-green-500/5"
+                ? "border-positive/30 bg-positive/5"
                 : "border-border"
             }`}
           >
             <div
               className={`flex h-7 w-7 items-center justify-center rounded-full shrink-0 ${
                 step.isTriggered
-                  ? "bg-green-500 text-white"
+                  ? "bg-positive text-white"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -120,7 +120,7 @@ export function ExitLadder({
                 <p className="text-[10px] text-muted-foreground">P&L</p>
                 <p
                   className={`text-xs font-mono font-semibold ${
-                    step.pnl >= 0 ? "text-green-500" : "text-red-500"
+                    step.pnl >= 0 ? "text-positive" : "text-negative"
                   }`}
                 >
                   {step.pnl >= 0 ? "+" : ""}
@@ -131,7 +131,7 @@ export function ExitLadder({
 
             <button
               onClick={() => onRemoveStep(i)}
-              className="text-muted-foreground hover:text-red-500 shrink-0"
+              className="text-muted-foreground hover:text-negative shrink-0"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -152,7 +152,7 @@ export function ExitLadder({
           <p className="text-[10px] text-muted-foreground">
             총 예상 수익
           </p>
-          <p className="text-sm font-bold text-green-500">
+          <p className="text-sm font-bold text-positive">
             {formatUSD(totalProceeds)}
           </p>
         </div>

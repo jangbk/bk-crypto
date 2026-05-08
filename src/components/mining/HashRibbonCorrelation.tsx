@@ -121,21 +121,21 @@ export function HashRibbonCorrelation({
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 text-center">
+        <div className="rounded-lg bg-positive/10 border border-positive/20 p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase">평균 수익률</p>
-          <p className="text-xl font-bold text-green-400">+{avgReturn.toFixed(1)}%</p>
+          <p className="text-xl font-bold text-positive">+{avgReturn.toFixed(1)}%</p>
         </div>
         <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase">승률</p>
           <p className="text-xl font-bold text-blue-400">{winRate.toFixed(0)}%</p>
         </div>
-        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-center">
+        <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase">최대 수익</p>
-          <p className="text-xl font-bold text-amber-400">+{maxReturn.toFixed(1)}%</p>
+          <p className="text-xl font-bold text-warning">+{maxReturn.toFixed(1)}%</p>
         </div>
         <div className="rounded-lg bg-muted/30 border border-border p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase">최소 수익</p>
-          <p className={`text-xl font-bold ${minReturn >= 0 ? "text-foreground" : "text-red-400"}`}>{minReturn >= 0 ? "+" : ""}{minReturn.toFixed(1)}%</p>
+          <p className={`text-xl font-bold ${minReturn >= 0 ? "text-foreground" : "text-negative"}`}>{minReturn >= 0 ? "+" : ""}{minReturn.toFixed(1)}%</p>
         </div>
       </div>
 
@@ -159,13 +159,13 @@ export function HashRibbonCorrelation({
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
                     {sig.date}
-                    {sig.isLive && <span className="text-[9px] px-1 py-0.5 rounded bg-green-500/15 text-green-400">LIVE</span>}
+                    {sig.isLive && <span className="text-[9px] px-1 py-0.5 rounded bg-positive/15 text-positive">LIVE</span>}
                   </div>
                 </td>
                 <td className="py-2.5 px-3 text-right font-mono text-muted-foreground">${sig.btcPrice.toLocaleString()}</td>
                 <td className="py-2.5 px-3 text-right font-mono text-foreground">${sig.peakAfter.toLocaleString()}</td>
                 <td className="py-2.5 px-3 text-right">
-                  <span className={`font-bold ${sig.returnPct >= 100 ? "text-green-400" : sig.returnPct >= 50 ? "text-emerald-400" : sig.returnPct > 0 ? "text-blue-400" : "text-red-400"}`}>
+                  <span className={`font-bold ${sig.returnPct >= 100 ? "text-positive" : sig.returnPct >= 50 ? "text-positive" : sig.returnPct > 0 ? "text-blue-400" : "text-negative"}`}>
                     {sig.returnPct >= 0 ? "+" : ""}{sig.returnPct.toFixed(1)}%
                   </span>
                 </td>
@@ -174,7 +174,7 @@ export function HashRibbonCorrelation({
                   <div className="h-4 bg-muted/30 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        sig.returnPct >= 200 ? "bg-green-500" : sig.returnPct >= 50 ? "bg-emerald-500" : sig.returnPct > 0 ? "bg-blue-500" : "bg-red-500"
+                        sig.returnPct >= 200 ? "bg-positive" : sig.returnPct >= 50 ? "bg-positive" : sig.returnPct > 0 ? "bg-blue-500" : "bg-negative"
                       }`}
                       style={{ width: `${Math.max((sig.returnPct / maxR) * 100, 2)}%` }}
                     />

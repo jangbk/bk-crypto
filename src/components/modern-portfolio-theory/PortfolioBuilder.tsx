@@ -157,7 +157,7 @@ export function PortfolioBuilder({
                 </div>
                 <button
                   onClick={() => removeAsset(i)}
-                  className="text-muted-foreground hover:text-red-500"
+                  className="text-muted-foreground hover:text-negative"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -225,8 +225,8 @@ export function PortfolioBuilder({
         <div
           className={`mt-3 rounded-md p-2 text-xs ${
             totalAlloc === 100
-              ? "bg-green-500/10 text-green-500"
-              : "bg-red-500/10 text-red-500"
+              ? "bg-positive/10 text-positive"
+              : "bg-negative/10 text-negative"
           }`}
         >
           <div className="flex items-center justify-between">

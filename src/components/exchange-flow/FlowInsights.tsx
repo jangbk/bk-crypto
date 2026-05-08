@@ -28,13 +28,13 @@ export function FlowInsights({ flows }: FlowInsightsProps) {
   if (btc) {
     if (btc.netflow24h < -100_000_000) {
       insights.push({
-        icon: <TrendingUp className="h-4 w-4" />, color: "text-green-400", bg: "bg-green-500/10 border-green-500/20",
+        icon: <TrendingUp className="h-4 w-4" />, color: "text-positive", bg: "bg-positive/10 border-positive/20",
         title: "BTC 대규모 유출",
         desc: `24시간 BTC 순유출 ${formatUSD(Math.abs(btc.netflow24h))}. 투자자들이 거래소에서 코인을 꺼내 장기 보유 중. 매도 압력 감소로 강세 신호.`,
       });
     } else if (btc.netflow24h > 100_000_000) {
       insights.push({
-        icon: <TrendingDown className="h-4 w-4" />, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20",
+        icon: <TrendingDown className="h-4 w-4" />, color: "text-negative", bg: "bg-negative/10 border-negative/20",
         title: "BTC 대규모 유입",
         desc: `24시간 BTC 순유입 ${formatUSD(btc.netflow24h)}. 거래소 입금 증가는 잠재적 매도 압력. 단기 하락 가능성에 주의.`,
       });
@@ -42,7 +42,7 @@ export function FlowInsights({ flows }: FlowInsightsProps) {
 
     if (btc.netflow30d < -1_000_000_000) {
       insights.push({
-        icon: <Shield className="h-4 w-4" />, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20",
+        icon: <Shield className="h-4 w-4" />, color: "text-positive", bg: "bg-positive/10 border-positive/20",
         title: "BTC 30일 축적 추세",
         desc: `지난 30일간 BTC ${formatUSD(Math.abs(btc.netflow30d))} 순유출. 장기적 축적 추세는 공급 충격(Supply Shock) 가능성을 시사.`,
       });
@@ -61,7 +61,7 @@ export function FlowInsights({ flows }: FlowInsightsProps) {
   // USDT flow (opposite interpretation)
   if (usdt && usdt.netflow24h > 100_000_000) {
     insights.push({
-      icon: <Zap className="h-4 w-4" />, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20",
+      icon: <Zap className="h-4 w-4" />, color: "text-warning", bg: "bg-warning/10 border-warning/20",
       title: "스테이블코인 유입 (매수 대기)",
       desc: `USDT ${formatUSD(usdt.netflow24h)} 거래소 유입. 스테이블코인 유입은 매수 준비 신호로, 상승 동력이 될 수 있습니다.`,
     });
@@ -72,8 +72,8 @@ export function FlowInsights({ flows }: FlowInsightsProps) {
   if (Math.abs(totalNet) > 50_000_000 && insights.length < 4) {
     insights.push({
       icon: totalNet < 0 ? <ArrowUpFromLine className="h-4 w-4" /> : <ArrowDownToLine className="h-4 w-4" />,
-      color: totalNet < 0 ? "text-green-400" : "text-red-400",
-      bg: totalNet < 0 ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20",
+      color: totalNet < 0 ? "text-positive" : "text-negative",
+      bg: totalNet < 0 ? "bg-positive/10 border-positive/20" : "bg-negative/10 border-negative/20",
       title: totalNet < 0 ? "전체 시장 유출 우세" : "전체 시장 유입 우세",
       desc: totalNet < 0
         ? `암호화폐 전체 순유출 ${formatUSD(Math.abs(totalNet))}. 시장 전반적으로 축적 모드에 진입한 것으로 보입니다.`
@@ -86,7 +86,7 @@ export function FlowInsights({ flows }: FlowInsightsProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 text-amber-500" />
+        <AlertTriangle className="h-4 w-4 text-warning" />
         시사점 분석
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

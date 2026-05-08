@@ -111,16 +111,16 @@ export function BtcFlowChartSvg({
     >
       <defs>
         <linearGradient id="inflowGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ef4444" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#ef4444" stopOpacity="0.5" />
+          <stop offset="0%" stopColor="var(--negative)" stopOpacity="0.95" />
+          <stop offset="100%" stopColor="var(--negative)" stopOpacity="0.5" />
         </linearGradient>
         <linearGradient id="outflowGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#10b981" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#10b981" stopOpacity="0.95" />
+          <stop offset="0%" stopColor="var(--positive)" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="var(--positive)" stopOpacity="0.95" />
         </linearGradient>
         <linearGradient id="priceAreaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.02" />
+          <stop offset="0%" stopColor="var(--warning)" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="var(--warning)" stopOpacity="0.02" />
         </linearGradient>
         <linearGradient id="balAreaGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.12" />
@@ -168,7 +168,7 @@ export function BtcFlowChartSvg({
       {/* Price area + line */}
       {priceAreaPath && <path d={priceAreaPath} fill="url(#priceAreaGrad)" />}
       {priceLinePath && (
-        <path d={priceLinePath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" opacity="0.85" />
+        <path d={priceLinePath} fill="none" stroke="var(--warning)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" opacity="0.85" />
       )}
 
       {/* Cumulative balance area + line */}
@@ -214,7 +214,7 @@ export function BtcFlowChartSvg({
         const price = minPrice + pct * priceRange;
         const y = pad.top + (1 - pct) * chartH;
         return (
-          <text key={`py-${pct}`} x={svgW - pad.right + 8} y={y + 3} textAnchor="start" fill="#f59e0b" fontSize={9} opacity={0.7}>
+          <text key={`py-${pct}`} x={svgW - pad.right + 8} y={y + 3} textAnchor="start" fill="var(--warning)" fontSize={9} opacity={0.7}>
             ${Math.round(price / 1000)}K
           </text>
         );
@@ -229,7 +229,7 @@ export function BtcFlowChartSvg({
               stroke="currentColor" strokeOpacity={0.2} strokeWidth={1} strokeDasharray="3 3" className="text-foreground" />
             {hp && (() => {
               const py = pad.top + (1 - (hp - minPrice) / priceRange) * chartH;
-              return <circle cx={x} cy={py} r={4} fill="#f59e0b" stroke="#000" strokeWidth={1.5} />;
+              return <circle cx={x} cy={py} r={4} fill="var(--warning)" stroke="#000" strokeWidth={1.5} />;
             })()}
             {hBal !== null && (() => {
               const by = midY - (hBal / maxBalAbs) * halfH * 0.85;
@@ -243,12 +243,12 @@ export function BtcFlowChartSvg({
                     <p className="font-semibold text-foreground mb-1.5">{hd.date}</p>
                     <div className="space-y-1">
                       <div className="flex justify-between">
-                        <span className="text-red-400">유입</span>
-                        <span className="text-red-400 font-medium">{formatUSD(hd.inflow)}</span>
+                        <span className="text-negative">유입</span>
+                        <span className="text-negative font-medium">{formatUSD(hd.inflow)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-emerald-400">유출</span>
-                        <span className="text-emerald-400 font-medium">{formatUSD(hd.outflow)}</span>
+                        <span className="text-positive">유출</span>
+                        <span className="text-positive font-medium">{formatUSD(hd.outflow)}</span>
                       </div>
                       <div className="flex justify-between border-t border-border pt-1">
                         <span className={netflowColor(hd.netflow)}>순유출입</span>
@@ -262,8 +262,8 @@ export function BtcFlowChartSvg({
                       )}
                       {hp && (
                         <div className="flex justify-between">
-                          <span className="text-amber-500">BTC</span>
-                          <span className="text-amber-500 font-medium">${hp.toLocaleString()}</span>
+                          <span className="text-warning">BTC</span>
+                          <span className="text-warning font-medium">${hp.toLocaleString()}</span>
                         </div>
                       )}
                     </div>
@@ -279,7 +279,7 @@ export function BtcFlowChartSvg({
       <text x={pad.left - 8} y={pad.top - 10} textAnchor="end" className="fill-red-400" fontSize={9} fontWeight={500}>유입</text>
       <text x={pad.left - 8} y={pad.top + chartH + 16} textAnchor="end" className="fill-emerald-400" fontSize={9} fontWeight={500}>유출</text>
       {matchedPrices.length > 0 && (
-        <text x={svgW - pad.right + 8} y={pad.top - 10} textAnchor="start" fill="#f59e0b" fontSize={9} fontWeight={500}>BTC Price</text>
+        <text x={svgW - pad.right + 8} y={pad.top - 10} textAnchor="start" fill="var(--warning)" fontSize={9} fontWeight={500}>BTC Price</text>
       )}
     </svg>
   );

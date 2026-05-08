@@ -60,7 +60,7 @@ export function CorrelationTable({
               <tr key={row.id} className="border-b border-border hover:bg-muted/20">
                 <td className="px-3 py-2 font-medium">{row.name}</td>
                 <td
-                  className={`px-3 py-2 text-right font-mono font-semibold ${row.corr >= 0 ? "text-green-500" : "text-red-500"}`}
+                  className={`px-3 py-2 text-right font-mono font-semibold ${row.corr >= 0 ? "text-positive" : "text-negative"}`}
                 >
                   {row.corr >= 0 ? "+" : ""}{row.corr.toFixed(3)}
                 </td>
@@ -70,10 +70,10 @@ export function CorrelationTable({
                       <div
                         className={`h-full rounded-full ${
                           Math.abs(row.corr) > 0.6
-                            ? "bg-green-500"
+                            ? "bg-positive"
                             : Math.abs(row.corr) > 0.3
-                              ? "bg-yellow-500"
-                              : "bg-red-500"
+                              ? "bg-warning"
+                              : "bg-negative"
                         }`}
                         style={{ width: `${Math.abs(row.corr) * 100}%` }}
                       />
@@ -89,7 +89,7 @@ export function CorrelationTable({
                 </td>
                 <td className="px-3 py-2 text-center">
                   {row.realData ? (
-                    <span className="text-green-500 text-[10px]">Real</span>
+                    <span className="text-positive text-[10px]">Real</span>
                   ) : manualValues[row.id] !== undefined ? (
                     <Link
                       href="/tools/weighted-risk"
@@ -101,13 +101,13 @@ export function CorrelationTable({
                     </Link>
                   ) : (
                     <span className="inline-flex items-center gap-1">
-                      <span className="text-yellow-500 text-[10px]">Sim</span>
+                      <span className="text-warning text-[10px]">Sim</span>
                       {row.refUrl && (
                         <a
                           href={row.refUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-yellow-500 hover:text-yellow-400 transition-colors"
+                          className="text-warning hover:text-warning transition-colors"
                           title={`${row.name} 실시간 확인`}
                         >
                           <ExternalLink className="h-3 w-3" />

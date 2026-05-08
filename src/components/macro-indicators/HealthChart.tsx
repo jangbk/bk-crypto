@@ -46,17 +46,17 @@ export function HealthChart({ indicators, avgRisk }: HealthChartProps) {
                     <span className="text-xs font-semibold">{catLabel}</span>
                   </div>
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                    catAvgRisk < 0.33 ? "bg-green-500/10 text-green-600" :
-                    catAvgRisk < 0.66 ? "bg-yellow-500/10 text-yellow-600" :
-                    "bg-red-500/10 text-red-600"
+                    catAvgRisk < 0.33 ? "bg-positive/10 text-positive" :
+                    catAvgRisk < 0.66 ? "bg-warning/10 text-warning" :
+                    "bg-negative/10 text-negative"
                   }`}>
                     {catAvgRisk < 0.33 ? "양호" : catAvgRisk < 0.66 ? "주의" : "위험"}
                   </span>
                 </div>
                 <div className="space-y-2.5">
                   {catIndicators.map((ind) => {
-                    const barColor = ind.risk < 0.33 ? "#10b981" : ind.risk < 0.66 ? "#eab308" : "#ef4444";
-                    const bgBarColor = ind.risk < 0.33 ? "bg-green-500/8" : ind.risk < 0.66 ? "bg-yellow-500/8" : "bg-red-500/8";
+                    const barColor = ind.risk < 0.33 ? "var(--positive)" : ind.risk < 0.66 ? "var(--warning)" : "var(--negative)";
+                    const bgBarColor = ind.risk < 0.33 ? "bg-positive/8" : ind.risk < 0.66 ? "bg-warning/8" : "bg-negative/8";
                     return (
                       <div key={ind.name} className={`rounded-md p-2 ${bgBarColor}`}>
                         <div className="flex items-center justify-between mb-1">
@@ -64,9 +64,9 @@ export function HealthChart({ indicators, avgRisk }: HealthChartProps) {
                           <div className="flex items-center gap-2">
                             <span className="text-[11px] font-mono font-semibold">{ind.displayValue}</span>
                             <span className={`inline-flex items-center gap-0.5 text-[9px] ${
-                              ind.trendDirection === "positive" ? "text-green-500" :
-                              ind.trendDirection === "negative" ? "text-red-500" :
-                              "text-yellow-500"
+                              ind.trendDirection === "positive" ? "text-positive" :
+                              ind.trendDirection === "negative" ? "text-negative" :
+                              "text-warning"
                             }`}>
                               {ind.trend === "up" ? "▲" : ind.trend === "down" ? "▼" : "─"}
                             </span>
@@ -117,7 +117,7 @@ export function HealthChart({ indicators, avgRisk }: HealthChartProps) {
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold">종합 리스크 수준</span>
             <span className={`text-xs font-bold ${
-              avgRisk < 0.33 ? "text-green-500" : avgRisk < 0.66 ? "text-yellow-500" : "text-red-500"
+              avgRisk < 0.33 ? "text-positive" : avgRisk < 0.66 ? "text-warning" : "text-negative"
             }`}>
               {(avgRisk * 100).toFixed(0)}% ({avgRisk < 0.25 ? "매우 건전" : avgRisk < 0.4 ? "건전" : avgRisk < 0.55 ? "보통" : avgRisk < 0.7 ? "주의 필요" : "위험"})
             </span>
@@ -130,7 +130,7 @@ export function HealthChart({ indicators, avgRisk }: HealthChartProps) {
               style={{
                 width: "6px",
                 left: `calc(${avgRisk * 100}% - 3px)`,
-                background: avgRisk < 0.33 ? "#10b981" : avgRisk < 0.66 ? "#eab308" : "#ef4444",
+                background: avgRisk < 0.33 ? "var(--positive)" : avgRisk < 0.66 ? "var(--warning)" : "var(--negative)",
                 boxShadow: "0 0 6px rgba(0,0,0,0.3)",
               }}
             />

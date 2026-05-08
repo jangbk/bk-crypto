@@ -105,11 +105,11 @@ export default function ChartCard({
             className="absolute inset-0 w-full h-full"
             preserveAspectRatio="none"
           >
-            <rect x="0" y="0" width="200" height="12" fill="#ef4444" fillOpacity="0.08" />
-            <rect x="0" y="12" width="200" height="12" fill="#f97316" fillOpacity="0.06" />
-            <rect x="0" y="24" width="200" height="12" fill="#eab308" fillOpacity="0.05" />
-            <rect x="0" y="36" width="200" height="12" fill="#22c55e" fillOpacity="0.06" />
-            <rect x="0" y="48" width="200" height="12" fill="#22c55e" fillOpacity="0.08" />
+            <rect x="0" y="0" width="200" height="12" fill="var(--negative)" fillOpacity="0.08" />
+            <rect x="0" y="12" width="200" height="12" fill="var(--warning)" fillOpacity="0.06" />
+            <rect x="0" y="24" width="200" height="12" fill="var(--warning)" fillOpacity="0.05" />
+            <rect x="0" y="36" width="200" height="12" fill="var(--positive)" fillOpacity="0.06" />
+            <rect x="0" y="48" width="200" height="12" fill="var(--positive)" fillOpacity="0.08" />
           </svg>
         )}
 
@@ -130,7 +130,7 @@ export default function ChartCard({
             <path
               d={overlayLine}
               fill="none"
-              stroke="#f59e0b"
+              stroke="var(--warning)"
               strokeWidth="1"
               strokeOpacity="0.5"
               strokeDasharray="3,2"
@@ -149,8 +149,8 @@ export default function ChartCard({
         {/* Live indicator */}
         {hasLive && (
           <span className="absolute bottom-1 left-1.5 flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[8px] font-medium text-green-500/80">LIVE</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-positive animate-pulse" />
+            <span className="text-[8px] font-medium text-positive/80">LIVE</span>
           </span>
         )}
 
@@ -162,7 +162,7 @@ export default function ChartCard({
           }}
           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
         >
-          <Star className="h-3.5 w-3.5 text-muted-foreground hover:text-yellow-400 transition-colors" />
+          <Star className="h-3.5 w-3.5 text-muted-foreground hover:text-warning transition-colors" />
         </button>
 
         {/* Category badge */}

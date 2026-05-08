@@ -25,14 +25,14 @@ export function OverallAssessment({
   }
 
   const colorClass =
-    sentiment === "강세" ? "text-emerald-400" :
-    sentiment === "약세" ? "text-red-400" :
-    "text-yellow-400";
+    sentiment === "강세" ? "text-positive" :
+    sentiment === "약세" ? "text-negative" :
+    "text-warning";
 
   const bgClass =
-    sentiment === "강세" ? "bg-emerald-500/20 text-emerald-400" :
-    sentiment === "약세" ? "bg-red-500/20 text-red-400" :
-    "bg-yellow-500/20 text-yellow-400";
+    sentiment === "강세" ? "bg-positive/20 text-positive" :
+    sentiment === "약세" ? "bg-negative/20 text-negative" :
+    "bg-warning/20 text-warning";
 
   const SentimentIcon =
     sentiment === "강세" ? TrendingUp :
@@ -40,8 +40,8 @@ export function OverallAssessment({
     Minus;
 
   const barColor =
-    confidence >= 70 ? "bg-emerald-500" :
-    confidence >= 40 ? "bg-yellow-500" : "bg-red-500";
+    confidence >= 70 ? "bg-positive" :
+    confidence >= 40 ? "bg-warning" : "bg-negative";
 
   return (
     <div className="rounded-lg border border-border bg-card p-6">

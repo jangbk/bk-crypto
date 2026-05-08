@@ -24,7 +24,7 @@ export function DataStatusBar({
       {!loading && (
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${realPrices.length > 0 ? "bg-green-500" : "bg-yellow-500"}`} />
+            <span className={`h-2 w-2 rounded-full ${realPrices.length > 0 ? "bg-positive" : "bg-warning"}`} />
             <span>
               BTC 가격 데이터: {realPrices.length > 0
                 ? `${dataSource === "coingecko" ? "CoinGecko 실시간" : dataSource} (${realPrices.length.toLocaleString()}일)`
@@ -45,13 +45,13 @@ export function DataStatusBar({
       <div className="text-[10px] text-muted-foreground space-y-1">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> * 실제 데이터 (BTC 가격 기반 계산)
+            <span className="h-1.5 w-1.5 rounded-full bg-positive" /> * 실제 데이터 (BTC 가격 기반 계산)
           </span>
           <span className="flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> 수동입력 (Weighted Risk에서 입력)
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" /> 시뮬레이션 데이터 (온체인/매크로)
+            <span className="h-1.5 w-1.5 rounded-full bg-warning" /> 시뮬레이션 데이터 (온체인/매크로)
           </span>
         </div>
         {Object.keys(manualValues).length === 0 && (

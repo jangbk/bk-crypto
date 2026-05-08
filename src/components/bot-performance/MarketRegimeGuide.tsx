@@ -62,7 +62,7 @@ export default function MarketRegimeGuide({ botId }: MarketRegimeGuideProps) {
             onChange={(e) => { setPwInput(e.target.value); setPwError(false); }}
             onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
             placeholder="비밀번호 입력"
-            className={`rounded border px-3 py-1.5 text-sm bg-background ${pwError ? "border-red-500" : "border-border"}`}
+            className={`rounded border px-3 py-1.5 text-sm bg-background ${pwError ? "border-negative" : "border-border"}`}
           />
           <button
             onClick={handleUnlock}
@@ -70,7 +70,7 @@ export default function MarketRegimeGuide({ botId }: MarketRegimeGuideProps) {
           >
             확인
           </button>
-          {pwError && <span className="text-xs text-red-500">비밀번호가 틀렸습니다</span>}
+          {pwError && <span className="text-xs text-negative">비밀번호가 틀렸습니다</span>}
         </div>
       )}
 
@@ -99,10 +99,10 @@ function McDaviddContent() {
 
       {/* 4가지 상태 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-lg border-l-4 border-l-emerald-500 bg-emerald-500/5 p-3">
+        <div className="rounded-lg border-l-4 border-l-emerald-500 bg-positive/5 p-3">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">롱 진입</span>
+            <TrendingUp className="w-4 h-4 text-positive" />
+            <span className="font-bold text-positive dark:text-positive">롱 진입</span>
           </div>
           <div className="space-y-1 text-xs text-muted-foreground">
             <p><strong>McGinley:</strong> 가격이 McGinley(14) 위로 상향 크로스</p>
@@ -110,7 +110,7 @@ function McDaviddContent() {
             <p><strong>VFI 확인:</strong> 30봉 기준 상승 거래량 &gt; 하락 거래량</p>
             <p><strong>추세 필터:</strong> 가격 &gt; EMA200 + ADX &gt; 20</p>
             <p><strong>과매수 차단:</strong> RSI(14) &lt; 70</p>
-            <p className="text-emerald-600 dark:text-emerald-400 font-medium mt-1">P2 승률 52.6% | PF 1.84</p>
+            <p className="text-positive dark:text-positive font-medium mt-1">P2 승률 52.6% | PF 1.84</p>
           </div>
         </div>
 
@@ -128,17 +128,17 @@ function McDaviddContent() {
           </div>
         </div>
 
-        <div className="rounded-lg border-l-4 border-l-red-500 bg-red-500/5 p-3">
+        <div className="rounded-lg border-l-4 border-l-red-500 bg-negative/5 p-3">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="w-4 h-4 text-red-500" />
-            <span className="font-bold text-red-600 dark:text-red-400">ATR 동적 손절</span>
+            <TrendingDown className="w-4 h-4 text-negative" />
+            <span className="font-bold text-negative dark:text-negative">ATR 동적 손절</span>
           </div>
           <div className="space-y-1 text-xs text-muted-foreground">
             <p><strong>SL:</strong> 진입가 − ATR × 3.0 (넓은 SL)</p>
             <p><strong>사유:</strong> 좁은 SL(1.5)은 노이즈에 빈번히 걸림</p>
             <p><strong>SL=3.0 효과:</strong> 거래 횟수 감소 + 승률 대폭 상승</p>
             <p><strong>R:R 비율:</strong> SL 3.0 vs TP 5.0 = 1.67:1</p>
-            <p className="text-red-600 dark:text-red-400 font-medium mt-1">P2 MDD -7.70% (원본 -16.61% 대비 절반)</p>
+            <p className="text-negative dark:text-negative font-medium mt-1">P2 MDD -7.70% (원본 -16.61% 대비 절반)</p>
           </div>
         </div>
 
@@ -212,31 +212,31 @@ function AlphaContent() {
 
       {/* 4가지 장세 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-lg border-l-4 border-l-emerald-500 bg-emerald-500/5 p-3">
+        <div className="rounded-lg border-l-4 border-l-emerald-500 bg-positive/5 p-3">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">상승장 (BULL)</span>
+            <TrendingUp className="w-4 h-4 text-positive" />
+            <span className="font-bold text-positive dark:text-positive">상승장 (BULL)</span>
           </div>
           <div className="space-y-1 text-xs text-muted-foreground">
             <p><strong>조건:</strong> 일봉 RSI &gt; 55 + 가격 &gt; 200EMA</p>
             <p><strong>전략:</strong> BB 상단 돌파 시 롱 진입</p>
             <p><strong>피라미딩:</strong> 수익 8%+ 시 추가 (최대 L3)</p>
             <p><strong>청산:</strong> 트레일링 30% 반환 또는 200EMA 하향돌파</p>
-            <p className="text-emerald-600 dark:text-emerald-400 font-medium mt-1">6년 롱 PnL: +$17,654 | 승률 41%</p>
+            <p className="text-positive dark:text-positive font-medium mt-1">6년 롱 PnL: +$17,654 | 승률 41%</p>
           </div>
         </div>
 
-        <div className="rounded-lg border-l-4 border-l-red-500 bg-red-500/5 p-3">
+        <div className="rounded-lg border-l-4 border-l-red-500 bg-negative/5 p-3">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="w-4 h-4 text-red-500" />
-            <span className="font-bold text-red-600 dark:text-red-400">하락장 (BEAR)</span>
+            <TrendingDown className="w-4 h-4 text-negative" />
+            <span className="font-bold text-negative dark:text-negative">하락장 (BEAR)</span>
           </div>
           <div className="space-y-1 text-xs text-muted-foreground">
             <p><strong>조건:</strong> 일봉 RSI &lt; 40 + 가격 &lt; 200EMA</p>
             <p><strong>전략:</strong> BB 하단 돌파 시 숏 진입</p>
             <p><strong>필터:</strong> RSI 40~45 약하락 차단 (승률 12% → 제외)</p>
             <p><strong>청산:</strong> 트레일링 30% 반환 또는 200EMA 상향돌파</p>
-            <p className="text-red-600 dark:text-red-400 font-medium mt-1">6년 숏 PnL: +$7,361 | 승률 26%</p>
+            <p className="text-negative dark:text-negative font-medium mt-1">6년 숏 PnL: +$7,361 | 승률 26%</p>
           </div>
         </div>
 
@@ -277,7 +277,7 @@ function AlphaContent() {
             <div className="text-muted-foreground">L1 (탐색)</div>
             <div className="font-bold text-lg">20%</div>
             <div className="text-muted-foreground">승률</div>
-            <div className="text-red-500 text-xs mt-1">추세 탐색 비용</div>
+            <div className="text-negative text-xs mt-1">추세 탐색 비용</div>
           </div>
           <div className="rounded bg-card p-2 text-center border border-primary/30">
             <div className="text-muted-foreground">L2 (확인)</div>
@@ -285,11 +285,11 @@ function AlphaContent() {
             <div className="text-muted-foreground">승률</div>
             <div className="text-primary text-xs mt-1">+8% 수익 시 추가</div>
           </div>
-          <div className="rounded bg-card p-2 text-center border-2 border-emerald-500/50">
+          <div className="rounded bg-card p-2 text-center border-2 border-positive/50">
             <div className="text-muted-foreground">L3 (수확)</div>
-            <div className="font-bold text-lg text-emerald-500">100%</div>
+            <div className="font-bold text-lg text-positive">100%</div>
             <div className="text-muted-foreground">승률</div>
-            <div className="text-emerald-500 text-xs mt-1">총 수익의 핵심</div>
+            <div className="text-positive text-xs mt-1">총 수익의 핵심</div>
           </div>
         </div>
       </div>

@@ -42,7 +42,7 @@ export function ChartHeader({
           className="rounded-md border border-border p-2 hover:bg-muted transition-colors"
         >
           <Star
-            className={`h-4 w-4 ${isFavorited ? "fill-yellow-400 text-yellow-400" : ""}`}
+            className={`h-4 w-4 ${isFavorited ? "fill-yellow-400 text-warning" : ""}`}
           />
         </button>
         <button className="rounded-md border border-border p-2 hover:bg-muted transition-colors">

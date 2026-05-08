@@ -209,8 +209,8 @@ export function HashRateChart({
               <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.4" />
             </linearGradient>
             <linearGradient id="hrPriceArea" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.12" />
-              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.01" />
+              <stop offset="0%" stopColor="var(--warning)" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="var(--warning)" stopOpacity="0.01" />
             </linearGradient>
             <radialGradient id="buyDotGlow">
               <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.6" />
@@ -243,7 +243,7 @@ export function HashRateChart({
 
           {/* Price line */}
           {pricePath && (
-            <path d={pricePath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" opacity="0.8" />
+            <path d={pricePath} fill="none" stroke="var(--warning)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" opacity="0.8" />
           )}
 
           {/* MA 30d line */}
@@ -303,7 +303,7 @@ export function HashRateChart({
             const price = minP + pct * priceRange;
             const y = pad.top + (1 - pct) * chartH;
             return (
-              <text key={`py-${pct}`} x={svgW - pad.right + 6} y={y + 3} textAnchor="start" fill="#f59e0b" fontSize={9} opacity={0.7}>
+              <text key={`py-${pct}`} x={svgW - pad.right + 6} y={y + 3} textAnchor="start" fill="var(--warning)" fontSize={9} opacity={0.7}>
                 ${Math.round(price / 1000)}K
               </text>
             );
@@ -318,17 +318,17 @@ export function HashRateChart({
                   stroke="currentColor" strokeOpacity={0.2} strokeWidth={1} strokeDasharray="3 3" className="text-foreground" />
                 {hp && (() => {
                   const py = pad.top + (1 - (hp - minP) / priceRange) * chartH;
-                  return <circle cx={x} cy={py} r={4} fill="#f59e0b" stroke="#000" strokeWidth={1.5} />;
+                  return <circle cx={x} cy={py} r={4} fill="var(--warning)" stroke="#000" strokeWidth={1.5} />;
                 })()}
                 <foreignObject x={x > svgW / 2 ? x - 170 : x + 12} y={pad.top + 4} width={160} height={hdIsBuySignal ? 130 : (hdMa30 !== undefined ? 110 : (hp ? 85 : 60))}>
                   <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg p-2 shadow-xl text-[10px]">
                     <p className="font-semibold text-foreground mb-1">{hd.date}</p>
                     <div className="flex justify-between"><span className="text-blue-400">해시레이트</span><span className="text-blue-400 font-medium">{hd.value} EH/s</span></div>
-                    {hp && <div className="flex justify-between"><span className="text-amber-500">BTC</span><span className="text-amber-500 font-medium">${hp.toLocaleString()}</span></div>}
+                    {hp && <div className="flex justify-between"><span className="text-warning">BTC</span><span className="text-warning font-medium">${hp.toLocaleString()}</span></div>}
                     {hdMa30 !== undefined && <div className="flex justify-between"><span className="text-violet-400">MA30</span><span className="text-violet-400 font-medium">{hdMa30.toFixed(1)}</span></div>}
                     {hdMa60 !== undefined && <div className="flex justify-between"><span className="text-pink-400">MA60</span><span className="text-pink-400 font-medium">{hdMa60.toFixed(1)}</span></div>}
                     {hdIsBuySignal && (
-                      <div className="mt-1 px-1.5 py-0.5 bg-green-500/20 rounded text-green-400 text-center font-bold">
+                      <div className="mt-1 px-1.5 py-0.5 bg-positive/20 rounded text-positive text-center font-bold">
                         BUY SIGNAL
                       </div>
                     )}
@@ -341,7 +341,7 @@ export function HashRateChart({
           {/* Axis labels */}
           <text x={pad.left - 6} y={pad.top - 8} textAnchor="end" className="fill-blue-400" fontSize={9} fontWeight={500}>EH/s</text>
           {matchedPrices.length > 0 && (
-            <text x={svgW - pad.right + 6} y={pad.top - 8} textAnchor="start" fill="#f59e0b" fontSize={9} fontWeight={500}>BTC Price</text>
+            <text x={svgW - pad.right + 6} y={pad.top - 8} textAnchor="start" fill="var(--warning)" fontSize={9} fontWeight={500}>BTC Price</text>
           )}
 
           {/* Buy Signal markers — blue dots matching legend style */}
@@ -371,7 +371,7 @@ export function HashRateChart({
             <span className="w-3 h-3 rounded-sm bg-blue-500" /> 해시레이트
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-5 h-0.5 bg-amber-500 rounded-full" /> BTC 가격
+            <span className="w-5 h-0.5 bg-warning rounded-full" /> BTC 가격
           </span>
           {showMA && (
             <>

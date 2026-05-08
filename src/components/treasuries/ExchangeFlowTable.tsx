@@ -25,12 +25,12 @@ export function ExchangeFlowTable({ exchangeFlows, whaleSource }: ExchangeFlowTa
         <p className="text-xs font-medium text-foreground/80 mb-2">색상 기준 — 시장 영향 기준으로 통일</p>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm bg-green-500/70" />
-            <span><strong className="text-green-500">순유출 (초록)</strong> = 거래소 → 개인지갑 인출, 장기 보유 의지 (축적) → 가격 상승 압력</span>
+            <span className="inline-block w-3 h-3 rounded-sm bg-positive/70" />
+            <span><strong className="text-positive">순유출 (초록)</strong> = 거래소 → 개인지갑 인출, 장기 보유 의지 (축적) → 가격 상승 압력</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm bg-red-500/70" />
-            <span><strong className="text-red-500">순유입 (빨간)</strong> = 개인지갑 → 거래소 입금, 매도 준비 (분산) → 가격 하락 압력</span>
+            <span className="inline-block w-3 h-3 rounded-sm bg-negative/70" />
+            <span><strong className="text-negative">순유입 (빨간)</strong> = 개인지갑 → 거래소 입금, 매도 준비 (분산) → 가격 하락 압력</span>
           </div>
         </div>
       </div>
@@ -51,11 +51,11 @@ export function ExchangeFlowTable({ exchangeFlows, whaleSource }: ExchangeFlowTa
           <tbody>
             {exchangeFlows.map((flow) => {
               const netColor24 =
-                flow.netflow24h > 0 ? "text-red-500" : flow.netflow24h < 0 ? "text-green-500" : "text-muted-foreground";
+                flow.netflow24h > 0 ? "text-negative" : flow.netflow24h < 0 ? "text-positive" : "text-muted-foreground";
               const netColor7d =
-                flow.netflow7d > 0 ? "text-red-500" : flow.netflow7d < 0 ? "text-green-500" : "text-muted-foreground";
+                flow.netflow7d > 0 ? "text-negative" : flow.netflow7d < 0 ? "text-positive" : "text-muted-foreground";
               const netColor30d =
-                flow.netflow30d > 0 ? "text-red-500" : flow.netflow30d < 0 ? "text-green-500" : "text-muted-foreground";
+                flow.netflow30d > 0 ? "text-negative" : flow.netflow30d < 0 ? "text-positive" : "text-muted-foreground";
               return (
                 <tr key={flow.asset} className="border-b border-border hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-semibold">{flow.asset}</td>
@@ -75,9 +75,9 @@ export function ExchangeFlowTable({ exchangeFlows, whaleSource }: ExchangeFlowTa
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       flow.trend === "accumulation"
-                        ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                        ? "bg-positive/10 text-positive dark:text-positive"
                         : flow.trend === "distribution"
-                        ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                        ? "bg-negative/10 text-negative dark:text-negative"
                         : "bg-gray-500/10 text-gray-500"
                     }`}>
                       {flow.trend === "accumulation" && "\uCD95\uC801"}
@@ -86,7 +86,7 @@ export function ExchangeFlowTable({ exchangeFlows, whaleSource }: ExchangeFlowTa
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`text-[10px] ${flow.source === "coinmetrics" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
+                    <span className={`text-[10px] ${flow.source === "coinmetrics" ? "text-positive dark:text-positive" : "text-warning dark:text-warning"}`}>
                       {flow.source === "coinmetrics" ? "CoinMetrics" : "\uCD94\uC815\uCE58"}
                     </span>
                   </td>

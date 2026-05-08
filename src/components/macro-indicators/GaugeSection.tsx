@@ -50,34 +50,34 @@ export function GaugeSection({
         <div className="space-y-2">
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-xs font-semibold text-green-500">건전 {healthy}</span>
+              <span className="inline-block w-2 h-2 rounded-full bg-positive" />
+              <span className="text-xs font-semibold text-positive">건전 {healthy}</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {indicators.filter(i => i.status === "healthy").map(i => (
-                <span key={i.name} className="text-[9px] bg-green-500/10 text-green-600 rounded px-1.5 py-0.5">{i.name.split(" (")[0]}</span>
+                <span key={i.name} className="text-[9px] bg-positive/10 text-positive rounded px-1.5 py-0.5">{i.name.split(" (")[0]}</span>
               ))}
             </div>
           </div>
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-yellow-500" />
-              <span className="text-xs font-semibold text-yellow-500">주의 {caution}</span>
+              <span className="inline-block w-2 h-2 rounded-full bg-warning" />
+              <span className="text-xs font-semibold text-warning">주의 {caution}</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {indicators.filter(i => i.status === "caution").map(i => (
-                <span key={i.name} className="text-[9px] bg-yellow-500/10 text-yellow-600 rounded px-1.5 py-0.5">{i.name.split(" (")[0]}</span>
+                <span key={i.name} className="text-[9px] bg-warning/10 text-warning rounded px-1.5 py-0.5">{i.name.split(" (")[0]}</span>
               ))}
             </div>
           </div>
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-xs font-semibold text-red-500">경고 {warning}</span>
+              <span className="inline-block w-2 h-2 rounded-full bg-negative" />
+              <span className="text-xs font-semibold text-negative">경고 {warning}</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {indicators.filter(i => i.status === "warning" || i.status === "danger").map(i => (
-                <span key={i.name} className="text-[9px] bg-red-500/10 text-red-600 rounded px-1.5 py-0.5">
+                <span key={i.name} className="text-[9px] bg-negative/10 text-negative rounded px-1.5 py-0.5">
                   {i.name.split(" (")[0]} {i.status === "danger" ? "⚠" : ""}
                 </span>
               ))}

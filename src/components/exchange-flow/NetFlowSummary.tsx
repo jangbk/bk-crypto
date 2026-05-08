@@ -36,24 +36,24 @@ export function NetFlowSummary({ flows }: NetFlowSummaryProps) {
       </div>
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-2">
-          <div className="rounded-lg bg-amber-500/15 p-2"><Database className="h-4 w-4 text-amber-400" /></div>
+          <div className="rounded-lg bg-warning/15 p-2"><Database className="h-4 w-4 text-warning" /></div>
           <span className="text-xs text-muted-foreground">스테이블코인 순유출입</span>
         </div>
-        <p className={`text-xl font-bold ${stableNet > 0 ? "text-green-400" : "text-red-400"}`}>{formatSignedUSD(stableNet)}</p>
+        <p className={`text-xl font-bold ${stableNet > 0 ? "text-positive" : "text-negative"}`}>{formatSignedUSD(stableNet)}</p>
         <p className="text-[10px] text-muted-foreground mt-0.5">
           {stableNet > 0 ? "유입 (매수 대기)" : "유출 (매수력 감소)"}
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-2">
-          <div className="rounded-lg bg-red-500/15 p-2"><ArrowDownToLine className="h-4 w-4 text-red-400" /></div>
+          <div className="rounded-lg bg-negative/15 p-2"><ArrowDownToLine className="h-4 w-4 text-negative" /></div>
           <span className="text-xs text-muted-foreground">총 유입</span>
         </div>
         <p className="text-xl font-bold text-foreground">{formatUSD(totalInflow)}</p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-2">
-          <div className="rounded-lg bg-green-500/15 p-2"><ArrowUpFromLine className="h-4 w-4 text-green-400" /></div>
+          <div className="rounded-lg bg-positive/15 p-2"><ArrowUpFromLine className="h-4 w-4 text-positive" /></div>
           <span className="text-xs text-muted-foreground">총 유출</span>
         </div>
         <p className="text-xl font-bold text-foreground">{formatUSD(totalOutflow)}</p>

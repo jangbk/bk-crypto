@@ -13,7 +13,7 @@ export function SummaryStats({ correlation, crossAnalysis, primaryData }: Summar
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div className="rounded-lg border border-border bg-card p-3">
         <p className="text-[10px] text-muted-foreground">상관관계</p>
-        <p className={`text-lg font-bold ${correlation >= 0 ? "text-green-500" : "text-red-500"}`}>
+        <p className={`text-lg font-bold ${correlation >= 0 ? "text-positive" : "text-negative"}`}>
           {correlation >= 0 ? "+" : ""}{correlation.toFixed(3)}
         </p>
         <p className="text-[10px] text-muted-foreground">
@@ -22,11 +22,11 @@ export function SummaryStats({ correlation, crossAnalysis, primaryData }: Summar
       </div>
       <div className="rounded-lg border border-border bg-card p-3">
         <p className="text-[10px] text-muted-foreground">Golden Crosses</p>
-        <p className="text-lg font-bold text-green-500">{crossAnalysis.goldenCount}회</p>
+        <p className="text-lg font-bold text-positive">{crossAnalysis.goldenCount}회</p>
       </div>
       <div className="rounded-lg border border-border bg-card p-3">
         <p className="text-[10px] text-muted-foreground">Death Crosses</p>
-        <p className="text-lg font-bold text-red-500">{crossAnalysis.deathCount}회</p>
+        <p className="text-lg font-bold text-negative">{crossAnalysis.deathCount}회</p>
       </div>
       <div className="rounded-lg border border-border bg-card p-3">
         <p className="text-[10px] text-muted-foreground">분석 기간</p>

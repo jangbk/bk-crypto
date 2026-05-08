@@ -10,7 +10,7 @@ export function CountryHoldingsTable({ price }: CountryHoldingsTableProps) {
   return (
     <section>
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <Globe className="h-5 w-5 text-green-500" />
+        <Globe className="h-5 w-5 text-positive" />
         국가별 비트코인 보유 현황
       </h2>
       <div className="overflow-x-auto rounded-lg border border-border">
@@ -36,10 +36,10 @@ export function CountryHoldingsTable({ price }: CountryHoldingsTableProps) {
                 <td className="px-4 py-3 text-right font-mono">{row.held > 0 ? formatCurrency(row.held * price) : "-"}</td>
                 <td className="px-4 py-3 text-center">
                   <span className={`rounded-full px-2 py-0.5 text-xs ${
-                    row.method === "구매" ? "bg-green-500/10 text-green-600" :
+                    row.method === "구매" ? "bg-positive/10 text-positive" :
                     row.method === "채굴" ? "bg-blue-500/10 text-blue-600" :
                     row.method === "압수→매각" ? "bg-gray-500/10 text-gray-500" :
-                    "bg-amber-500/10 text-amber-600"
+                    "bg-warning/10 text-warning"
                   }`}>{row.method}</span>
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell max-w-sm">{row.notes}</td>

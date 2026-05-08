@@ -32,12 +32,12 @@ export function MetricsTable({
             </p>
             <div className="flex items-center gap-3 mt-1.5">
               <span className="inline-flex items-center gap-1 text-[10px]">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                <span className="text-green-500">실시간 {metrics.filter(m => m.live).length}개</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-positive" />
+                <span className="text-positive">실시간 {metrics.filter(m => m.live).length}개</span>
               </span>
               <span className="inline-flex items-center gap-1 text-[10px]">
-                <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
-                <span className="text-yellow-500">수동 입력 {metrics.filter(m => !m.live).length}개</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+                <span className="text-warning">수동 입력 {metrics.filter(m => !m.live).length}개</span>
                 <span className="text-muted-foreground/60">&mdash; 노란 입력란에 최신값을 직접 입력하세요</span>
               </span>
             </div>
@@ -70,18 +70,18 @@ export function MetricsTable({
                     <span className="font-medium">
                       {m.name}
                       {m.live ? (
-                        <span className="ml-1.5 inline-flex items-center gap-1 text-[9px] text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded-full align-middle">
-                          <span className="h-1 w-1 rounded-full bg-green-500 animate-pulse" />실시간
+                        <span className="ml-1.5 inline-flex items-center gap-1 text-[9px] text-positive bg-positive/10 px-1.5 py-0.5 rounded-full align-middle">
+                          <span className="h-1 w-1 rounded-full bg-positive animate-pulse" />실시간
                         </span>
                       ) : (
-                        <span className="ml-1.5 inline-flex items-center gap-1 text-[9px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded-full align-middle">
+                        <span className="ml-1.5 inline-flex items-center gap-1 text-[9px] text-warning bg-warning/10 px-1.5 py-0.5 rounded-full align-middle">
                           수동 입력
                           {m.refUrl && (
                             <a
                               href={m.refUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="hover:text-yellow-400 transition-colors"
+                              className="hover:text-warning transition-colors"
                               title={`${m.name} 최신값 확인`}
                             >
                               <ExternalLink className="h-2.5 w-2.5" />
@@ -98,7 +98,7 @@ export function MetricsTable({
                     <span className="flex items-center justify-end gap-1.5">
                       {m.displayValue}
                       {m.unit && <span className="text-[9px] text-muted-foreground/60 font-sans">{m.unit}</span>}
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500" title="실시간 데이터" />
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-positive" title="실시간 데이터" />
                     </span>
                   ) : (
                     <span className="flex flex-col items-end gap-0.5">
@@ -107,11 +107,11 @@ export function MetricsTable({
                           type="text"
                           value={m.displayValue}
                           onChange={(e) => onUpdateMetricValue(m.name, e.target.value)}
-                          className="w-16 rounded border border-dashed border-yellow-500/40 bg-yellow-500/5 px-1.5 py-0.5 text-right text-xs font-mono focus:outline-none focus:border-yellow-500"
+                          className="w-16 rounded border border-dashed border-warning/40 bg-warning/5 px-1.5 py-0.5 text-right text-xs font-mono focus:outline-none focus:border-warning"
                           title={m.unitHint || "직접 입력 가능 -- 값 입력 시 리스크 점수 자동 재계산"}
                         />
-                        {m.unit && <span className="text-[9px] text-yellow-500/70 font-sans w-6 text-left">{m.unit}</span>}
-                        {!m.unit && <span className="text-[9px] text-yellow-500/70">수동</span>}
+                        {m.unit && <span className="text-[9px] text-warning/70 font-sans w-6 text-left">{m.unit}</span>}
+                        {!m.unit && <span className="text-[9px] text-warning/70">수동</span>}
                       </span>
                       {m.unitHint && <span className="text-[8px] text-muted-foreground/50 font-sans">{m.unitHint}</span>}
                     </span>
@@ -119,9 +119,9 @@ export function MetricsTable({
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    m.score > 65 ? "bg-red-500/10 text-red-500" :
-                    m.score > 40 ? "bg-yellow-500/10 text-yellow-500" :
-                    "bg-green-500/10 text-green-500"
+                    m.score > 65 ? "bg-negative/10 text-negative" :
+                    m.score > 40 ? "bg-warning/10 text-warning" :
+                    "bg-positive/10 text-positive"
                   }`}>
                     {m.signal}
                   </span>
@@ -130,7 +130,7 @@ export function MetricsTable({
                   <div className="flex items-center gap-2 justify-center">
                     <div className="h-2 w-16 rounded-full bg-muted/50 overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${m.score > 65 ? "bg-red-500" : m.score > 40 ? "bg-yellow-500" : "bg-green-500"}`}
+                        className={`h-full rounded-full ${m.score > 65 ? "bg-negative" : m.score > 40 ? "bg-warning" : "bg-positive"}`}
                         style={{ width: `${m.score}%` }}
                       />
                     </div>
@@ -143,7 +143,7 @@ export function MetricsTable({
                         max="100"
                         value={m.score}
                         onChange={(e) => onUpdateMetricScore(m.name, parseInt(e.target.value) || 0)}
-                        className="w-10 rounded border border-dashed border-yellow-500/40 bg-yellow-500/5 px-1 py-0.5 text-center text-xs font-mono focus:outline-none focus:border-yellow-500"
+                        className="w-10 rounded border border-dashed border-warning/40 bg-warning/5 px-1 py-0.5 text-center text-xs font-mono focus:outline-none focus:border-warning"
                         title="리스크 점수 직접 조정"
                       />
                     )}

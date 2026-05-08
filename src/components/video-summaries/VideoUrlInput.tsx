@@ -24,7 +24,7 @@ export function VideoUrlInput({
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Youtube className="h-5 w-5 text-red-500" />
+        <Youtube className="h-5 w-5 text-negative" />
         <h2 className="font-semibold">새 영상 추가</h2>
       </div>
       <div className="flex gap-2">
@@ -65,8 +65,8 @@ export function VideoUrlInput({
             notionStatus === "saving"
               ? "bg-blue-500/10 text-blue-600"
               : notionStatus === "saved"
-                ? "bg-green-500/10 text-green-600"
-                : "bg-red-500/10 text-red-600"
+                ? "bg-positive/10 text-positive"
+                : "bg-negative/10 text-negative"
           }`}
         >
           {notionStatus === "saving" && (

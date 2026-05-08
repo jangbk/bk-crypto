@@ -183,21 +183,21 @@ export function FlowPrediction({ history, btcPrices, flows }: FlowPredictionProp
   const dirConfig = {
     bullish: {
       label: "강세",
-      color: "text-green-400",
-      bg: "bg-green-500/10",
-      border: "border-green-500/30",
+      color: "text-positive",
+      bg: "bg-positive/10",
+      border: "border-positive/30",
     },
     bearish: {
       label: "약세",
-      color: "text-red-400",
-      bg: "bg-red-500/10",
-      border: "border-red-500/30",
+      color: "text-negative",
+      bg: "bg-negative/10",
+      border: "border-negative/30",
     },
     neutral: {
       label: "중립",
-      color: "text-yellow-400",
-      bg: "bg-yellow-500/10",
-      border: "border-yellow-500/30",
+      color: "text-warning",
+      bg: "bg-warning/10",
+      border: "border-warning/30",
     },
   }[direction];
 
@@ -242,7 +242,7 @@ export function FlowPrediction({ history, btcPrices, flows }: FlowPredictionProp
                 className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-foreground shadow-lg transition-all duration-500"
                 style={{
                   left: `calc(${scoreBarPos}% - 8px)`,
-                  backgroundColor: compositeScore > 12 ? "#22c55e" : compositeScore < -12 ? "#ef4444" : "#eab308",
+                  backgroundColor: compositeScore > 12 ? "var(--positive)" : compositeScore < -12 ? "var(--negative)" : "var(--warning)",
                 }}
               />
             </div>
@@ -259,16 +259,16 @@ export function FlowPrediction({ history, btcPrices, flows }: FlowPredictionProp
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">7일 예상 범위</p>
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-green-400 font-medium">상단</span>
-                  <span className="text-green-400 font-bold">${targetHigh.toLocaleString()}</span>
+                  <span className="text-positive font-medium">상단</span>
+                  <span className="text-positive font-bold">${targetHigh.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">현재</span>
                   <span className="text-foreground font-bold">${currentPrice.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-red-400 font-medium">하단</span>
-                  <span className="text-red-400 font-bold">${targetLow.toLocaleString()}</span>
+                  <span className="text-negative font-medium">하단</span>
+                  <span className="text-negative font-bold">${targetLow.toLocaleString()}</span>
                 </div>
               </div>
               <div className="mt-2 relative h-2 rounded-full bg-gradient-to-r from-red-500/40 via-foreground/10 to-green-500/40">
@@ -290,9 +290,9 @@ export function FlowPrediction({ history, btcPrices, flows }: FlowPredictionProp
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {factors.map((f) => {
-            const fColor = f.signal === "bullish" ? "text-green-400" : f.signal === "bearish" ? "text-red-400" : "text-yellow-400";
-            const fBg = f.signal === "bullish" ? "bg-green-500/8" : f.signal === "bearish" ? "bg-red-500/8" : "bg-yellow-500/8";
-            const fBorder = f.signal === "bullish" ? "border-green-500/20" : f.signal === "bearish" ? "border-red-500/20" : "border-yellow-500/20";
+            const fColor = f.signal === "bullish" ? "text-positive" : f.signal === "bearish" ? "text-negative" : "text-warning";
+            const fBg = f.signal === "bullish" ? "bg-positive/8" : f.signal === "bearish" ? "bg-negative/8" : "bg-warning/8";
+            const fBorder = f.signal === "bullish" ? "border-positive/20" : f.signal === "bearish" ? "border-negative/20" : "border-warning/20";
             const barWidth = Math.abs(f.score);
             const barLeft = f.score >= 0;
             return (
@@ -310,12 +310,12 @@ export function FlowPrediction({ history, btcPrices, flows }: FlowPredictionProp
                 <div className="relative h-1.5 rounded-full bg-muted/30 mb-2 overflow-hidden">
                   {barLeft ? (
                     <div
-                      className="absolute left-1/2 h-full rounded-r bg-green-500/70 transition-all"
+                      className="absolute left-1/2 h-full rounded-r bg-positive/70 transition-all"
                       style={{ width: `${barWidth / 2}%` }}
                     />
                   ) : (
                     <div
-                      className="absolute h-full rounded-l bg-red-500/70 transition-all"
+                      className="absolute h-full rounded-l bg-negative/70 transition-all"
                       style={{ width: `${barWidth / 2}%`, right: "50%" }}
                     />
                   )}

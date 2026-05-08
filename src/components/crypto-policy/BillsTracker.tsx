@@ -24,11 +24,11 @@ export function BillsTracker({ bills }: BillsTrackerProps) {
                 : "amber";
           const progressColor =
             bill.progress >= 80
-              ? "bg-emerald-500"
+              ? "bg-positive"
               : bill.progress >= 50
                 ? "bg-blue-500"
                 : bill.progress >= 25
-                  ? "bg-amber-500"
+                  ? "bg-warning"
                   : "bg-muted-foreground";
           return (
             <div

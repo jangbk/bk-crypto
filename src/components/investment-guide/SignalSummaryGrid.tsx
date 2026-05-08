@@ -32,14 +32,14 @@ export function SignalSummaryGrid({ summaryData }: SignalSummaryGridProps) {
                 {tf.label} <span className="text-muted-foreground text-xs">({tf.sublabel})</span>
               </div>
               <div className="flex items-center gap-3 text-xs mb-3">
-                <span className="text-emerald-400">긍정 {d.bullish}</span>
-                <span className="text-yellow-400">중립 {d.neutral}</span>
-                <span className="text-red-400">부정 {d.bearish}</span>
+                <span className="text-positive">긍정 {d.bullish}</span>
+                <span className="text-warning">중립 {d.neutral}</span>
+                <span className="text-negative">부정 {d.bearish}</span>
               </div>
               <div className="flex h-3 rounded-full overflow-hidden bg-muted">
-                {d.total > 0 && d.bullish > 0 && <div className="bg-emerald-500 transition-all" style={{ width: `${(d.bullish / d.total) * 100}%` }} />}
-                {d.total > 0 && d.neutral > 0 && <div className="bg-yellow-500 transition-all" style={{ width: `${(d.neutral / d.total) * 100}%` }} />}
-                {d.total > 0 && d.bearish > 0 && <div className="bg-red-500 transition-all" style={{ width: `${(d.bearish / d.total) * 100}%` }} />}
+                {d.total > 0 && d.bullish > 0 && <div className="bg-positive transition-all" style={{ width: `${(d.bullish / d.total) * 100}%` }} />}
+                {d.total > 0 && d.neutral > 0 && <div className="bg-warning transition-all" style={{ width: `${(d.neutral / d.total) * 100}%` }} />}
+                {d.total > 0 && d.bearish > 0 && <div className="bg-negative transition-all" style={{ width: `${(d.bearish / d.total) * 100}%` }} />}
               </div>
             </div>
           );
@@ -53,7 +53,7 @@ export function RiskFactorsSection() {
   return (
     <div className="rounded-lg border border-border bg-card p-6">
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <AlertTriangle className="w-5 h-5 text-amber-400" />
+        <AlertTriangle className="w-5 h-5 text-warning" />
         주요 리스크 요인
       </h2>
       <div className="space-y-3">
@@ -75,8 +75,8 @@ export function RiskFactorsSection() {
                   <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
-                        risk.probability >= 30 ? "bg-red-500" :
-                        risk.probability >= 20 ? "bg-orange-500" : "bg-yellow-500"
+                        risk.probability >= 30 ? "bg-negative" :
+                        risk.probability >= 20 ? "bg-orange-500" : "bg-warning"
                       }`}
                       style={{ width: `${risk.probability}%` }}
                     />

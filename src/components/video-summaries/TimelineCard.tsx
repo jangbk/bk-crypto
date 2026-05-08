@@ -9,10 +9,10 @@ interface TimelineCardProps {
 }
 
 const colorClasses: Record<string, string> = {
-  red: "border-red-500/30 bg-red-500/5",
-  yellow: "border-yellow-500/30 bg-yellow-500/5",
+  red: "border-negative/30 bg-negative/5",
+  yellow: "border-warning/30 bg-warning/5",
   orange: "border-orange-500/30 bg-orange-500/5",
-  green: "border-green-500/30 bg-green-500/5",
+  green: "border-positive/30 bg-positive/5",
 };
 
 export function TimelineCard({

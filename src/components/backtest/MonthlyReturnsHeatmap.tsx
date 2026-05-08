@@ -61,8 +61,8 @@ export default function MonthlyReturnsHeatmap({ result: r }: MonthlyReturnsHeatm
                         <span
                           className={`inline-block rounded px-1.5 py-0.5 text-xs font-mono font-medium ${
                             data.ret >= 0
-                              ? `bg-emerald-${Math.round(intensity * 5) * 100 || 50}/30 text-emerald-700 dark:text-emerald-400`
-                              : `bg-red-${Math.round(intensity * 5) * 100 || 50}/30 text-red-700 dark:text-red-400`
+                              ? `bg-emerald-${Math.round(intensity * 5) * 100 || 50}/30 text-emerald-700 dark:text-positive`
+                              : `bg-red-${Math.round(intensity * 5) * 100 || 50}/30 text-red-700 dark:text-negative`
                           }`}
                           style={{
                             backgroundColor:

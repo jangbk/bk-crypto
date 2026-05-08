@@ -36,10 +36,10 @@ export function CorrelationMatrix({ assets }: CorrelationMatrixProps) {
                           a.ticker === b.ticker
                             ? "bg-muted text-muted-foreground"
                             : corr > 0.5
-                              ? "bg-red-500/15 text-red-500"
+                              ? "bg-negative/15 text-negative"
                               : corr > 0
-                                ? "bg-yellow-500/15 text-yellow-500"
-                                : "bg-green-500/15 text-green-500"
+                                ? "bg-warning/15 text-warning"
+                                : "bg-positive/15 text-positive"
                         }`}
                       >
                         {corr.toFixed(2)}
@@ -58,19 +58,19 @@ export function CorrelationMatrix({ assets }: CorrelationMatrixProps) {
         {/* Color Legend */}
         <div className="flex flex-wrap gap-3 text-xs">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-red-500/15 border border-red-500/30" />
+            <span className="inline-block w-3 h-3 rounded bg-negative/15 border border-negative/30" />
             <span className="text-muted-foreground">
               강한 양의 상관 (&gt;0.5)
             </span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-yellow-500/15 border border-yellow-500/30" />
+            <span className="inline-block w-3 h-3 rounded bg-warning/15 border border-warning/30" />
             <span className="text-muted-foreground">
               약한 양의 상관 (0~0.5)
             </span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-green-500/15 border border-green-500/30" />
+            <span className="inline-block w-3 h-3 rounded bg-positive/15 border border-positive/30" />
             <span className="text-muted-foreground">
               음의 상관 (&lt;0) — 분산 효과 큼
             </span>
@@ -102,7 +102,7 @@ export function CorrelationMatrix({ assets }: CorrelationMatrixProps) {
 
           <div className="space-y-2 text-xs text-muted-foreground">
             <div className="flex items-start gap-2">
-              <span className="inline-block mt-0.5 w-2 h-2 rounded-full bg-red-500 shrink-0" />
+              <span className="inline-block mt-0.5 w-2 h-2 rounded-full bg-negative shrink-0" />
               <div>
                 <strong className="text-foreground">
                   BTC ↔ ETH = 0.82
@@ -116,7 +116,7 @@ export function CorrelationMatrix({ assets }: CorrelationMatrixProps) {
             </div>
 
             <div className="flex items-start gap-2">
-              <span className="inline-block mt-0.5 w-2 h-2 rounded-full bg-yellow-500 shrink-0" />
+              <span className="inline-block mt-0.5 w-2 h-2 rounded-full bg-warning shrink-0" />
               <div>
                 <strong className="text-foreground">
                   BTC ↔ S&P 500 = 0.38
@@ -130,7 +130,7 @@ export function CorrelationMatrix({ assets }: CorrelationMatrixProps) {
             </div>
 
             <div className="flex items-start gap-2">
-              <span className="inline-block mt-0.5 w-2 h-2 rounded-full bg-green-500 shrink-0" />
+              <span className="inline-block mt-0.5 w-2 h-2 rounded-full bg-positive shrink-0" />
               <div>
                 <strong className="text-foreground">
                   SOL ↔ 미국채 = -0.20

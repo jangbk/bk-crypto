@@ -65,14 +65,14 @@ export function OptimalComparison({
                 {currentMetrics.sharpe.toFixed(2)}
               </td>
             </tr>
-            <tr className="border-b border-border bg-yellow-500/5">
+            <tr className="border-b border-border bg-warning/5">
               <td className="px-3 py-2 font-medium">Max Sharpe</td>
               {optimal.maxSharpe.weights.map((w, i) => (
                 <td key={i} className="px-3 py-2 text-center font-mono">
                   {(w * 100).toFixed(1)}%
                 </td>
               ))}
-              <td className="px-3 py-2 text-right font-mono text-green-500">
+              <td className="px-3 py-2 text-right font-mono text-positive">
                 {optimal.maxSharpe.ret.toFixed(1)}%
               </td>
               <td className="px-3 py-2 text-right font-mono">
@@ -82,7 +82,7 @@ export function OptimalComparison({
                 {optimal.maxSharpe.sharpe.toFixed(2)}
               </td>
             </tr>
-            <tr className="border-b border-border bg-green-500/5">
+            <tr className="border-b border-border bg-positive/5">
               <td className="px-3 py-2 font-medium">Min Variance</td>
               {optimal.minVar.weights.map((w, i) => (
                 <td key={i} className="px-3 py-2 text-center font-mono">
@@ -92,7 +92,7 @@ export function OptimalComparison({
               <td className="px-3 py-2 text-right font-mono">
                 {optimal.minVar.ret.toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right font-mono text-green-500">
+              <td className="px-3 py-2 text-right font-mono text-positive">
                 {optimal.minVar.risk.toFixed(1)}%
               </td>
               <td className="px-3 py-2 text-right font-mono">

@@ -49,9 +49,9 @@ export function BacktestResults({
 
   if (dataError && result.equityCurve.length === 0) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-12 flex flex-col items-center justify-center text-center">
-        <AlertTriangle className="h-10 w-10 text-red-500 mb-3" />
-        <p className="text-sm text-red-500 font-medium">{dataError}</p>
+      <div className="rounded-lg border border-negative/30 bg-negative/5 p-12 flex flex-col items-center justify-center text-center">
+        <AlertTriangle className="h-10 w-10 text-negative mb-3" />
+        <p className="text-sm text-negative font-medium">{dataError}</p>
         <p className="text-xs text-muted-foreground mt-2">날짜 범위를 조정하거나 잠시 후 다시 시도해주세요.</p>
       </div>
     );
@@ -78,14 +78,14 @@ export function BacktestResults({
   return (
     <>
       {dataError && (
-        <div className="rounded-md bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-600 dark:text-amber-400">
+        <div className="rounded-md bg-warning/10 border border-warning/20 p-3 text-xs text-warning dark:text-warning">
           {dataError} — 해당 자산이 포함된 전략은 정확하지 않을 수 있습니다.
         </div>
       )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="text-[10px] text-muted-foreground">총 수익률</p>
-          <p className={`text-lg font-bold ${result.totalReturn >= 0 ? "text-green-500" : "text-red-500"}`}>
+          <p className={`text-lg font-bold ${result.totalReturn >= 0 ? "text-positive" : "text-negative"}`}>
             {result.totalReturn >= 0 ? "+" : ""}{result.totalReturn.toFixed(1)}%
           </p>
         </div>
@@ -95,7 +95,7 @@ export function BacktestResults({
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="text-[10px] text-muted-foreground">Max Drawdown</p>
-          <p className="text-lg font-bold text-red-500">-{result.maxDrawdown.toFixed(1)}%</p>
+          <p className="text-lg font-bold text-negative">-{result.maxDrawdown.toFixed(1)}%</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="text-[10px] text-muted-foreground">Sharpe</p>
@@ -119,11 +119,11 @@ export function BacktestResults({
               const barHeight = (Math.abs(y.ret) / maxAbs) * 100;
               return (
                 <div key={y.year} className="flex-1 flex flex-col items-center">
-                  <span className={`text-[10px] font-mono mb-1 ${y.ret >= 0 ? "text-green-500" : "text-red-500"}`}>
+                  <span className={`text-[10px] font-mono mb-1 ${y.ret >= 0 ? "text-positive" : "text-negative"}`}>
                     {y.ret >= 0 ? "+" : ""}{y.ret.toFixed(0)}%
                   </span>
                   <div
-                    className={`w-full rounded-t-md ${y.ret >= 0 ? "bg-green-500/60" : "bg-red-500/60"}`}
+                    className={`w-full rounded-t-md ${y.ret >= 0 ? "bg-positive/60" : "bg-negative/60"}`}
                     style={{ height: `${Math.max(2, barHeight)}%` }}
                   />
                   <span className="text-[10px] text-muted-foreground mt-1">{y.year.slice(2)}</span>
@@ -157,13 +157,13 @@ export function BacktestResults({
                     <td className="px-3 py-2 text-muted-foreground font-mono">
                       {r.dataRange.days > 0 ? `${r.dataRange.from.slice(2)} ~ ${r.dataRange.to.slice(2)}` : "N/A"}
                     </td>
-                    <td className={`px-3 py-2 text-right font-mono ${r.totalReturn >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    <td className={`px-3 py-2 text-right font-mono ${r.totalReturn >= 0 ? "text-positive" : "text-negative"}`}>
                       {r.dataRange.days > 0 ? `${r.totalReturn >= 0 ? "+" : ""}${r.totalReturn.toFixed(1)}%` : "-"}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
                       {r.dataRange.days > 0 ? `${r.cagr.toFixed(1)}%` : "-"}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-red-500">
+                    <td className="px-3 py-2 text-right font-mono text-negative">
                       {r.dataRange.days > 0 ? `-${r.maxDrawdown.toFixed(1)}%` : "-"}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
@@ -181,8 +181,8 @@ export function BacktestResults({
       )}
 
       {/* Disclaimers */}
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
+      <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 space-y-2">
+        <div className="flex items-center gap-2 text-sm font-semibold text-warning dark:text-warning">
           <AlertTriangle className="h-4 w-4" />
           주의사항
         </div>

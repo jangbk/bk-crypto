@@ -126,9 +126,9 @@ export function BtcNetFlowChart({ history, btcPrices }: BtcNetFlowChartProps) {
         <div className="text-center">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">유입일 / 유출일</p>
           <p className="text-lg font-bold text-foreground">
-            <span className="text-red-400">{inflowDays}</span>
+            <span className="text-negative">{inflowDays}</span>
             <span className="text-muted-foreground mx-1">/</span>
-            <span className="text-emerald-400">{outflowDays}</span>
+            <span className="text-positive">{outflowDays}</span>
           </p>
         </div>
         <div className="text-center">
@@ -137,7 +137,7 @@ export function BtcNetFlowChart({ history, btcPrices }: BtcNetFlowChartProps) {
         </div>
         <div className="text-center">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">BTC 가격 범위</p>
-          <p className="text-lg font-bold text-amber-500">
+          <p className="text-lg font-bold text-warning">
             {matchedPrices.length > 0
               ? `$${Math.round(minPrice / 1.005 / 1000)}K~$${Math.round(maxPrice / 1.005 / 1000)}K`
               : "—"}
@@ -181,7 +181,7 @@ export function BtcNetFlowChart({ history, btcPrices }: BtcNetFlowChartProps) {
           </span>
           {matchedPrices.length > 0 && (
             <span className="flex items-center gap-1.5">
-              <span className="w-5 h-0.5 bg-amber-500 rounded-full" />
+              <span className="w-5 h-0.5 bg-warning rounded-full" />
               BTC 가격
             </span>
           )}

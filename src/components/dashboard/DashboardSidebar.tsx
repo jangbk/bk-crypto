@@ -44,8 +44,8 @@ export function DashboardSidebar({
   return (
     <aside className="space-y-6">
       {/* Latest Video */}
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-3 font-semibold">Latest Video</h3>
+      <section className="relative rounded-lg border border-border bg-surface-2 p-4 pl-5"><span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-accent/60" aria-hidden="true" />
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-text-2">Latest Video</h3>
         {videoIsError ? (
           <QueryErrorBox message="영상 정보를 불러올 수 없습니다." onRetry={onVideoRetry} />
         ) : (
@@ -80,9 +80,9 @@ export function DashboardSidebar({
       </section>
 
       {/* Macro Calendar */}
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section className="relative rounded-lg border border-border bg-surface-2 p-4 pl-5"><span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-accent/60" aria-hidden="true" />
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold">매크로 캘린더</h3>
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-2">매크로 캘린더</h3>
           <Link href="/macro/calendar" className="text-xs text-primary hover:underline">
             더보기
           </Link>
@@ -117,8 +117,8 @@ export function DashboardSidebar({
       </section>
 
       {/* Fear & Greed */}
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-3 font-semibold">Fear & Greed Index</h3>
+      <section className="relative rounded-lg border border-border bg-surface-2 p-4 pl-5"><span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-accent/60" aria-hidden="true" />
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-text-2">Fear & Greed Index</h3>
         {fearGreedIsError ? (
           <QueryErrorBox message="Fear & Greed 데이터를 불러올 수 없습니다." onRetry={onFearGreedRetry} />
         ) : (
@@ -134,8 +134,8 @@ export function DashboardSidebar({
       </section>
 
       {/* Quick Links */}
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-3 font-semibold">Quick Links</h3>
+      <section className="relative rounded-lg border border-border bg-surface-2 p-4 pl-5"><span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-accent/60" aria-hidden="true" />
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-text-2">Quick Links</h3>
         <div className="space-y-1">
           {QUICK_LINKS.map((link) => (
             <Link

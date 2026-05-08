@@ -35,7 +35,7 @@ export function SyncBar({
           <button
             onClick={onSyncAll}
             disabled={syncingAll}
-            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-positive px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
           >
             {syncingAll ? (
               <Loader2 className="h-4 w-4 animate-spin" />

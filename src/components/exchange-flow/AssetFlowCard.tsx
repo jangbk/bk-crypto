@@ -27,9 +27,9 @@ export function AssetFlowCard({ flow }: AssetFlowCardProps) {
           <span className="text-lg font-bold text-foreground">{flow.asset}</span>
           <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
             flow.trend === "accumulation"
-              ? "bg-green-500/15 text-green-400"
+              ? "bg-positive/15 text-positive"
               : flow.trend === "distribution"
-              ? "bg-red-500/15 text-red-400"
+              ? "bg-negative/15 text-negative"
               : "bg-muted text-muted-foreground"
           }`}>
             {trend.icon} {trend.text}
@@ -47,8 +47,8 @@ export function AssetFlowCard({ flow }: AssetFlowCardProps) {
           <span>유출 {formatUSD(flow.outflow24h)}</span>
         </div>
         <div className="flex rounded-full h-3 overflow-hidden">
-          <div className="bg-red-500/70 transition-all duration-500" style={{ width: `${inflowPct}%` }} />
-          <div className="bg-green-500/70 transition-all duration-500" style={{ width: `${100 - inflowPct}%` }} />
+          <div className="bg-negative/70 transition-all duration-500" style={{ width: `${inflowPct}%` }} />
+          <div className="bg-positive/70 transition-all duration-500" style={{ width: `${100 - inflowPct}%` }} />
         </div>
       </div>
 

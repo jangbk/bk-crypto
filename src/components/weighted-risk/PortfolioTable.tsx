@@ -41,9 +41,9 @@ export function PortfolioTable({
       <p className="text-xs text-muted-foreground mb-4">
         심볼을 입력하면 CoinGecko에서 <strong>자동 검색</strong>하여 이름, 가격, 리스크(0~1)를 로드합니다.
         CoinGecko에 등록된 모든 암호화폐를 지원합니다.
-        <span className="inline-flex items-center gap-1 ml-2"><span className="h-1.5 w-1.5 rounded-full bg-green-500" />인식됨</span>
+        <span className="inline-flex items-center gap-1 ml-2"><span className="h-1.5 w-1.5 rounded-full bg-positive" />인식됨</span>
         <span className="inline-flex items-center gap-1 ml-1"><Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />검색 중</span>
-        <span className="inline-flex items-center gap-1 ml-1"><span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />미인식</span>
+        <span className="inline-flex items-center gap-1 ml-1"><span className="h-1.5 w-1.5 rounded-full bg-warning" />미인식</span>
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -85,9 +85,9 @@ export function PortfolioTable({
                       {loadingSymbols.has(a.symbol.toUpperCase()) ? (
                         <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
                       ) : resolvedIds[a.symbol.toUpperCase()] ? (
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" title={`인식됨: ${resolvedIds[a.symbol.toUpperCase()].name}`} />
+                        <span className="h-1.5 w-1.5 rounded-full bg-positive shrink-0" title={`인식됨: ${resolvedIds[a.symbol.toUpperCase()].name}`} />
                       ) : a.symbol !== "???" && a.symbol.length >= 2 ? (
-                        <span className="h-1.5 w-1.5 rounded-full bg-yellow-500 shrink-0" title="미인식 -- 수동 입력 필요" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-warning shrink-0" title="미인식 -- 수동 입력 필요" />
                       ) : null}
                     </div>
                   </td>
@@ -125,7 +125,7 @@ export function PortfolioTable({
                         <span className="text-xs font-mono w-8">{a.risk.toFixed(2)}</span>
                         <button
                           onClick={() => onToggleRiskLock(a.id, false)}
-                          className="text-yellow-500 hover:text-yellow-400"
+                          className="text-warning hover:text-warning"
                           title="잠금 (자동 계산값 사용)"
                         >
                           <Unlock className="h-3 w-3" />
@@ -134,9 +134,9 @@ export function PortfolioTable({
                     ) : (
                       <div className="flex items-center gap-1.5 justify-center">
                         <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
-                          a.risk > 0.65 ? "bg-red-500/10 text-red-500" :
-                          a.risk > 0.4 ? "bg-yellow-500/10 text-yellow-500" :
-                          "bg-green-500/10 text-green-500"
+                          a.risk > 0.65 ? "bg-negative/10 text-negative" :
+                          a.risk > 0.4 ? "bg-warning/10 text-warning" :
+                          "bg-positive/10 text-positive"
                         }`}>
                           {a.risk.toFixed(2)}
                         </span>
@@ -162,7 +162,7 @@ export function PortfolioTable({
                   <td className="px-3 py-2">
                     <button
                       onClick={() => onRemoveAsset(a.id)}
-                      className="text-muted-foreground hover:text-red-500"
+                      className="text-muted-foreground hover:text-negative"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

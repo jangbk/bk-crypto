@@ -74,12 +74,12 @@ export function WhaleTransactions({ whaleTxs }: WhaleTransactionsProps) {
         <p className="text-xs font-medium text-foreground/80 mb-2">색상 기준 — 시장 영향 기준으로 통일</p>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm bg-green-500/70" />
-            <span><strong className="text-green-500">거래소 출금 (초록)</strong> = 거래소 → 개인지갑, 장기 보유/축적 신호 → 가격 상승 압력</span>
+            <span className="inline-block w-3 h-3 rounded-sm bg-positive/70" />
+            <span><strong className="text-positive">거래소 출금 (초록)</strong> = 거래소 → 개인지갑, 장기 보유/축적 신호 → 가격 상승 압력</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm bg-red-500/70" />
-            <span><strong className="text-red-500">거래소 입금 (빨간)</strong> = 개인지갑 → 거래소, 매도 준비 신호 → 가격 하락 압력</span>
+            <span className="inline-block w-3 h-3 rounded-sm bg-negative/70" />
+            <span><strong className="text-negative">거래소 입금 (빨간)</strong> = 개인지갑 → 거래소, 매도 준비 신호 → 가격 하락 압력</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-sm bg-gray-500/70" />
@@ -95,13 +95,13 @@ export function WhaleTransactions({ whaleTxs }: WhaleTransactionsProps) {
           <p className="text-xl font-bold mt-0.5">{whaleSummary.totalTxs}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
-          <p className="text-xs text-red-500">거래소 입금</p>
-          <p className="text-lg font-bold mt-0.5 text-red-500">{whaleSummary.depositCount}건</p>
+          <p className="text-xs text-negative">거래소 입금</p>
+          <p className="text-lg font-bold mt-0.5 text-negative">{whaleSummary.depositCount}건</p>
           <p className="text-xs text-muted-foreground">{formatCurrency(whaleSummary.depositUsd)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
-          <p className="text-xs text-green-500">거래소 출금</p>
-          <p className="text-lg font-bold mt-0.5 text-green-500">{whaleSummary.withdrawalCount}건</p>
+          <p className="text-xs text-positive">거래소 출금</p>
+          <p className="text-lg font-bold mt-0.5 text-positive">{whaleSummary.withdrawalCount}건</p>
           <p className="text-xs text-muted-foreground">{formatCurrency(whaleSummary.withdrawalUsd)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
@@ -128,9 +128,9 @@ export function WhaleTransactions({ whaleTxs }: WhaleTransactionsProps) {
             {filteredWhales.map((tx, i) => {
               const typeColor =
                 tx.type === "exchange_deposit"
-                  ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                  ? "bg-negative/10 text-negative dark:text-negative"
                   : tx.type === "exchange_withdrawal"
-                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                  ? "bg-positive/10 text-positive dark:text-positive"
                   : "bg-gray-500/10 text-gray-500";
               const typeLabel =
                 tx.type === "exchange_deposit" ? "거래소 입금"

@@ -7,9 +7,9 @@ interface CurrentValueInsightProps {
 }
 
 const INSIGHT_COLORS = {
-  bullish: "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400",
-  bearish: "border-red-500/30 bg-red-500/5 text-red-700 dark:text-red-400",
-  caution: "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400",
+  bullish: "border-positive/30 bg-positive/5 text-emerald-700 dark:text-positive",
+  bearish: "border-negative/30 bg-negative/5 text-red-700 dark:text-negative",
+  caution: "border-warning/30 bg-warning/5 text-amber-700 dark:text-warning",
   neutral: "border-blue-500/30 bg-blue-500/5 text-blue-700 dark:text-blue-400",
 } as const;
 

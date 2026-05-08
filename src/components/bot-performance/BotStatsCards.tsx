@@ -43,7 +43,7 @@ export default function BotStatsCards({ bot, effectiveCapital }: BotStatsCardsPr
               color: "text-negative",
             },
             {
-              icon: <Zap className="h-4 w-4 text-amber-500" />,
+              icon: <Zap className="h-4 w-4 text-warning" />,
               label: "샤프 비율",
               value: bot.sharpeRatio.toFixed(2),
               color: "",
@@ -55,7 +55,7 @@ export default function BotStatsCards({ bot, effectiveCapital }: BotStatsCardsPr
               color: "",
             },
             {
-              icon: <Shield className="h-4 w-4 text-emerald-500" />,
+              icon: <Shield className="h-4 w-4 text-positive" />,
               label: "Profit Factor",
               value: bot.profitFactor.toFixed(2),
               color: "",

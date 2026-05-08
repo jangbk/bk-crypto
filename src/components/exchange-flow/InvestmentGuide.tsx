@@ -21,7 +21,7 @@ export function InvestmentGuide() {
         className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-amber-500" />
+          <BookOpen className="h-5 w-5 text-warning" />
           <span className="font-semibold text-foreground">거래소 자금 흐름 투자 가이드</span>
         </div>
         {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -30,7 +30,7 @@ export function InvestmentGuide() {
         <div className="px-4 pb-4 space-y-4 text-sm text-muted-foreground border-t border-border pt-4">
           <div>
             <h4 className="font-semibold text-foreground mb-1 flex items-center gap-1.5">
-              <Zap className="h-4 w-4 text-yellow-500" /> 거래소 자금 흐름이란?
+              <Zap className="h-4 w-4 text-warning" /> 거래소 자금 흐름이란?
             </h4>
             <p>
               암호화폐가 거래소 지갑으로 입금(유입)되거나 개인 지갑으로 출금(유출)되는 흐름을 추적합니다.
@@ -39,13 +39,13 @@ export function InvestmentGuide() {
           </div>
           <div>
             <h4 className="font-semibold text-foreground mb-1 flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-emerald-500" /> 핵심 해석법
+              <Shield className="h-4 w-4 text-positive" /> 핵심 해석법
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-lg bg-red-500/10 p-3 border border-red-500/20">
+              <div className="rounded-lg bg-negative/10 p-3 border border-negative/20">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <ArrowDownToLine className="h-4 w-4 text-red-400" />
-                  <p className="font-medium text-red-400">거래소 유입 = 매도 압력</p>
+                  <ArrowDownToLine className="h-4 w-4 text-negative" />
+                  <p className="font-medium text-negative">거래소 유입 = 매도 압력</p>
                 </div>
                 <ul className="text-xs space-y-1 list-disc pl-4">
                   <li>대량 코인이 거래소로 이동 → 매도 준비</li>
@@ -53,10 +53,10 @@ export function InvestmentGuide() {
                   <li><strong>예외:</strong> USDT 유입은 매수 준비 신호</li>
                 </ul>
               </div>
-              <div className="rounded-lg bg-green-500/10 p-3 border border-green-500/20">
+              <div className="rounded-lg bg-positive/10 p-3 border border-positive/20">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <ArrowUpFromLine className="h-4 w-4 text-green-400" />
-                  <p className="font-medium text-green-400">거래소 유출 = 축적 신호</p>
+                  <ArrowUpFromLine className="h-4 w-4 text-positive" />
+                  <p className="font-medium text-positive">거래소 유출 = 축적 신호</p>
                 </div>
                 <ul className="text-xs space-y-1 list-disc pl-4">
                   <li>코인이 개인 지갑으로 이동 → 장기 보유</li>

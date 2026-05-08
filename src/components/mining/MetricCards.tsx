@@ -13,7 +13,7 @@ function TrendBadge({ change }: { change: number }) {
   }
   const isPositive = change > 0;
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-medium ${isPositive ? "text-green-500" : "text-red-500"}`}>
+    <span className={`inline-flex items-center gap-1 text-xs font-medium ${isPositive ? "text-positive" : "text-negative"}`}>
       {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
       {isPositive ? "+" : ""}{change.toFixed(1)}%
     </span>

@@ -58,7 +58,7 @@ export default function BotDetailCharts({ bot, equityCurve }: BotDetailChartsPro
           {bot.monthlyReturns.map((ret, i) => (
             <div
               key={i}
-              className={`rounded-lg p-2 text-center ${ret >= 0 ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-red-50 dark:bg-red-900/20"}`}
+              className={`rounded-lg p-2 text-center ${ret >= 0 ? "bg-emerald-50 /20" : "bg-red-50 /20"}`}
             >
               <div className="text-[10px] text-muted-foreground">
                 {i + 1}월

@@ -29,8 +29,8 @@ export default function BotSelector({ strategies, selectedBot, onSelectBot, getC
     <>
       {/* Live Trading */}
       <div className="mb-2">
-        <h3 className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+        <h3 className="text-sm font-semibold text-positive dark:text-positive mb-2 flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-positive" />
           Live Trading
           <span className="text-xs font-normal text-muted-foreground">실제 자금 운용</span>
         </h3>
@@ -46,8 +46,8 @@ export default function BotSelector({ strategies, selectedBot, onSelectBot, getC
             />
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 px-4 py-2 text-sm mb-2">
-          <span className="font-semibold text-emerald-700 dark:text-emerald-400">Live 합계</span>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-emerald-200 bg-emerald-50/50 /20 px-4 py-2 text-sm mb-2">
+          <span className="font-semibold text-emerald-700 dark:text-positive">Live 합계</span>
           <span>투자금 <strong>{formatKRW(realInvested)}</strong></span>
           <span>평가금 <strong>{formatKRW(realCurrent)}</strong></span>
           <span className={Number(realReturnPct) >= 0 ? "text-positive" : "text-negative"}>
@@ -61,8 +61,8 @@ export default function BotSelector({ strategies, selectedBot, onSelectBot, getC
 
       {/* Demo Testing */}
       <div className="mb-2">
-        <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-amber-500" />
+        <h3 className="text-sm font-semibold text-warning dark:text-warning mb-2 flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-warning" />
           Demo Testing
           <span className="text-xs font-normal text-muted-foreground">실전 검증 중 (실가격, 가상자금)</span>
         </h3>
@@ -108,12 +108,12 @@ type Tier = "live" | "demo" | "dev";
 
 const TIER_STYLES: Record<Tier, { selected: string; unselected: string }> = {
   live: {
-    selected: "border-emerald-500 bg-emerald-500/15 ring-2 ring-emerald-500/30",
-    unselected: "border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40",
+    selected: "border-positive bg-positive/15 ring-2 ring-positive/30",
+    unselected: "border-positive bg-emerald-50/50 /20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40",
   },
   demo: {
-    selected: "border-amber-500 bg-amber-500/15 ring-2 ring-amber-500/30",
-    unselected: "border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/40",
+    selected: "border-warning bg-warning/15 ring-2 ring-warning/30",
+    unselected: "border-warning bg-amber-50/50 /20 hover:bg-amber-50 dark:hover:bg-amber-950/40",
   },
   dev: {
     selected: "border-blue-500 bg-blue-500/15 ring-2 ring-blue-500/30",
@@ -144,7 +144,7 @@ function BotButton({ bot, selected, onSelect, capital, tier }: {
         <span className="font-semibold text-sm">{bot.name}</span>
         {getStatusBadge(bot.status)}
         {tier === "live" && bot._live && (
-          <Wifi className="h-3 w-3 text-emerald-500" />
+          <Wifi className="h-3 w-3 text-positive" />
         )}
       </div>
       <div className="mt-1 text-xs text-muted-foreground">

@@ -52,7 +52,7 @@ export default function StrategyDetailSection({ detail }: StrategyDetailSectionP
             onChange={(e) => { setPwInput(e.target.value); setPwError(false); }}
             onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
             placeholder="비밀번호 입력"
-            className={`rounded border px-3 py-1.5 text-sm bg-background ${pwError ? "border-red-500" : "border-border"}`}
+            className={`rounded border px-3 py-1.5 text-sm bg-background ${pwError ? "border-negative" : "border-border"}`}
           />
           <button
             onClick={handleUnlock}
@@ -60,7 +60,7 @@ export default function StrategyDetailSection({ detail }: StrategyDetailSectionP
           >
             확인
           </button>
-          {pwError && <span className="text-xs text-red-500">비밀번호가 틀렸습니다</span>}
+          {pwError && <span className="text-xs text-negative">비밀번호가 틀렸습니다</span>}
         </div>
       )}
 
@@ -208,7 +208,7 @@ export default function StrategyDetailSection({ detail }: StrategyDetailSectionP
                   <ul className="space-y-0.5">
                     {detail.liveExpectation.caveats.map((c, i) => (
                       <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
-                        <span className="text-amber-500 shrink-0">⚠</span>{c}
+                        <span className="text-warning shrink-0">⚠</span>{c}
                       </li>
                     ))}
                   </ul>

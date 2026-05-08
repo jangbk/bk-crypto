@@ -50,7 +50,7 @@ export default function BacktestCharts({ result: r }: BacktestChartsProps) {
               strokeOpacity="0.2"
             />
             <polygon
-              fill="#ef4444"
+              fill="var(--negative)"
               fillOpacity="0.2"
               points={`0,10 ${r.drawdownCurve
                 .map((val, i) => {
@@ -62,7 +62,7 @@ export default function BacktestCharts({ result: r }: BacktestChartsProps) {
             />
             <polyline
               fill="none"
-              stroke="#ef4444"
+              stroke="var(--negative)"
               strokeWidth="1.5"
               points={r.drawdownCurve
                 .map((val, i) => {

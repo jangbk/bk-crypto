@@ -9,7 +9,7 @@ export function MetricsCards({ metrics }: MetricsCardsProps) {
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
       <div className="rounded-lg border border-border bg-card p-3">
         <p className="text-[10px] text-muted-foreground">기대수익률</p>
-        <p className="text-lg font-bold text-green-500">
+        <p className="text-lg font-bold text-positive">
           {metrics.ret.toFixed(1)}%
         </p>
       </div>
@@ -27,7 +27,7 @@ export function MetricsCards({ metrics }: MetricsCardsProps) {
       </div>
       <div className="rounded-lg border border-border bg-card p-3">
         <p className="text-[10px] text-muted-foreground">예상 Max DD</p>
-        <p className="text-lg font-bold text-red-500">
+        <p className="text-lg font-bold text-negative">
           -{metrics.maxDD.toFixed(1)}%
         </p>
       </div>

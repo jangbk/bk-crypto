@@ -23,10 +23,10 @@ export function RecentNews({ news }: RecentNewsProps) {
             <span
               className={`mt-0.5 text-sm ${
                 item.impact === "positive"
-                  ? "text-emerald-500"
+                  ? "text-positive"
                   : item.impact === "negative"
-                    ? "text-red-500"
-                    : "text-amber-500"
+                    ? "text-negative"
+                    : "text-warning"
               }`}
             >
               {item.impact === "positive"

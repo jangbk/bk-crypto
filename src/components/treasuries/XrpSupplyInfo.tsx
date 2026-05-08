@@ -27,7 +27,7 @@ export function XrpSupplyInfo() {
         </div>
         <div className="rounded-lg border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">영구 소각</p>
-          <p className="text-2xl font-bold mt-1 text-red-500">{formatAmount(XRP_SUPPLY_INFO.burned)} XRP</p>
+          <p className="text-2xl font-bold mt-1 text-negative">{formatAmount(XRP_SUPPLY_INFO.burned)} XRP</p>
           <p className="text-xs text-muted-foreground mt-1">거래 수수료로 소각 (디플레이션)</p>
         </div>
       </div>

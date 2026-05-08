@@ -11,8 +11,8 @@ interface WhaleFeedProps {
 
 function typeLabel(type: string) {
   switch (type) {
-    case "exchange_deposit": return { text: "거래소 입금", color: "text-red-400", bg: "bg-red-500/15" };
-    case "exchange_withdrawal": return { text: "거래소 출금", color: "text-green-400", bg: "bg-green-500/15" };
+    case "exchange_deposit": return { text: "거래소 입금", color: "text-negative", bg: "bg-negative/15" };
+    case "exchange_withdrawal": return { text: "거래소 출금", color: "text-positive", bg: "bg-positive/15" };
     default: return { text: "지갑 이동", color: "text-blue-400", bg: "bg-blue-500/15" };
   }
 }

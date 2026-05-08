@@ -12,6 +12,7 @@ interface HeroBarProps {
   fearClass: string | null;
   latestMcap: number;
   recessionValue: number | null;
+  cryptoRiskAvg?: number;        // 0~1 평균 (page.tsx 의 cryptoRiskSummary)
   realtimePrices?: ReadonlyMap<string, RealtimePrice>;
 }
 
@@ -114,6 +115,7 @@ export function HeroBar({
   fearClass,
   latestMcap,
   recessionValue,
+  cryptoRiskAvg,
   realtimePrices,
 }: HeroBarProps) {
   const btcRes = resolvePrice(btc, "bitcoin", realtimePrices);
@@ -136,6 +138,15 @@ export function HeroBar({
       : recessionValue < 0.2
         ? "positive"
         : recessionValue < 0.5
+          ? "warning"
+          : "negative";
+
+  const cryptoRiskTone =
+    cryptoRiskAvg === undefined
+      ? "neutral"
+      : cryptoRiskAvg < 0.3
+        ? "positive"
+        : cryptoRiskAvg < 0.6
           ? "warning"
           : "negative";
 
@@ -218,8 +229,8 @@ export function HeroBar({
         </div>
       </div>
 
-      {/* ─── 우 40%: 3축 Risk Strip ─── */}
-      <div className="grid grid-cols-1 gap-3 lg:col-span-2">
+      {/* ─── 우 40%: 4축 Risk Strip (2x2 grid) ─── */}
+      <div className="grid grid-cols-2 gap-3 lg:col-span-2">
         <RiskPill
           label="Fear & Greed"
           value={fearValue !== null ? String(fearValue) : "—"}
@@ -243,7 +254,22 @@ export function HeroBar({
           tone={recessionTone}
         />
         <RiskPill
-          label="Total Market Cap"
+          label="Crypto Risk"
+          value={cryptoRiskAvg !== undefined ? `${(cryptoRiskAvg * 100).toFixed(0)}%` : "—"}
+          hint={
+            cryptoRiskAvg === undefined
+              ? undefined
+              : cryptoRiskAvg < 0.3
+                ? "Cool"
+                : cryptoRiskAvg < 0.6
+                  ? "Mid"
+                  : "Hot"
+          }
+          progress={cryptoRiskAvg}
+          tone={cryptoRiskTone}
+        />
+        <RiskPill
+          label="Total Mcap"
           value={latestMcap > 0 ? formatCurrency(latestMcap, 0) : "—"}
           tone="neutral"
         />

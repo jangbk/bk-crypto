@@ -58,7 +58,7 @@ export function SummaryCardContent({
           className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
         >
           {copiedId === summary.id ? (
-            <Check className="h-4 w-4 text-green-500" />
+            <Check className="h-4 w-4 text-positive" />
           ) : (
             <Copy className="h-4 w-4" />
           )}
@@ -78,7 +78,7 @@ export function SummaryCardContent({
             href={summary.notionUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-500/10 transition-colors"
+            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-positive hover:bg-positive/10 transition-colors"
           >
             <Database className="h-4 w-4" />
             Notion에서 보기
@@ -91,7 +91,7 @@ export function SummaryCardContent({
             </span>
             <button
               onClick={() => onDeleteConfirm(summary.id)}
-              className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600 transition-colors"
+              className="rounded-lg bg-negative px-3 py-1.5 text-xs font-medium text-white hover:bg-negative transition-colors"
             >
               확인
             </button>
@@ -105,7 +105,7 @@ export function SummaryCardContent({
         ) : (
           <button
             onClick={() => onDeleteStart(summary.id)}
-            className="flex items-center gap-2 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors ml-auto"
+            className="flex items-center gap-2 rounded-lg border border-negative/30 px-4 py-2 text-sm font-medium text-negative hover:bg-negative/10 transition-colors ml-auto"
           >
             <Trash2 className="h-4 w-4" />
             삭제
@@ -127,10 +127,10 @@ export function SummaryCardContent({
       {/* Investment Guide Section */}
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <Target className="h-5 w-5 text-yellow-500" />
+          <Target className="h-5 w-5 text-warning" />
           <h4 className="font-semibold text-lg">투자 가이드</h4>
         </div>
-        <div className="rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-4 text-sm leading-relaxed whitespace-pre-line">
+        <div className="rounded-lg bg-warning/5 border border-warning/20 p-4 text-sm leading-relaxed whitespace-pre-line">
           {summary.investmentGuide}
         </div>
       </div>
@@ -168,14 +168,14 @@ export function SummaryCardContent({
               period="2월"
               label="현재"
               description="50% 하락 후 저점 형성. 카운터 트렌드 랠리 시작 가능"
-              icon={<TrendingDown className="h-4 w-4 text-red-500" />}
+              icon={<TrendingDown className="h-4 w-4 text-negative" />}
               color="red"
             />
             <TimelineCard
               period="3월 초"
               label="주의"
               description="낮은 고점(Lower High) 형성 예상. 반등 시 70K~73K 도달 가능"
-              icon={<TrendingUp className="h-4 w-4 text-yellow-500" />}
+              icon={<TrendingUp className="h-4 w-4 text-warning" />}
               color="yellow"
             />
             <TimelineCard
@@ -189,7 +189,7 @@ export function SummaryCardContent({
               period="7~10월"
               label="관망"
               description="여름 저변동성 → Q4 변동성 급증. 10월 최종 바닥 가능성"
-              icon={<Shield className="h-4 w-4 text-green-500" />}
+              icon={<Shield className="h-4 w-4 text-positive" />}
               color="green"
             />
           </div>

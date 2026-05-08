@@ -31,16 +31,16 @@ export function CompositeAnalysis({ compositeScore, metrics, analysisData }: Com
           <div className="flex items-end gap-2 mt-1">
             <div className="flex-1">
               <div className="flex h-5 rounded-full overflow-hidden">
-                {analysisData.lowRisk.length > 0 && <div className="bg-green-500" style={{ width: `${(analysisData.lowRisk.length / metrics.length) * 100}%` }} />}
+                {analysisData.lowRisk.length > 0 && <div className="bg-positive" style={{ width: `${(analysisData.lowRisk.length / metrics.length) * 100}%` }} />}
                 {analysisData.moderate.length > 0 && <div className="bg-blue-500" style={{ width: `${(analysisData.moderate.length / metrics.length) * 100}%` }} />}
-                {analysisData.elevated.length > 0 && <div className="bg-yellow-500" style={{ width: `${(analysisData.elevated.length / metrics.length) * 100}%` }} />}
-                {analysisData.highRisk.length > 0 && <div className="bg-red-500" style={{ width: `${(analysisData.highRisk.length / metrics.length) * 100}%` }} />}
+                {analysisData.elevated.length > 0 && <div className="bg-warning" style={{ width: `${(analysisData.elevated.length / metrics.length) * 100}%` }} />}
+                {analysisData.highRisk.length > 0 && <div className="bg-negative" style={{ width: `${(analysisData.highRisk.length / metrics.length) * 100}%` }} />}
               </div>
               <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-500" />{analysisData.lowRisk.length} 저위험</span>
+                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-positive" />{analysisData.lowRisk.length} 저위험</span>
                 <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{analysisData.moderate.length} 보통</span>
-                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />{analysisData.elevated.length} 주의</span>
-                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500" />{analysisData.highRisk.length} 위험</span>
+                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-warning" />{analysisData.elevated.length} 주의</span>
+                <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-negative" />{analysisData.highRisk.length} 위험</span>
               </div>
             </div>
           </div>
@@ -55,14 +55,14 @@ export function CompositeAnalysis({ compositeScore, metrics, analysisData }: Com
             <div
               key={insight.title}
               className={`rounded-md border p-3 text-xs ${
-                insight.sentiment === "bullish" ? "border-green-500/20 bg-green-500/5" :
-                insight.sentiment === "bearish" ? "border-red-500/20 bg-red-500/5" :
+                insight.sentiment === "bullish" ? "border-positive/20 bg-positive/5" :
+                insight.sentiment === "bearish" ? "border-negative/20 bg-negative/5" :
                 "border-border bg-muted/30"
               }`}
             >
               <p className={`font-semibold mb-0.5 ${
-                insight.sentiment === "bullish" ? "text-green-600 dark:text-green-400" :
-                insight.sentiment === "bearish" ? "text-red-600 dark:text-red-400" :
+                insight.sentiment === "bullish" ? "text-positive dark:text-positive" :
+                insight.sentiment === "bearish" ? "text-negative dark:text-negative" :
                 "text-foreground"
               }`}>
                 {insight.icon} {insight.title}
@@ -82,13 +82,13 @@ export function CompositeAnalysis({ compositeScore, metrics, analysisData }: Com
               <div
                 key={p.label}
                 className={`rounded-md border p-3 flex items-start gap-2.5 ${
-                  p.type === "positive" ? "border-green-500/20 bg-green-500/5" :
-                  p.type === "danger" ? "border-red-500/20 bg-red-500/5" :
-                  "border-yellow-500/20 bg-yellow-500/5"
+                  p.type === "positive" ? "border-positive/20 bg-positive/5" :
+                  p.type === "danger" ? "border-negative/20 bg-negative/5" :
+                  "border-warning/20 bg-warning/5"
                 }`}
               >
                 <span className={`text-sm mt-0.5 ${
-                  p.type === "positive" ? "text-green-500" : p.type === "danger" ? "text-red-500" : "text-yellow-500"
+                  p.type === "positive" ? "text-positive" : p.type === "danger" ? "text-negative" : "text-warning"
                 }`}>
                   {p.type === "positive" ? "\u25B2" : p.type === "danger" ? "\u25BC" : "\u25C6"}
                 </span>
@@ -112,7 +112,7 @@ export function CompositeAnalysis({ compositeScore, metrics, analysisData }: Com
               <span className="font-medium w-36">{m.name}</span>
               <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${m.score > 65 ? "bg-red-500" : m.score > 40 ? "bg-yellow-500" : "bg-green-500"}`}
+                  className={`h-full rounded-full ${m.score > 65 ? "bg-negative" : m.score > 40 ? "bg-warning" : "bg-positive"}`}
                   style={{ width: `${m.score}%` }}
                 />
               </div>
@@ -126,15 +126,15 @@ export function CompositeAnalysis({ compositeScore, metrics, analysisData }: Com
 
       {/* Bullish vs Bearish Signals */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-md border border-green-500/20 bg-green-500/5 p-3">
-          <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1.5">
+        <div className="rounded-md border border-positive/20 bg-positive/5 p-3">
+          <p className="text-xs font-semibold text-positive dark:text-positive mb-1.5">
             긍정적 신호 ({analysisData.bullish.length}개)
           </p>
           {analysisData.bullish.length > 0 ? (
             <ul className="text-[11px] text-muted-foreground space-y-0.5">
               {analysisData.bullish.map((m) => (
                 <li key={m.name} className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-positive shrink-0" />
                   {m.name}: {m.signal}
                 </li>
               ))}
@@ -143,15 +143,15 @@ export function CompositeAnalysis({ compositeScore, metrics, analysisData }: Com
             <p className="text-[11px] text-muted-foreground">해당 없음</p>
           )}
         </div>
-        <div className="rounded-md border border-red-500/20 bg-red-500/5 p-3">
-          <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1.5">
+        <div className="rounded-md border border-negative/20 bg-negative/5 p-3">
+          <p className="text-xs font-semibold text-negative dark:text-negative mb-1.5">
             경고 신호 ({analysisData.bearish.length}개)
           </p>
           {analysisData.bearish.length > 0 ? (
             <ul className="text-[11px] text-muted-foreground space-y-0.5">
               {analysisData.bearish.map((m) => (
                 <li key={m.name} className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-negative shrink-0" />
                   {m.name}: {m.signal}
                 </li>
               ))}

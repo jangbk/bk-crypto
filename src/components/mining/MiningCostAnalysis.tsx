@@ -59,7 +59,7 @@ export function MiningCostAnalysis({
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-5 pb-0">
         <div className="flex items-center gap-2">
-          <Fuel className="w-5 h-5 text-emerald-500" />
+          <Fuel className="w-5 h-5 text-positive" />
           <h2 className="text-lg font-semibold text-foreground">전력비 vs BTC 가격 상관관계</h2>
         </div>
         <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
@@ -68,7 +68,7 @@ export function MiningCostAnalysis({
               key={r.label}
               onClick={() => setRateIdx(i)}
               className={`px-2 py-1 text-[10px] font-medium rounded-md transition-all ${
-                rateIdx === i ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground hover:text-foreground"
+                rateIdx === i ? "bg-card text-positive shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {r.label}/kWh
@@ -81,15 +81,15 @@ export function MiningCostAnalysis({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 pt-4 pb-4">
         <div className="text-center">
           <p className="text-[10px] text-muted-foreground uppercase">현재 채굴원가</p>
-          <p className="text-sm font-bold text-emerald-400">${current.costPerBTC.toLocaleString()}</p>
+          <p className="text-sm font-bold text-positive">${current.costPerBTC.toLocaleString()}</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] text-muted-foreground uppercase">BTC 가격</p>
-          <p className="text-sm font-bold text-amber-400">${current.btcPrice.toLocaleString()}</p>
+          <p className="text-sm font-bold text-warning">${current.btcPrice.toLocaleString()}</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] text-muted-foreground uppercase">수익 배수</p>
-          <p className={`text-sm font-bold ${current.profitRatio >= 1 ? "text-green-400" : "text-red-400"}`}>
+          <p className={`text-sm font-bold ${current.profitRatio >= 1 ? "text-positive" : "text-negative"}`}>
             {current.profitRatio.toFixed(2)}x
           </p>
         </div>
@@ -121,17 +121,17 @@ export function MiningCostAnalysis({
                   return (
                     <tr key={d.date} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                       <td className="py-2 px-3 font-medium text-foreground">{d.date.slice(0, 7)}</td>
-                      <td className="py-2 px-3 text-right font-mono text-amber-400">${d.btcPrice.toLocaleString()}</td>
-                      <td className="py-2 px-3 text-right font-mono text-emerald-400">${d.costPerBTC.toLocaleString()}</td>
-                      <td className={`py-2 px-3 text-right font-bold ${profitable ? "text-green-400" : "text-red-400"}`}>
+                      <td className="py-2 px-3 text-right font-mono text-warning">${d.btcPrice.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-right font-mono text-positive">${d.costPerBTC.toLocaleString()}</td>
+                      <td className={`py-2 px-3 text-right font-bold ${profitable ? "text-positive" : "text-negative"}`}>
                         {margin >= 0 ? "+" : ""}{margin.toFixed(0)}%
                       </td>
-                      <td className={`py-2 px-3 text-right font-medium ${profitable ? "text-green-400" : "text-red-400"}`}>
+                      <td className={`py-2 px-3 text-right font-medium ${profitable ? "text-positive" : "text-negative"}`}>
                         {d.profitRatio.toFixed(2)}x
                       </td>
                       <td className="py-2 px-3 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          profitable ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
+                          profitable ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative"
                         }`}>
                           {profitable ? "수익" : "손실"}
                         </span>
@@ -176,18 +176,18 @@ export function MiningCostAnalysis({
                 const margin = c.btcPrice > 0 ? ((c.btcPrice - c.costPerBTC) / c.costPerBTC) * 100 : 0;
                 const profitable = c.btcPrice > c.costPerBTC;
                 return (
-                  <tr key={r.label} className={`border-b border-border/50 transition-colors ${rateIdx === i ? "bg-emerald-500/5" : "hover:bg-muted/20"}`}>
+                  <tr key={r.label} className={`border-b border-border/50 transition-colors ${rateIdx === i ? "bg-positive/5" : "hover:bg-muted/20"}`}>
                     <td className="py-2 px-3 font-medium text-foreground">{r.label}/kWh</td>
-                    <td className="py-2 px-3 text-right font-mono text-emerald-400">${c.costPerBTC.toLocaleString()}</td>
-                    <td className={`py-2 px-3 text-right font-bold ${profitable ? "text-green-400" : "text-red-400"}`}>
+                    <td className="py-2 px-3 text-right font-mono text-positive">${c.costPerBTC.toLocaleString()}</td>
+                    <td className={`py-2 px-3 text-right font-bold ${profitable ? "text-positive" : "text-negative"}`}>
                       {margin >= 0 ? "+" : ""}{margin.toFixed(0)}%
                     </td>
-                    <td className={`py-2 px-3 text-right font-medium ${profitable ? "text-green-400" : "text-red-400"}`}>
+                    <td className={`py-2 px-3 text-right font-medium ${profitable ? "text-positive" : "text-negative"}`}>
                       {c.profitRatio.toFixed(2)}x
                     </td>
                     <td className="py-2 px-3 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        profitable ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
+                        profitable ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative"
                       }`}>
                         {profitable ? "수익" : "손실"}
                       </span>
@@ -195,7 +195,7 @@ export function MiningCostAnalysis({
                     <td className="py-2 px-3">
                       <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${profitable ? "bg-green-500" : "bg-red-500"}`}
+                          className={`h-full rounded-full ${profitable ? "bg-positive" : "bg-negative"}`}
                           style={{ width: `${Math.min(Math.abs(margin) / 3, 100)}%` }}
                         />
                       </div>
@@ -209,10 +209,10 @@ export function MiningCostAnalysis({
       </div>
 
       {/* Insight */}
-      <div className="mx-5 mb-5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 flex items-start gap-2">
-        <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+      <div className="mx-5 mb-5 rounded-lg bg-positive/10 border border-positive/20 p-3 flex items-start gap-2">
+        <Info className="w-4 h-4 text-positive shrink-0 mt-0.5" />
         <div className="text-sm text-muted-foreground">
-          <span className="font-semibold text-emerald-400">핵심 인사이트: </span>
+          <span className="font-semibold text-positive">핵심 인사이트: </span>
           전력비는 채굴 수익성의 핵심 변수입니다. 현재 손익분기 전력비는 <strong className="text-foreground">${breakevenRate.toFixed(4)}/kWh</strong>이며,
           이는 BTC 가격(${current.btcPrice.toLocaleString()})과 네트워크 해시레이트({latestHash?.value}EH/s) 기준입니다.
           {current.profitRatio >= 1

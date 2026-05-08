@@ -100,6 +100,7 @@ export default function DashboardPage() {
         fearClass={fearClass}
         latestMcap={latestMcap}
         recessionValue={recessionValue}
+        cryptoRiskAvg={cryptoRiskSummary}
         realtimePrices={realtimePrices}
       />
 

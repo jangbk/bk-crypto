@@ -59,7 +59,7 @@ export function SummaryCard({
             {summary.savedToNotion && (
               <>
                 <span>&middot;</span>
-                <span className="text-green-600 flex items-center gap-1">
+                <span className="text-positive flex items-center gap-1">
                   <Database className="h-3 w-3" />
                   Notion 저장됨
                 </span>
