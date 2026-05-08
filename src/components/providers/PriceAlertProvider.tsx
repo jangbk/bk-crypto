@@ -34,10 +34,29 @@ export function PriceAlertProvider({ children }: { children: ReactNode }) {
       const dir = alert.direction === "above" ? "above" : "below";
       toast(
         "info",
-        `${alert.symbol.toUpperCase()} is $${currentPrice.toLocaleString()} (${dir} $${alert.targetPrice.toLocaleString()})`
+        `${alert.symbol.toUpperCase()} is $${currentPrice.toLocaleString()} (${dir} $${alert.targetPrice.toLocaleString()})`,
       );
+
+      // Backend 발송 — Telegram + Notion (fail-open, env 미설정 시 silently skip)
+      const assetName = assets.find(
+        (a) => a.symbol.toUpperCase() === alert.symbol.toUpperCase(),
+      )?.name;
+      fetch("/api/alert/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: alert.symbol,
+          currentPrice,
+          targetPrice: alert.targetPrice,
+          direction: alert.direction,
+          assetName,
+        }),
+        keepalive: true,
+      }).catch(() => {
+        /* 텔레그램·Notion 발송 실패는 toast 표시엔 영향 X */
+      });
     },
-    [toast]
+    [toast, assets],
   );
 
   const { alerts, activeCount, addAlert, removeAlert, toggleAlert } =
