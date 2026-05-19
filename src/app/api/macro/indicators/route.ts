@@ -147,8 +147,21 @@ const FRED_SERIES: Record<
     unit: "B$",
     frequency: "daily",
   },
-  // Note: Russell 2000 가격 지수는 FRED에 미등록 (RVXCLS 변동성만 존재).
-  // 가격 추가는 Yahoo Finance ^RUT 의존성 별도 PR로 추적.
+};
+
+// ---------------------------------------------------------------------------
+// Yahoo Finance series (FRED 미등록 지수용 — Russell 2000 등)
+// ---------------------------------------------------------------------------
+const YAHOO_SERIES: Record<
+  string,
+  { symbol: string; label: string; unit: string; frequency: string }
+> = {
+  russell2000: {
+    symbol: "^RUT",
+    label: "Russell 2000",
+    unit: "index",
+    frequency: "daily",
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -181,6 +194,57 @@ async function fetchFromFred(
         date: o.date,
         value: o.value,
       }));
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fetch from Yahoo Finance (FRED 미등록 지수용)
+// ---------------------------------------------------------------------------
+async function fetchFromYahoo(
+  symbol: string,
+): Promise<Array<{ date: string; value: string }> | null> {
+  try {
+    const url =
+      `https://query1.finance.yahoo.com/v8/finance/chart/` +
+      `${encodeURIComponent(symbol)}?interval=1d&range=5y`;
+
+    const res = await fetch(url, {
+      next: { revalidate: 3600 },
+      headers: {
+        // Yahoo Finance 가 기본 UA 차단 — 명시적 UA 필수
+        "User-Agent": "Mozilla/5.0 (compatible; bk-stock-macro/1.0)",
+      },
+    } as RequestInit);
+    if (!res.ok) return null;
+
+    const json = (await res.json()) as {
+      chart?: {
+        result?: Array<{
+          timestamp?: number[];
+          indicators?: { quote?: Array<{ close?: Array<number | null> }> };
+        }>;
+      };
+    };
+    const result = json.chart?.result?.[0];
+    const timestamps = result?.timestamp ?? [];
+    const closes = result?.indicators?.quote?.[0]?.close ?? [];
+
+    if (timestamps.length === 0 || closes.length === 0) return null;
+
+    return timestamps
+      .map((ts: number, i: number) => {
+        const close = closes[i];
+        if (close === null || close === undefined) return null;
+        return {
+          date: new Date(ts * 1000).toISOString().split("T")[0],
+          value: close.toFixed(2),
+        };
+      })
+      .filter(
+        (o): o is { date: string; value: string } => o !== null,
+      );
   } catch {
     return null;
   }
@@ -317,6 +381,7 @@ function generateGenericSample(
     cape: { base: 75000, volatility: 2000 },
     tga: { base: 700000, volatility: 150000 }, // millions $, recent ~838B
     rrp: { base: 500, volatility: 700 }, // billions $, range 0-2500B
+    russell2000: { base: 2400, volatility: 200 }, // index, recent ~2750, 52w 2011-2888
   };
 
   const preset = DEFAULTS[indicator] || { base: 100, volatility: 10 };
@@ -366,6 +431,54 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const indicator = searchParams.get("indicator") ?? "unemployment";
 
+  // ── 1. Yahoo Finance series (FRED 미등록 지수, e.g. Russell 2000) ──
+  const yahooCfg = YAHOO_SERIES[indicator];
+  if (yahooCfg) {
+    const liveData = await fetchFromYahoo(yahooCfg.symbol);
+    if (liveData && liveData.length > 0) {
+      return NextResponse.json(
+        {
+          source: "yahoo",
+          indicator,
+          label: yahooCfg.label,
+          unit: yahooCfg.unit,
+          frequency: yahooCfg.frequency,
+          seriesId: yahooCfg.symbol,
+          data: liveData,
+        },
+        {
+          headers: {
+            "Cache-Control":
+              "public, s-maxage=3600, stale-while-revalidate=7200",
+          },
+        },
+      );
+    }
+    // Yahoo fail → fallback sample (FRED 분기 통과 불가하므로 여기서 처리)
+    const sampleData = generateGenericSample(indicator, {
+      frequency: yahooCfg.frequency,
+      unit: yahooCfg.unit,
+    });
+    return NextResponse.json(
+      {
+        source: "sample",
+        indicator,
+        label: yahooCfg.label,
+        unit: yahooCfg.unit,
+        frequency: yahooCfg.frequency,
+        seriesId: yahooCfg.symbol,
+        data: sampleData,
+      },
+      {
+        headers: {
+          "Cache-Control":
+            "public, s-maxage=3600, stale-while-revalidate=7200",
+        },
+      },
+    );
+  }
+
+  // ── 2. FRED series ──
   const config = FRED_SERIES[indicator];
   if (!config) {
     return NextResponse.json(
