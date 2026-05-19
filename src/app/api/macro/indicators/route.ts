@@ -134,6 +134,21 @@ const FRED_SERIES: Record<
     unit: "$",
     frequency: "annual",
   },
+  // Liquidity group (added 2026-05-19) — Hermes Layer 4 거시 인벤토리
+  tga: {
+    seriesId: "WTREGEN",
+    label: "Treasury General Account (Weekly)",
+    unit: "M$",
+    frequency: "weekly",
+  },
+  rrp: {
+    seriesId: "RRPONTSYD",
+    label: "Overnight Reverse Repo (RRP)",
+    unit: "B$",
+    frequency: "daily",
+  },
+  // Note: Russell 2000 가격 지수는 FRED에 미등록 (RVXCLS 변동성만 존재).
+  // 가격 추가는 Yahoo Finance ^RUT 의존성 별도 PR로 추적.
 };
 
 // ---------------------------------------------------------------------------
@@ -300,6 +315,8 @@ function generateGenericSample(
     silverprice: { base: 28, volatility: 3 },
     oilprice: { base: 75, volatility: 8 },
     cape: { base: 75000, volatility: 2000 },
+    tga: { base: 700000, volatility: 150000 }, // millions $, recent ~838B
+    rrp: { base: 500, volatility: 700 }, // billions $, range 0-2500B
   };
 
   const preset = DEFAULTS[indicator] || { base: 100, volatility: 10 };
