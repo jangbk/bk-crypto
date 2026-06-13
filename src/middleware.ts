@@ -5,6 +5,14 @@ import { COOKIE_NAME, verifyToken } from "@/lib/auth";
 const PUBLIC_PATHS = [
   "/login",
   "/api/auth/",
+  // P1-2.5b member-auth: these routes self-guard (signup/login are public by
+  // nature; /api/me + /api/admin/ enforce verifySession/requireAdmin internally),
+  // so they must bypass the single-password page redirect. Page protection below
+  // (verifyToken) is unchanged.
+  "/api/signup",
+  "/api/login",
+  "/api/me",
+  "/api/admin/",
   "/_next",
   "/favicon.ico",
   "/bitcoin-coin.png",
