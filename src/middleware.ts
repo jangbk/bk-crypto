@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { COOKIE_NAME, verifyToken } from "@/lib/auth";
+import { SESSION_COOKIE, verifySession } from "@/lib/auth";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -42,10 +42,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(COOKIE_NAME)?.value;
+  // P1-3b: page protection now uses the member email-session (verifySession,
+  // Web Crypto / Edge-safe) instead of the single-password verifyToken.
+  // Cookie name is unchanged (SESSION_COOKIE === "bk-auth").
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
 
-  if (!token || !(await verifyToken(token))) {
-    const loginUrl = new URL("/login", request.url);
+  if (!token || !(await verifySession(token))) {
+    const loginUrl = new URL("/member-login", request.url);
     return NextResponse.redirect(loginUrl);
   }
 
