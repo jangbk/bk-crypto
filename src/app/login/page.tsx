@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import {
   BarChart3,
   LineChart,
@@ -226,6 +227,13 @@ export default function LoginPage() {
                     {loading ? "로그인 중..." : "로그인"}
                   </button>
                 </form>
+
+                <p className="mt-5 text-center text-sm text-white/40">
+                  회원이세요?{" "}
+                  <Link href="/member-login" className="text-blue-400 hover:text-blue-300 font-medium">
+                    회원 로그인 →
+                  </Link>
+                </p>
               </div>
             </div>
           </div>

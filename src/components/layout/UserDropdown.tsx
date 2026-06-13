@@ -9,18 +9,49 @@ import {
   Moon,
   Sun,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
+
+type Me = {
+  name?: string;
+  email: string;
+  role: "admin" | "member";
+};
 
 export function UserDropdown() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // undefined = loading, null = logged out, Me = logged in
+  const [user, setUser] = useState<Me | null | undefined>(undefined);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Resolve current session from the member-auth API (no more hardcoded user).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/me", { cache: "no-store" });
+        if (!alive) return;
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user ?? null);
+        } else {
+          setUser(null);
+        }
+      } catch {
+        if (alive) setUser(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Close on Escape
@@ -48,9 +79,38 @@ export function UserDropdown() {
   async function handleLogout() {
     setOpen(false);
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    setUser(null);
+    router.push("/member-login");
     router.refresh();
   }
+
+  // While loading, render nothing to avoid flashing the wrong state.
+  if (user === undefined) {
+    return <div className="h-7 w-7" aria-hidden="true" />;
+  }
+
+  // Logged out → entry links instead of the profile menu.
+  if (user === null) {
+    return (
+      <div className="flex items-center gap-2">
+        <Link
+          href="/member-login"
+          className="rounded-lg px-3 py-1.5 text-sm text-foreground hover:bg-muted transition-colors"
+        >
+          로그인
+        </Link>
+        <Link
+          href="/signup"
+          className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+        >
+          회원가입
+        </Link>
+      </div>
+    );
+  }
+
+  const initial = (user.name?.trim()?.[0] ?? "BK").toUpperCase();
+  const roleLabel = user.role === "admin" ? "관리자" : "회원";
 
   return (
     <div ref={ref} className="relative">
@@ -62,7 +122,7 @@ export function UserDropdown() {
         aria-haspopup="true"
       >
         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-          BK
+          {initial}
         </div>
       </button>
 
@@ -71,14 +131,16 @@ export function UserDropdown() {
           className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-card shadow-xl animate-fade-in"
           role="menu"
         >
-          {/* User info */}
+          {/* User info (session-based) */}
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-              BK
+              {initial}
             </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">BK Investment</p>
-              <p className="text-xs text-muted-foreground">관리자</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {user.name || user.email}
+              </p>
+              <p className="text-xs text-muted-foreground">{roleLabel}</p>
             </div>
           </div>
 
@@ -102,6 +164,17 @@ export function UserDropdown() {
               <Bot className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               봇 실적
             </Link>
+            {user.role === "admin" && (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                role="menuitem"
+              >
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                회원 관리
+              </Link>
+            )}
           </div>
 
           <div className="mx-3 border-t border-border" />

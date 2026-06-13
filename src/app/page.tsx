@@ -157,11 +157,18 @@ export default function Home() {
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/login"
+              href="/member-login"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow transition-all hover:bg-primary-light"
             >
               로그인
               <ChevronRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-foreground"
+            >
+              회원가입
+              <ArrowRight className="h-4 w-4" />
             </Link>
             <a
               href="https://bk-stock.vercel.app/"
