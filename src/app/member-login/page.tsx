@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function MemberLoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,8 +23,15 @@ export default function MemberLoginPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        router.push("/");
-        router.refresh();
+        // Seed the header's per-tab session cache so it paints the logged-in
+        // state immediately, then hard-navigate so the persistent header
+        // remounts with the new cookie (no manual refresh needed).
+        try {
+          sessionStorage.setItem("bkc_me", JSON.stringify(data.user ?? null));
+        } catch {
+          /* ignore */
+        }
+        window.location.assign("/");
         return;
       }
       // 403 = 승인 대기/거절 — 별도 톤으로 안내, 401 = 자격 불일치

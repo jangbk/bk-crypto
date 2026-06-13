@@ -19,6 +19,11 @@ type Me = {
   role: "admin" | "member";
 };
 
+// Per-tab cache of the last resolved session so the header paints the correct
+// state on first render instead of flashing the logged-out links while /api/me
+// is in flight. Written by login (member-login page) and by the revalidation below.
+const ME_CACHE_KEY = "bkc_me";
+
 export function UserDropdown() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -35,15 +40,29 @@ export function UserDropdown() {
   // Resolve current session from the member-auth API (no more hardcoded user).
   useEffect(() => {
     let alive = true;
+
+    // 1) Optimistic paint from the per-tab cache → no logged-out flash for
+    //    returning/just-logged-in users. Unknown (no cache) stays `undefined`
+    //    (renders nothing) until /api/me resolves.
+    try {
+      const cached = sessionStorage.getItem(ME_CACHE_KEY);
+      if (cached === "null") setUser(null);
+      else if (cached) setUser(JSON.parse(cached) as Me);
+    } catch {
+      /* ignore */
+    }
+
+    // 2) Revalidate against the server and refresh the cache.
     (async () => {
       try {
         const res = await fetch("/api/me", { cache: "no-store" });
         if (!alive) return;
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user ?? null);
-        } else {
-          setUser(null);
+        const next: Me | null = res.ok ? (await res.json()).user ?? null : null;
+        setUser(next);
+        try {
+          sessionStorage.setItem(ME_CACHE_KEY, next ? JSON.stringify(next) : "null");
+        } catch {
+          /* ignore */
         }
       } catch {
         if (alive) setUser(null);
@@ -79,6 +98,11 @@ export function UserDropdown() {
   async function handleLogout() {
     setOpen(false);
     await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      sessionStorage.setItem(ME_CACHE_KEY, "null");
+    } catch {
+      /* ignore */
+    }
     setUser(null);
     router.push("/member-login");
     router.refresh();
