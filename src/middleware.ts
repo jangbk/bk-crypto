@@ -13,6 +13,12 @@ const PUBLIC_PATHS = [
   "/api/login",
   "/api/me",
   "/api/admin/",
+  // P1-3a member-auth pages: signup/member-login are public by nature; /admin is
+  // a client shell whose data is guarded server-side by requireAdmin in
+  // /api/admin/*. Page protection (verifyToken) below is unchanged.
+  "/signup",
+  "/member-login",
+  "/admin",
   "/_next",
   "/favicon.ico",
   "/bitcoin-coin.png",
