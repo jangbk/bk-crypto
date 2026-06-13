@@ -1,7 +1,10 @@
 export const COOKIE_NAME = "bk-auth";
 export const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-const SECRET = "bk-investment-hmac-secret";
+const SECRET = process.env.AUTH_HMAC_SECRET;
+if (!SECRET) {
+  throw new Error("AUTH_HMAC_SECRET env가 설정되지 않음");
+}
 
 function getKey(): Promise<CryptoKey> {
   const enc = new TextEncoder();
