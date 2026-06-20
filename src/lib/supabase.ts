@@ -1,18 +1,19 @@
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { db, dbConfigured } from "./db";
 
-// Supabase REST helper for the bk-invest user pool (bk-crypto / bk-stock shared).
-// Uses service_role key — bypasses RLS. NEVER ship service_role to the client.
+// User-pool data access for the shared bk-invest users (bk-crypto / bk-stock).
 //
-// Schema lives in supabase/001_init.sql.
-// Ported from bk-nego-assistant (P1-1), with password hashing upgraded to bcrypt:
-//   password_hash = bcrypt.hash(password, 12)   (salt embedded — no password_salt column)
+// Migrated off Supabase REST to Neon Postgres (postgres.js) — free Supabase
+// projects auto-pause after 7 days of inactivity, which would take login down.
+// The exported function surface is unchanged so callers (API routes, admin-guard)
+// need no edits. The file/exports keep their historical "supabase" names.
 //
-// NOTE: imported only by Node-runtime API routes + admin-guard. NEVER import this
-// from Edge middleware (uses node:crypto + service_role). Middleware uses auth.ts only.
-
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+// Schema: a single `users` table (see supabase/001_init.sql). Service-role/RLS no
+// longer apply — we connect directly as the DB owner over a private connection.
+//
+// NOTE: imported only by Node-runtime API routes + admin-guard (uses node:crypto +
+// a privileged DB connection). NEVER import from Edge middleware — that uses auth.ts.
 
 const BCRYPT_ROUNDS = 12;
 
@@ -37,36 +38,9 @@ export type SupabaseUser = {
   last_login?: string | null;
 };
 
+// Kept for caller compatibility — now reports whether the Postgres URL is set.
 export function isSupabaseConfigured(): boolean {
-  return Boolean(URL && SERVICE_ROLE);
-}
-
-function headers(): Record<string, string> {
-  return {
-    apikey: SERVICE_ROLE,
-    Authorization: `Bearer ${SERVICE_ROLE}`,
-    "Content-Type": "application/json",
-    Prefer: "return=representation",
-  };
-}
-
-async function rest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (!isSupabaseConfigured()) {
-    throw new Error(
-      "Supabase not configured — set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
-    );
-  }
-  const res = await fetch(`${URL}/rest/v1/${path}`, {
-    ...init,
-    headers: { ...headers(), ...(init.headers as Record<string, string> | undefined) },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Supabase ${res.status}: ${text.slice(0, 200)}`);
-  }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  return dbConfigured();
 }
 
 // bcrypt: salt is embedded in the hash, so there is no separate salt column.
@@ -88,25 +62,15 @@ export function shortId(): string {
 }
 
 export async function findUserByEmail(email: string): Promise<SupabaseUser | null> {
-  const list = await rest<SupabaseUser[]>(
-    `users?email=eq.${encodeURIComponent(email)}&select=*&limit=1`
-  );
-  return list[0] ?? null;
+  const sql = db();
+  const rows = await sql<SupabaseUser[]>`select * from users where email = ${email} limit 1`;
+  return rows[0] ?? null;
 }
 
 export async function countUsers(): Promise<number> {
-  // Range header trick: ask for nothing, read total from Content-Range.
-  if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
-  const res = await fetch(`${URL}/rest/v1/users?select=id`, {
-    headers: { ...headers(), Prefer: "count=exact", Range: "0-0" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw new Error(`Supabase count ${res.status}`);
-  }
-  const range = res.headers.get("content-range") ?? "0-0/0";
-  const total = Number(range.split("/").pop() ?? "0");
-  return Number.isFinite(total) ? total : 0;
+  const sql = db();
+  const rows = await sql<{ n: number }[]>`select count(*)::int as n from users`;
+  return rows[0]?.n ?? 0;
 }
 
 export async function createUser(input: {
@@ -131,10 +95,8 @@ export async function createUser(input: {
     role: input.role ?? "member",
     status: input.status ?? "pending",
   };
-  const created = await rest<SupabaseUser[]>("users", {
-    method: "POST",
-    body: JSON.stringify(row),
-  });
+  const sql = db();
+  const created = await sql<SupabaseUser[]>`insert into users ${sql(row)} returning *`;
   return created[0];
 }
 
@@ -148,30 +110,29 @@ export async function updateUserStatus(
     patch.approved_by = approvedBy ?? null;
     patch.approved_at = new Date().toISOString();
   }
-  const list = await rest<SupabaseUser[]>(`users?id=eq.${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    body: JSON.stringify(patch),
-  });
-  return list[0] ?? null;
+  const sql = db();
+  const rows = await sql<SupabaseUser[]>`update users set ${sql(patch)} where id = ${id} returning *`;
+  return rows[0] ?? null;
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  await rest<unknown>(`users?id=eq.${encodeURIComponent(id)}`, { method: "DELETE" });
+  const sql = db();
+  await sql`delete from users where id = ${id}`;
 }
 
 export async function listUsers(filter?: { status?: UserStatus }): Promise<SupabaseUser[]> {
-  const where = filter?.status ? `status=eq.${filter.status}&` : "";
-  return rest<SupabaseUser[]>(
-    `users?${where}select=id,name,email,phone,department,role,status,tier,note,created_at,approved_by,approved_at,last_login&order=created_at.desc`
-  );
+  // Deliberately omits password_hash (admin listing must not expose hashes).
+  const sql = db();
+  const rows = filter?.status
+    ? await sql<SupabaseUser[]>`select id, name, email, phone, department, role, status, tier, note, created_at, approved_by, approved_at, last_login from users where status = ${filter.status} order by created_at desc`
+    : await sql<SupabaseUser[]>`select id, name, email, phone, department, role, status, tier, note, created_at, approved_by, approved_at, last_login from users order by created_at desc`;
+  return rows;
 }
 
 export async function touchLastLogin(userId: string): Promise<void> {
   try {
-    await rest<unknown>(`users?id=eq.${encodeURIComponent(userId)}`, {
-      method: "PATCH",
-      body: JSON.stringify({ last_login: new Date().toISOString() }),
-    });
+    const sql = db();
+    await sql`update users set last_login = ${new Date().toISOString()} where id = ${userId}`;
   } catch {
     // Non-fatal.
   }
