@@ -2,8 +2,7 @@ export const COOKIE_NAME = "bk-auth";
 export const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 // P1-1 member auth: the email-session token reuses the same cookie name so the
-// middleware (P1-3) only ever reads one cookie. Until cutover, the single-password
-// `verifyToken` path below still owns this cookie.
+// middleware (P1-3) only ever reads one cookie.
 export const SESSION_COOKIE = COOKIE_NAME;
 const SESSION_TTL_DAYS = 30;
 
@@ -23,26 +22,6 @@ function getKey(): Promise<CryptoKey> {
     false,
     ["sign", "verify"]
   );
-}
-
-function toHex(buf: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-export async function signToken(password: string): Promise<string> {
-  const key = await getKey();
-  const enc = new TextEncoder();
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(password));
-  return toHex(sig);
-}
-
-export async function verifyToken(token: string): Promise<boolean> {
-  const password = process.env.SITE_PASSWORD;
-  if (!password) return false;
-  const expected = await signToken(password);
-  return token === expected;
 }
 
 // ──────────────────────────────────────────────────────────────

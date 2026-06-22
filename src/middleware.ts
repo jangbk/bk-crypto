@@ -3,19 +3,17 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth";
 
 const PUBLIC_PATHS = [
-  "/login",
   "/api/auth/",
   // P1-2.5b member-auth: these routes self-guard (signup/login are public by
   // nature; /api/me + /api/admin/ enforce verifySession/requireAdmin internally),
-  // so they must bypass the single-password page redirect. Page protection below
-  // (verifyToken) is unchanged.
+  // so they must bypass the page redirect.
   "/api/signup",
   "/api/login",
   "/api/me",
   "/api/admin/",
   // P1-3a member-auth pages: signup/member-login are public by nature; /admin is
   // a client shell whose data is guarded server-side by requireAdmin in
-  // /api/admin/*. Page protection (verifyToken) below is unchanged.
+  // /api/admin/*.
   "/signup",
   "/member-login",
   "/admin",
@@ -42,9 +40,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // P1-3b: page protection now uses the member email-session (verifySession,
-  // Web Crypto / Edge-safe) instead of the single-password verifyToken.
-  // Cookie name is unchanged (SESSION_COOKIE === "bk-auth").
+  // P1-3b: page protection uses the member email-session (verifySession,
+  // Web Crypto / Edge-safe). Cookie name SESSION_COOKIE === "bk-auth".
   const token = request.cookies.get(SESSION_COOKIE)?.value;
 
   if (!token || !(await verifySession(token))) {
