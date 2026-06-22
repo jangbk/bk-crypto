@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-guard";
 
 const NOTION_API_URL = "https://api.notion.com/v1";
 
@@ -173,6 +174,9 @@ export async function GET() {
  * DELETE /api/notion/news-analyses?pageId=xxx
  */
 export async function DELETE(req: NextRequest) {
+  const guard = await requireAdmin(req);
+  if (guard instanceof NextResponse) return guard;
+
   const apiKey = process.env.NOTION_API_KEY?.trim();
   const pageId = req.nextUrl.searchParams.get("pageId");
 

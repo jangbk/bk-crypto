@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-guard";
 
 // Notion API proxy for saving video summaries
 // Docs: https://developers.notion.com/
@@ -29,7 +30,10 @@ interface SaveSummaryRequest {
   tags: string[];
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const guard = await requireAdmin(request);
+  if (guard instanceof NextResponse) return guard;
+
   const apiKey = process.env.NOTION_API_KEY?.trim();
   const databaseId = process.env.NOTION_DATABASE_ID?.trim();
 
