@@ -22,7 +22,7 @@ export interface AiOptions {
   jsonMode?: boolean;  // Gemini responseMimeType=application/json (JSON 출력 강제)
   // Gemini 모델 override. 기본 gemini-2.5-flash.
   geminiModel?: string;
-  // Gemma 모델 override. 기본 GEMMA_MODEL env 또는 gemma-3-12b-it-qat-4bit.
+  // Gemma 모델 override. 기본 GEMMA_MODEL env 또는 DEFAULT_GEMMA_MODEL.
   gemmaModel?: string;
   // Anthropic 폴백 시 사용할 모델. 기본 sonnet-4-5.
   anthropicModel?: string;
