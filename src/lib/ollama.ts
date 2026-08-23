@@ -7,7 +7,7 @@
  */
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:31b";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "qwen3-vl:30b-a3b-instruct";
 
 interface OllamaChatOptions {
   prompt: string;

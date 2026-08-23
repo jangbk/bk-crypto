@@ -9,7 +9,7 @@
  *   4. AI_NOT_CONFIGURED 에러
  *
  * 본업 trading-system shared/llm_client.py 와 동일한 폴백 패턴.
- * Gemma 는 mlx-community/gemma-3-12b-it-qat-4bit 권장 (4 26B 는 reasoning 빈응답 이슈).
+ * 로컬 모델은 Ollama qwen3-vl:30b-a3b-instruct (2026-08-23~).
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -41,7 +41,11 @@ export interface AiError extends Error {
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
 // Gemma 4 26B 는 reasoning 모드 빈응답 이슈로 본업 trading-system 도 3 12B 사용.
-const DEFAULT_GEMMA_MODEL = "mlx-community/gemma-3-12b-it-qat-4bit";
+// 로컬 LLM 단일화 (2026-08-23): MLX(:8338) gemma → Ollama(:11434) qwen3-vl.
+// 등록부: trading-system/docs/adr/LOCAL-LLM-REGISTRY.md
+// **instruct 변형이어야 한다.** thinking 계열은 reasoning 을 끌 수 없어
+// 짧은 max_tokens 에서 content 가 비어 나온다 (구 gemma-4-26b 와 같은 함정).
+const DEFAULT_GEMMA_MODEL = "qwen3-vl:30b-a3b-instruct";
 
 /**
  * 텍스트 생성. provider 자동 선택.
