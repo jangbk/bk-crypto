@@ -48,14 +48,27 @@ interface UsePriceAlertsOptions {
 }
 
 export function usePriceAlerts({ assets, onTrigger }: UsePriceAlertsOptions) {
-  const [alerts, setAlerts] = useState<readonly PriceAlert[]>(loadAlerts);
+  // SSR 은 항상 [] 로 렌더한다. useState 초기값으로 localStorage 를 읽으면
+  // 클라이언트 첫 렌더가 SSR 과 달라지고, Header 의 AlertBell 배지가
+  // (activeCount > 0 일 때만 그려지므로) DOM 불일치를 만들어 저장된 알림이
+  // 하나라도 있는 사용자는 모든 경로에서 React #418 을 맞는다.
+  // 복원은 마운트 이후로 미룬다 — I18nProvider 가 쓰는 방식과 같다.
+  const [alerts, setAlerts] = useState<readonly PriceAlert[]>([]);
+  const [restored, setRestored] = useState(false);
   const onTriggerRef = useRef(onTrigger);
   onTriggerRef.current = onTrigger;
 
-  // Persist whenever alerts change
   useEffect(() => {
+    setAlerts(loadAlerts());
+    setRestored(true);
+  }, []);
+
+  // Persist whenever alerts change.
+  // 복원 전에는 쓰지 않는다 — 초기 [] 가 저장분을 덮어써 알림이 사라진다.
+  useEffect(() => {
+    if (!restored) return;
     persistAlerts(alerts);
-  }, [alerts]);
+  }, [alerts, restored]);
 
   // Check alerts against current prices
   useEffect(() => {
