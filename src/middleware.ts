@@ -23,6 +23,9 @@ const PUBLIC_PATHS = [
   "/icon.svg",
   "/manifest.webmanifest",
   "/sw.js",
+  // SW offline fallback. 인증 리다이렉트를 타면 SW 가 /member-login HTML 을
+  // offline shell 로 캐시해 v1 과 같은 결함이 재현된다.
+  "/offline.html",
 ];
 
 // '/' 는 정확 매칭으로 public (landing page)
