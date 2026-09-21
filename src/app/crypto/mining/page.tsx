@@ -39,6 +39,7 @@ import { HashRibbonCorrelation } from "@/components/mining/HashRibbonCorrelation
 import { MiningCostAnalysis } from "@/components/mining/MiningCostAnalysis";
 import { InvestmentGuide } from "@/components/mining/InvestmentGuide";
 import { QueryErrorBox } from "@/components/ui/QueryErrorBox";
+import { showBrowserNotification } from "@/lib/notifications";
 
 // ---------------------------------------------------------------------------
 // Sample Metrics (contains JSX icons, must stay in component file)
@@ -148,12 +149,12 @@ export default function MiningDashboardPage() {
 
   // Send notification when new buy signal detected
   const sendBuySignalNotification = useCallback((signalDate: string, hashrate: number) => {
-    if (!notifyEnabled || typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    new Notification("🟢 Hash Ribbon BUY SIGNAL", {
-      body: `${signalDate} — 해시레이트 ${hashrate} EH/s\n30일 MA가 60일 MA를 상향 돌파했습니다.\n역사적으로 평균 +266% 수익률을 기록한 매수 신호입니다.`,
-      icon: "/favicon.ico",
-      tag: `buy-signal-${signalDate}`,
-    });
+    if (!notifyEnabled) return;
+    showBrowserNotification(
+      "🟢 Hash Ribbon BUY SIGNAL",
+      `${signalDate} — 해시레이트 ${hashrate} EH/s\n30일 MA가 60일 MA를 상향 돌파했습니다.\n역사적으로 평균 +266% 수익률을 기록한 매수 신호입니다.`,
+      { tag: `buy-signal-${signalDate}` },
+    );
   }, [notifyEnabled]);
 
   const { data: json, error, dataUpdatedAt, refetch } = useQuery<MiningApiResponse>({

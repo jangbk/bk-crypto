@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { CryptoAsset } from "@/lib/types";
+import {
+  requestNotificationPermission,
+  showBrowserNotification,
+} from "@/lib/notifications";
 
 export type AlertDirection = "above" | "below";
 
@@ -36,21 +40,6 @@ function persistAlerts(alerts: readonly PriceAlert[]): void {
   } catch {
     // Storage full or unavailable — silently skip
   }
-}
-
-function requestNotificationPermission(): void {
-  if (typeof window === "undefined") return;
-  if (!("Notification" in window)) return;
-  if (Notification.permission === "default") {
-    Notification.requestPermission();
-  }
-}
-
-function showBrowserNotification(title: string, body: string): void {
-  if (typeof window === "undefined") return;
-  if (!("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
-  new Notification(title, { body, icon: "/favicon.ico" });
 }
 
 interface UsePriceAlertsOptions {
